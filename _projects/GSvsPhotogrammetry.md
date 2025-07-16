@@ -11,7 +11,7 @@ bibtex_key: GSvsPhotogrammetry
 ---
 
 
-## Videos Used in A-B Comparison
+## Videos Used in 2AFC Task
 
 <table class="video-comparison">
   <thead>
@@ -68,7 +68,7 @@ bibtex_key: GSvsPhotogrammetry
   </tbody>
 </table>
 
-## 3D Models Used in A-B Comparison
+## 3D Models Used in 2AFC Task
 
 *Note: The 3D models will be available for download soon.*
 
