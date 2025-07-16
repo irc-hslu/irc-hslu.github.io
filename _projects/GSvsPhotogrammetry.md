@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: publication
 title: Gaussian Splatting vs. Classical Photogrammetry
 description: A comparison of Gaussian Splatting and classical photogrammetry for creating virtual backdrops.
 img: assets/img/peterskapelle_comp.png
@@ -7,6 +7,7 @@ importance: 1
 category: photogrammetry
 related_publications: true
 permalink: /GSvsPhotogrammetry/
+bibtex_key: GSvsPhotogrammetry
 ---
 
 
@@ -66,7 +67,6 @@ permalink: /GSvsPhotogrammetry/
     </tr>
   </tbody>
 </table>
-
 
 ## 3D Models Used in A-B Comparison
 

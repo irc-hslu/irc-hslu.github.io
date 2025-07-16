@@ -17,6 +17,7 @@ body {
   }
 }
 
+
 body.fixed-top-nav {
   // Add some padding for the nav-bar.
   padding-top: 56px;
@@ -78,4 +79,13 @@ table.video-comparison {
     font-size: 0.85rem;
     padding: 0.4rem;
   }
+}
+
+.author-info sup {
+  font-size: 3em;
+  vertical-align: super;
+}
+.author-info a {
+  color: #1a73e8;
+  text-decoration: none;
 }
