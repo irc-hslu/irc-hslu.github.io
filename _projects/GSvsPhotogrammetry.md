@@ -8,6 +8,7 @@ category: photogrammetry
 related_publications: true
 permalink: /GSvsPhotogrammetry/
 bibtex_key: GSvsPhotogrammetry
+teaser_image: assets/img/peterskapelle_comp.png
 ---
 
 

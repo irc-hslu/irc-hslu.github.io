@@ -25,8 +25,10 @@ latest_posts:
   enabled: false
   scrollable: true # adds a vertical scroll bar if there are more than 3 new posts items
   limit: 3 # leave blank to include all the blog posts
+
+teaser_image: assets/img/ForschungsschwerpunktAdvanced-interactionTec-scaled-e1697785105247.jpg
 ---
 
 We are the Immersive Realities Center (IRC) at Lucerne University of Applied Sciences and Arts (HSLU) in Switzerland. We focus on research in immersive realities, including virtual reality (VR), augmented reality (AR), and mixed reality (MR). Our work spans various applications, from education to industry, aiming to push the boundaries of how immersive technologies can enhance human experiences.
 
-On this website you can find selected publications - if you are looking for more information find us on our regular [website](https://sites.hslu.ch/immersive-realities/en/).
+On this website you can find selected publications - if you are looking for more information, find us on our regular [website](https://sites.hslu.ch/immersive-realities/en/).
