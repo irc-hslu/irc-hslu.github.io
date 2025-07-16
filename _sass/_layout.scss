@@ -51,3 +51,31 @@ body.sticky-bottom-footer {
 *****************************************************************************/
 
 // TODO: redefine projects layout.
+
+table.video-comparison {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 2rem;
+}
+
+.video-comparison th,
+.video-comparison td {
+  padding: 0.5rem;
+  text-align: center;
+  vertical-align: top;
+}
+
+.video-comparison iframe {
+  width: 100%;
+  height: 200px;
+}
+
+@media (max-width: 768px) {
+  .video-comparison iframe {
+    height: 150px;
+  }
+  .video-comparison th, .video-comparison td {
+    font-size: 0.85rem;
+    padding: 0.4rem;
+  }
+}
