@@ -1,6 +1,8 @@
 ---
 layout: default
 ---
+
+<div class="custom-single">
 <div class="author text-center">
   {% for author in entry.author_array %}
     {% assign last_name = author.last | regex_replace: '([*∗†‡§¶‖&^0-9]+)', '<sup>\1</sup>' %}
@@ -36,9 +38,6 @@ layout: default
     <a class="award btn btn-sm z-depth-0" role="button">
         {%- if entry.award_name %}{{ entry.award_name }}{% else %}Awarded{% endif -%}
     </a>
-    {% endif %}
-    {% if entry.abstract %}
-    <a class="abstract btn btn-sm z-depth-0" role="button">Abs</a>
     {% endif %}
     {% if entry.doi %}
     <a href="https://doi.org/{{ entry.doi }}" class="btn btn-sm z-depth-0" role="button">DOI</a>
@@ -186,7 +185,7 @@ layout: default
 
 {% if entry.abstract %}
     <!-- Hidden abstract block -->
-    <div class="abstract hidden">
+    <div class="abstract">
     <p>{{ entry.abstract }}</p>
     </div>
 {% endif %}
@@ -199,3 +198,5 @@ layout: default
     {% endhighlight %}
     </div>
 {% endif %}
+
+</div>
