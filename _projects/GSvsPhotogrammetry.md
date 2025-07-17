@@ -73,4 +73,4 @@ teaser_image: assets/img/peterskapelle_comp.png
 
 ## Raw Capture Data
 
-*Note: The raw capture data will be available for download soon.*
+The dataset is available for download from [Hugging Face](huggingface.co/datasets/irc-hslu/GSvsPhotogrammetry).
