@@ -71,6 +71,10 @@ teaser_image: assets/img/peterskapelle_comp.png
 
 *Note: The 3D models will be available for download soon.*
 
+Will be available under the DOI [10.5281/zenodo.17143763](https://doi.org/10.5281/zenodo.17143763).
+
 ## Raw Capture Data
 
 The dataset is available for download from [Hugging Face](https://huggingface.co/datasets/irc-hslu/GSvsPhotogrammetry).
+
+The images only will be available under the DOI [10.5281/zenodo.17185795](https://doi.org/10.5281/zenodo.17185795).
