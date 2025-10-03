@@ -10,11 +10,9 @@ contact_note: >
   Feel free to reach out to us.
 description: > # the ">" symbol means to ignore newlines until "footer_text:"
   Immersive realities focused research at Lucerne University of Applied Sciences and Arts (HSLU).
-footer_text: >
-  Powered by <a href="https://jekyllrb.com/" target="_blank">Jekyll</a> with <a href="https://github.com/alshedivat/al-folio">al-folio</a> theme.
-  Hosted by <a href="https://pages.github.com/" target="_blank">GitHub Pages</a>.
-  Photos from <a href="https://unsplash.com" target="_blank">Unsplash</a>.
-keywords: jekyll, jekyll-theme, academic-website, portfolio-website # add your own keywords or leave empty
+footer_text: > # the text that will be shown in the footer of your site (can contain HTML)
+  2025 Immersive Realities Center, HSLU. All rights reserved.
+keywords: immersive-reality, virtual-reality, augmented-reality, mixed-reality, photogrammetry, 3D-reconstruction, 3D-capture, virtual-production, real-time-rendering # a list of keywords for search engines (separated by commas)
 lang: en # the language of your site (for example: en, fr, cn, ru, etc.)
 icon: 🥽 # icon.png # the emoji used as the favicon (alternatively, provide image name in /assets/img/)
 
