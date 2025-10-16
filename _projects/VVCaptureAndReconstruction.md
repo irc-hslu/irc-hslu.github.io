@@ -6,7 +6,7 @@ img: assets/img/cvmp2025_teaser.png
 importance: 1
 category: volumetric video
 related_publications: true
-permalink: /VVCapture&Reconstruction/
+permalink: /VVCaptureAndReconstruction/
 bibtex_key: charisoudis2025vv
 teaser_image: assets/img/cvmp2025_teaser.png
 ---
