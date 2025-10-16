@@ -32,7 +32,7 @@ ninja.data = [{
           title: 'A Fast Volumetric Capture and Reconstruction Pipeline for Dynamic Point Clouds and Gaussian...',
           description: "A volumetric video capture and reconstruction system.",
           section: "Projects",handler: () => {
-              window.location.href = "/VVCapture&Reconstruction/";
+              window.location.href = "/VVCaptureAndReconstruction/";
             },},{
         id: 'social-email',
         title: 'email',
