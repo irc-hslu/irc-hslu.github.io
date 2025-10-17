@@ -18,7 +18,7 @@ teaser_image: assets/img/cvmp2025_teaser.png
 
 ### Images
 
-#### Comparison between point cloud data (PCD) and Gaussian splats (GS)
++ Comparison between point cloud data (PCD) and Gaussian splats (GS)
 
 <img src="../assets/img/cvmp2025_reconstructions.png" alt="reconstructions" style="max-width:100%; height:auto;">
 
