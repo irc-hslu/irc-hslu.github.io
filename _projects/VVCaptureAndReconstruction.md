@@ -12,13 +12,13 @@ teaser_image: assets/img/cvmp2025_teaser.png
 ---
 ## Method
 
-![pipeline](../assets/img/cvmp2025_pipeline.png)
+<img src="../assets/img/cvmp2025_pipeline.png" alt="pipeline" style="max-width:100%; height:auto;">
 
 ## Results
 
 ### Images
 
-![reconstructions](../assets/img/cvmp2025_reconstructions.png)
+<img src="../assets/img/cvmp2025_reconstructions.png" alt="reconstructions" style="max-width:100%; height:auto;">
 
 ### Videos
 
