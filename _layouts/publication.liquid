@@ -1,3 +1,4 @@
+
 ---
 layout: default
 ---
@@ -14,11 +15,10 @@ layout: default
       <img class="teaser-image" src="{{ page.teaser_image | relative_url }}" alt="Teaser image for {{ page.title }}">
     {% endif %}
     <h1 class="post-title">{{ page.title }}</h1>
-    {% comment %}<p class="post-description">{{ page.description }}</p>{% endcomment %}
+    <p class="post-description">{{ page.description }}</p>
   </header>
 
-  {% comment %}{% bibliography --query @*[key={{page.bibtex_key}}] -T custom_single %}{% endcomment %}
-  {% bibliography --query @*[key={{page.bibtex_key}}] -T custom_single --bibliography_list_tag="" --bibliography_item_tag="" %}
+  {% bibliography --query @*[key={{page.bibtex_key}}] -T custom_single %}
 
   <article>
     {{ content }}
