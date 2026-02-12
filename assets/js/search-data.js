@@ -28,6 +28,11 @@ ninja.data = [{
           description: "A comparison of Gaussian Splatting and classical photogrammetry for creating virtual backdrops.",
           section: "Projects",handler: () => {
               window.location.href = "/GSvsPhotogrammetry/";
+            },},{id: "projects-evaluations-of-dynamic-gaussian-splats-versus-point-clouds-for-sparse-captures",
+          title: 'Evaluations of Dynamic Gaussian Splats versus Point Clouds for Sparse Captures',
+          description: "A subjective quality assessment of dynamic Gaussian splats and point clouds for sparse captures.",
+          section: "Projects",handler: () => {
+              window.location.href = "/SubjectiveQualityAssessment/";
             },},{id: "projects-a-fast-volumetric-capture-and-reconstruction-pipeline-for-dynamic-point-clouds-and-gaussian-splats",
           title: 'A Fast Volumetric Capture and Reconstruction Pipeline for Dynamic Point Clouds and Gaussian...',
           description: "A volumetric video capture and reconstruction system.",
