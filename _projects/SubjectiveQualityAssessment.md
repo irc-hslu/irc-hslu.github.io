@@ -12,6 +12,6 @@ bibtex_key: cvmp2025
 Work in progress.
 
 ## Subjective Quality Assessment Website
-<iframe src="https://hslu-quality-survey.streamlit.app/~/+/" width="100%" height="100vh" frameborder="0" allowfullscreen></iframe>
+<iframe src="https://hslu-quality-survey.streamlit.app/~/+/" width="100%" height="600px" frameborder="0" allowfullscreen></iframe>
 
 
