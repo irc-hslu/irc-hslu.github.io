@@ -12,7 +12,7 @@ bibtex_key: cvmp2025
 Work in progress.
 
 ### Supplementary Material
-[Supplementary Material PDF here](assets/pdf/EUSIPCO_supplementary.pdf)
+[Supplementary Material PDF here](https://irc-hslu.github.io/assets/pdf/EUSIPCO_supplementary.pdf)
 
 ### Subjective Quality Assessment Website
 The survey data collection period is now closed. Thank you for your participation. You may still view the survey at the link below.
