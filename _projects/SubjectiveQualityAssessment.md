@@ -11,7 +11,10 @@ bibtex_key: cvmp2025
 ---
 Work in progress.
 
-## Subjective Quality Assessment Website
-<iframe src="https://hslu-quality-survey.streamlit.app/~/+/" width="100%" height="600px" frameborder="0" allowfullscreen></iframe>
+### Supplementary Material
+[Supplementary Material PDF here](assets/pdf/EUSIPCO_supplementary.pdf)
 
+### Subjective Quality Assessment Website
+The survey data collection period is now closed. Thank you for your participation. You may still view the survey at the link below.
+[https://hslu-quality-survey.streamlit.app/~/+/]( https://hslu-quality-survey.streamlit.app/~/+/)
 
