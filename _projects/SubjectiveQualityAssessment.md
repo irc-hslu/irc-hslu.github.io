@@ -15,11 +15,11 @@ Work in progress.
 [Supplementary Material PDF here](https://irc-hslu.github.io/assets/pdf/EUSIPCO_supplementary.pdf)
 
 ### Subjective Quality Assessment Website
-The survey data collection period is now closed. Thank you for your participation. You may still view the survey at the link below.
+The survey is now closed, but you may still view the survey at the link below.
 [https://hslu-quality-survey.streamlit.app/~/+/]( https://hslu-quality-survey.streamlit.app/~/+/)
 
 ### Gaussian Splat vs Point Cloud Stimuli
-Here we present the stimuli with Gaussian splat and point cloud reconstructions on the left and right, respectively. In the experiment, we also used stimuli with the reversed order of the reconstructions
+Here we present the stimuli with Gaussian splat and point cloud reconstructions on the left and right, respectively. In the experiment, we also used stimuli with the reversed order of the reconstructions.
 
 Den 
  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/BK5i2WWlAyqgN6e/download" > </video>
