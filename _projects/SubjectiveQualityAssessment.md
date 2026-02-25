@@ -19,7 +19,7 @@ The survey is now closed, but you may still view it at the following link (data 
 [https://hslu-quality-survey.streamlit.app/~/+/]( https://hslu-quality-survey.streamlit.app/~/+/)
 
 ### Gaussian Splat vs Point Cloud Stimuli
-Here we present the survey stimuli with Gaussian splat and point cloud reconstructions shown on the left and right, respectively. In the experiment, we also used stimuli with the reconstructions in the reverse order.
+Here we present the survey stimuli with Gaussian splat and point cloud reconstructions shown on the left and right, respectively, along with the names of the captures used to generate the reconstructions. In the experiment, we also used the same stimuli with the reconstruction order reversed.
 
 Den 
  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/BK5i2WWlAyqgN6e/download" > </video>
