@@ -21,20 +21,20 @@ The survey is now closed, but you may still view it at the following link (data 
 ### Gaussian Splat vs Point Cloud Stimuli
 Here we present the survey stimuli with Gaussian splat and point cloud reconstructions shown on the left and right, respectively, along with the names of the captures used to generate the reconstructions. In the experiment, we also used the same stimuli with the reconstruction order reversed.
 
-Den 
+<p style="margin-top: 1rem;  margin-bottom: 0rem;">Den </p>
  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/BK5i2WWlAyqgN6e/download" > </video>
 
-Nathalie
+<p style="margin-top: 1rem;  margin-bottom: 0rem;">Nathalie</p>
   <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/2aLNTwCSA7hxJoF/download" > </video>
 
-Philipp I
+<p style="margin-top: 1rem;  margin-bottom: 0rem;">Philipp I</p>
   <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/mo1sZyDaZX5Oc5m/download" > </video>
 
-Philipp II
+<p style="margin-top: 1rem;  margin-bottom: 0rem;">Philipp II</p>
   <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/3Eep8QOUbxoCb9Y/download" > </video>
 
-Simone
+<p style="margin-top: 1rem;  margin-bottom: 0rem;">Simone</p>
   <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/H6ERCoS2hRrUCNp/download" > </video>
 
-Thanos 
+<p style="margin-top: 1rem;  margin-bottom: 0rem;">Thanos</p> 
   <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/Iay1Wi9JfEEJkhy/download" > </video>
