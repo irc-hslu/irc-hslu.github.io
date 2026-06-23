@@ -28,11 +28,26 @@ ninja.data = [{
           description: "A comparison of Gaussian Splatting and classical photogrammetry for creating virtual backdrops.",
           section: "Projects",handler: () => {
               window.location.href = "/GSvsPhotogrammetry/";
+            },},{id: "projects-impact-of-threshold-relative-curvature-gains-on-cognitive-cost-a-pilot-study",
+          title: 'Impact of Threshold-Relative Curvature Gains on Cognitive Cost: A Pilot Study',
+          description: "We conducted a pilot study comparing a no-redirection baseline against three redirected-walking conditions calibrated relative to participants&#39; detection thresholds, to examine how the noticeability of redirection affects performance on a concurrent memory task.",
+          section: "Projects",handler: () => {
+              window.location.href = "/RedirectedWalking/";
+            },},{id: "projects-auditory-presentation-of-stimuli-for-cognitive-load-dual-tasks-in-redirected-walking",
+          title: 'Auditory Presentation of Stimuli for Cognitive Load Dual Tasks in Redirected Walking',
+          description: "We presented an analysis of existing research on working memory (WM) tasks in Redirected Walking (RDW) to examine the feasibility of auditory stimulus presentation as an alternative to traditional visual displays prone to issues in richer virtual environments.",
+          section: "Projects",handler: () => {
+              window.location.href = "/RedirectedWalkingAuditory/";
             },},{id: "projects-evaluations-of-dynamic-gaussian-splats-versus-point-clouds-for-sparse-captures",
           title: 'Evaluations of Dynamic Gaussian Splats versus Point Clouds for Sparse Captures',
           description: "A subjective quality assessment of dynamic Gaussian splats and point clouds for sparse captures.",
           section: "Projects",handler: () => {
               window.location.href = "/SubjectiveQualityAssessment/";
+            },},{id: "projects-involving-users-in-research-projects",
+          title: 'Involving Users in Research Projects',
+          description: "An integral part of our work consists of testing with users. We developed a guide on how the UX team can best support a variety of projects internally and externally.",
+          section: "Projects",handler: () => {
+              window.location.href = "/UXGuidelines/";
             },},{id: "projects-a-fast-volumetric-capture-and-reconstruction-pipeline-for-dynamic-point-clouds-and-gaussian-splats",
           title: 'A Fast Volumetric Capture and Reconstruction Pipeline for Dynamic Point Clouds and Gaussian...',
           description: "A volumetric video capture and reconstruction system.",
