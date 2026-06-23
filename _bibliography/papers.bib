@@ -1,17 +1,25 @@
 ---
 ---
 @unpublished{charisoudis2025vv,
-  abbr={CVMP 2025 - Preprint},
+  abbr={CVMP 2025},
   title={A Fast Volumetric Capture and Reconstruction Pipeline for Dynamic Point Clouds and Gaussian Splats},
   author={Charisoudis, Athanasios and Croci, Simone and Lam, Kit Yung and Frossard, Pascal and Smolic, Aljosa},
-  abstract={We present a fast and efficient volumetric capture and reconstruction system that processes either RGB-D or RGB-only input to generate 3D representations in the form of point clouds and Gaussian splats. For Gaussian splat reconstructions, we took the GPS-Gaussian regressor and improved it, enabling high-quality reconstructions with minimal overhead. The system is designed for easy setup and deployment, supporting in-the-wild operation under uncontrolled illumination and arbitrary backgrounds, as well as flexible camera configurations, including sparse setups,  arbitrary camera numbers and baselines. Captured data can be exported in standard formats such as PLY, MPEG V-PCC, and SPLAT, and visualized through a web-based viewer or Unity/Unreal plugins. A live on-location preview of both input and reconstruction is available at 5–10 FPS. We present qualitative findings focused on deployability and targeted ablations. The complete framework is open-source, facilitating reproducibility and further research.},
-  numpages={11},
+  abstract = {We present a fast and efficient volumetric capture and reconstruction system that processes either RGB-D or RGB-only input to generate 3D representations in the form of point clouds and Gaussian splats. For Gaussian splat reconstructions, we took the GPS-Gaussian regressor and improved it, enabling high-quality reconstructions with minimal overhead. The system is designed for easy setup and deployment, supporting in-the-wild operation under uncontrolled illumination and arbitrary backgrounds, as well as flexible camera configurations, including sparse setups, arbitrary camera numbers and baselines. Captured data can be exported in standard formats such as PLY, MPEG V-PCC, and SPLAT, and visualized through a web-based viewer or Unity/Unreal plugins. A live on-location preview of both input and reconstruction is available at 5–10 FPS. We present qualitative findings focused on deployability and targeted ablations. The complete framework is open-source, facilitating reproducibility and further research.},
+  booktitle = {Proceedings of the 22nd ACM SIGGRAPH European Conference on Visual Media Production},
+  articleno = {9},
+  numpages = {11},
+  keywords = {Volumetric video capture, point clouds, Gaussian splats, dynamic reconstruction},  numpages={11},
   year={2025},
   month={December},
+  isbn = {9798400721175},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3756863.3769713},
+  doi = {10.1145/3756863.3769713},
   preview={cvmp2025-icon.jpg},
   html={https://irc-hslu.github.io/capturestudio},
   pdf={A_Fast_Volumetric_Capture_and_Reconstruction_Pipeline_for_Dynamic_Point_Clouds_and_Gaussian_Splats___CVMP_2025.pdf},
-  dimensions={true},
+  
   additional_info={*More Information* can be [found here](https://irc-hslu.github.io/capturestudio).},
   selected={true},
   email={athanasios.charisoudis@hslu.ch; simone.croci@hslu.ch}
@@ -36,10 +44,11 @@
   keywords = {},
   html = {https://sites.hslu.ch/immersive-realities/en/deus-in-machina-ai-jesus-english/},
   pdf={Deus_in_Machina_Artech_Art_Paper-Preprint.pdf},
+  
 }
 
 @unpublished{GSvsPhotogrammetry,
-  abbr={QOMEX 2025 - Preprint},
+  abbr={QOMEX 2025},
   title={Gaussian Splatting vs. Classical Photogrammetry: A Comparison for Virtual Backdrops},
   author={Haslbauer, Philipp and Pullen, Mike and Reichherzer, Carolin and Smolic, Aljosa},
   abstract={This paper describes and evaluates three end-to-end workflows from capture to reconstruction including photogrammetry, 3D Gaussian splatting (GS), and extraction of textured meshes from splats with the explicit aim of individuals unfamiliar with 3D reconstruction creating backdrops for virtual production with a central presenter by using a smartphone as capture device. We show that GS significantly outperforms the alternatives in our experiments.},
@@ -49,7 +58,7 @@
   preview={gsvsph.webp},
   html={https://irc-hslu.github.io/GSvsPhotogrammetry/},
   pdf={Qomex_2025_IRRL_Shortpaper.pdf},
-  dimensions={true},
+  
   additional_info={. *More Information* can be [found here](https://irc-hslu.github.io/GSvsPhotogrammetry/).},
   selected={true},
   doi={10.1109/QoMEX65720.2025.11219987}
@@ -62,6 +71,7 @@
   abstract={Volumetric Video (VV) lets viewers interact with realistic virtual 3D scenes in real-time. It enhances the quality and realism of video broadcasting and conferencing, delivering a vivid and immersive 3D experience. Holographic communication, concert and VR experiences benefit from it. VV data is often recorded as point clouds or meshes with shape and texture data. This leads to a substantial volume of data that requires efficient compression and streaming. Nevertheless, there is a lack of a universally accepted standards for VV file formats, resulting in many organizations implementing their own individualized approaches. Hence, we suggest VVglTF, a specific extension that supports the glTF file format and ensures VV compatibility. The open-source 3D content file format glTF is optimized for the Internet. We utilize glTF's rendering workflow to play VV of any duration or file size efficiently. Custom extensions in glTF expand the functionality of the glTF model format and offer customization of VV playback. We also developed a simple and efficient VVglTF streaming system based on HTTP Live Streaming technology for video texturing. It is designed to efficiently play VV content across different network conditions by adjusting the frame rate and number of frames per glTF file. In our experiments we validate the efficiency of our approach.},
   booktitle={IBC 2024 Conference Proceedings},
   year={2024},
+  
   bibtex_show={true},
   doi={10.5594/JMI.2025/GLNG7938},
 }
@@ -79,6 +89,7 @@
   month={January},
   doi={10.5594/JMI.2025/GLNG7938},
   bibtex_show={true},
+  
 }
 
 @inproceedings{nguyen2024volumetric,
@@ -93,7 +104,7 @@
   doi={https://doi.org/10.1145/3641825.3689695},
   year={2024},
   bibtex_show={true},
-
+  
 }
 
 @article{nguyenaffordable,
@@ -124,6 +135,7 @@
   pdf={https://sol.sbc.org.br/index.php/imxw/article/view/35226/35016},
   html={https://sites.hslu.ch/immersive-realities/the-planica-experience/},
   bibtex_show={true},
+  
 }
 
 
@@ -143,5 +155,46 @@
   doi = {10.5753/imxw.2025.4030},
   url = {https://sol.sbc.org.br/index.php/imxw/article/view/35218},
   bibtex_show={true},
+  
 }
 
+
+@inproceedings{reichherzer2026impact,
+  abbr={CHI 2026},
+  preview={rdw_small.png},
+  author = {Reichherzer, Carolin and Meyer, Michelle and Nguyen, Anh and Zank, Markus},
+  title = {Impact of Threshold-Relative Curvature Gains on Cognitive Cost: A Pilot Study},
+  year = {2026},
+  isbn = {9798400722813},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  url = {https://doi.org/10.1145/3772363.3798536},
+  doi = {10.1145/3772363.3798536},
+  abstract = {Redirected Walking provides a potential approach to enable natural walking in virtual environments in limited spaces, but it may introduce additional cognitive demands. While redirection is intended to remain imperceptible, detection thresholds vary between individuals, and it is unclear how noticeability at these different levels affects cognitive task performance. In this paper, we present a pilot study where we first establish a group-level psychometric curve to extract the detection threshold for curvature gains. We then follow up with a dual task where participants navigated a virtual labyrinth while performing a memory task with gains applied on threshold, above threshold, below threshold, and with no redirection. We found that accuracy significantly decreased and the false alarm rate significantly increased in the under threshold condition compared to baseline. We discuss the implications of these findings and directions for future work.},
+  booktitle = {Proceedings of the Extended Abstracts of the 2026 CHI Conference on Human Factors in Computing Systems},
+  articleno = {393},
+  numpages = {6},
+  keywords = {Redirected Walking, Virtual Reality, Cognitive Performance, Detection Thresholds},
+  pdf={CurvatureGainsCognitiveCost.pdf},
+  series = {CHI EA '26},
+  bibtex_show={true},
+  html={https://irc-hslu.github.io/RedirectedWalking/},
+  
+}
+
+@inproceedings{meyer22auditory,
+  abbr={EuroXR 2025},
+  preview={rdw_euroxr_small.png},
+  title={Auditory Presentation of Stimuli for Cognitive Load Dual Tasks in Redirected Walking},
+  author={Meyer, Michelle and Reichherzer, Carolin and Zank, Markus},
+  booktitle={Virtual Reality and Mixed Reality: 22nd EuroXR International Conference, EuroXR 2025, Winterthur, Switzerland, September 3--5, 2025, Proceedings},
+  numpages = {4},
+  month = {September},
+  year={2025},
+  pdf={RDW_EuroXR.pdf},
+  publisher={Springer Nature},
+  bibtex_show={true},
+  abstract={As more studies on redirected walking (RDW) in virtual reality (VR) arise, the importance of measuring its impact on cognitive load increases. An examination of existing publications reveals that the stimulus for the cognitive task was always displayed visually. Those existing implementations are prone to issues if used in richer virtual environments (VE) than studies until now used. Instead, an auditory presentation is proposed. We present an analysis of existing research on working memory tasks in RDW, indicating the feasibility of auditory presentation for verbal working memory paradigms.},
+  html={https://irc-hslu.github.io/RedirectedWalkingAuditory/},
+  
+}
