@@ -9,7 +9,6 @@ related_publications: true
 permalink: /SubjectiveQualityAssessment/
 bibtex_key: cvmp2025
 ---
-Work in progress.
 
 ### Subjective Quality Assessment Website
 The survey is now closed, but you may still view it at the following link (data collection is disabled):
