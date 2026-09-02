@@ -18,19 +18,19 @@ The survey is now closed, but you may still view it at the following link (data 
 Here we present the survey stimuli with Gaussian splat and point cloud reconstructions shown on the left and right, respectively, along with the names of the captures used to generate the reconstructions. In the experiment, we also used the same stimuli with the reconstruction order reversed.
 
 <p style="margin-top: 1rem;  margin-bottom: 0rem;">Den </p>
- <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/BK5i2WWlAyqgN6e/download" > </video>
+ <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/public.php/dav/files/BK5i2WWlAyqgN6e" > </video>
 
 <p style="margin-top: 1rem;  margin-bottom: 0rem;">Nathalie</p>
-  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/2aLNTwCSA7hxJoF/download" > </video>
+  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/public.php/dav/files/2aLNTwCSA7hxJoF" > </video>
 
 <p style="margin-top: 1rem;  margin-bottom: 0rem;">Philipp I</p>
-  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/mo1sZyDaZX5Oc5m/download" > </video>
+  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/public.php/dav/files/mo1sZyDaZX5Oc5m" > </video>
 
 <p style="margin-top: 1rem;  margin-bottom: 0rem;">Philipp II</p>
-  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/3Eep8QOUbxoCb9Y/download" > </video>
+  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/public.php/dav/files/3Eep8QOUbxoCb9Y" > </video>
 
 <p style="margin-top: 1rem;  margin-bottom: 0rem;">Simone</p>
-  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/H6ERCoS2hRrUCNp/download" > </video>
+  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/public.php/dav/files/H6ERCoS2hRrUCNp" > </video>
 
 <p style="margin-top: 1rem;  margin-bottom: 0rem;">Thanos</p> 
-  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/index.php/s/Iay1Wi9JfEEJkhy/download" > </video>
+  <video controls loop muted playsinline style="width: 100%; height: auto;" src="https://drive.switch.ch/public.php/dav/files/Iay1Wi9JfEEJkhy" > </video>
