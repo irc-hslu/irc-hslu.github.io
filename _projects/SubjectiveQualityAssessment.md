@@ -1,14 +1,16 @@
 ---
 layout: publication
-title: Evaluations of Dynamic Gaussian Splats versus Point Clouds for Sparse Captures
+title: Evaluation of Dynamic Gaussian Splats versus Point Clouds for Sparse Captures
 description: A subjective quality assessment of dynamic Gaussian splats and point clouds for sparse captures.
 img: assets/img/subjective_quality_assessment.jpg
 importance: 1
 category: volumetric video
 related_publications: true
 permalink: /SubjectiveQualityAssessment/
-bibtex_key: cvmp2025
+bibtex_key: eusipco2026
 ---
+
+This webpage is dedicated to the EUSIPCO 2026 paper titled "Evaluation of Dynamic Gaussian Splats versus Point Clouds for Sparse Captures".
 
 ### Subjective Quality Assessment Website
 The survey is now closed, but you may still view it at the following link (data collection is disabled):
