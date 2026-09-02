@@ -38,8 +38,8 @@ ninja.data = [{
           description: "We presented an analysis of existing research on working memory (WM) tasks in Redirected Walking (RDW) to examine the feasibility of auditory stimulus presentation as an alternative to traditional visual displays prone to issues in richer virtual environments.",
           section: "Projects",handler: () => {
               window.location.href = "/RedirectedWalkingAuditory/";
-            },},{id: "projects-evaluations-of-dynamic-gaussian-splats-versus-point-clouds-for-sparse-captures",
-          title: 'Evaluations of Dynamic Gaussian Splats versus Point Clouds for Sparse Captures',
+            },},{id: "projects-evaluation-of-dynamic-gaussian-splats-versus-point-clouds-for-sparse-captures",
+          title: 'Evaluation of Dynamic Gaussian Splats versus Point Clouds for Sparse Captures',
           description: "A subjective quality assessment of dynamic Gaussian splats and point clouds for sparse captures.",
           section: "Projects",handler: () => {
               window.location.href = "/SubjectiveQualityAssessment/";
