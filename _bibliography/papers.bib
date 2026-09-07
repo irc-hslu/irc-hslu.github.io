@@ -19,7 +19,7 @@
   preview={cvmp2025-icon.jpg},
   html={https://irc-hslu.github.io/capturestudio},
   pdf={A_Fast_Volumetric_Capture_and_Reconstruction_Pipeline_for_Dynamic_Point_Clouds_and_Gaussian_Splats___CVMP_2025.pdf},
-  
+  bibtex_show={true},
   additional_info={*More Information* can be [found here](https://irc-hslu.github.io/capturestudio).},
   selected={true},
   email={athanasios.charisoudis@hslu.ch; simone.croci@hslu.ch}
@@ -45,23 +45,28 @@
   location = {Braga, Portugal},
   series = {ARTECH '25},
   preview={jesus-icon.jpg},
+  bibtex_show={true},
   html = {https://sites.hslu.ch/immersive-realities/en/deus-in-machina-ai-jesus-english/},  
 }
 
-@unpublished{GSvsPhotogrammetry,
+@inproceedings{GSvsPhotogrammetry,
   abbr={QOMEX 2025},
   title={Gaussian Splatting vs. Classical Photogrammetry: A Comparison for Virtual Backdrops},
   author={Haslbauer, Philipp and Pullen, Mike and Reichherzer, Carolin and Smolic, Aljosa},
   abstract={This paper describes and evaluates three end-to-end workflows from capture to reconstruction including photogrammetry, 3D Gaussian splatting (GS), and extraction of textured meshes from splats with the explicit aim of individuals unfamiliar with 3D reconstruction creating backdrops for virtual production with a central presenter by using a smartphone as capture device. We show that GS significantly outperforms the alternatives in our experiments.},
   numpages={3},
   year={2025},
-  month={July},
+  month={September},
   preview={gsvsph.webp},
   html={https://irc-hslu.github.io/GSvsPhotogrammetry/},
   pdf={Qomex_2025_IRRL_Shortpaper.pdf},
-  
+  bibtex_show={true},
+  address = {Madrid, Spain},
   additional_info={. *More Information* can be [found here](https://irc-hslu.github.io/GSvsPhotogrammetry/).},
   selected={true},
+  booktitle = {2025 17th {International} {Conference} on {Quality} of {Multimedia} {Experience} ({QoMEX})},
+	isbn = {979-8-3315-5435-4},
+	publisher = {IEEE},
   doi={10.1109/QoMEX65720.2025.11219987}
 }
 
@@ -72,7 +77,6 @@
   abstract={Volumetric Video (VV) lets viewers interact with realistic virtual 3D scenes in real-time. It enhances the quality and realism of video broadcasting and conferencing, delivering a vivid and immersive 3D experience. Holographic communication, concert and VR experiences benefit from it. VV data is often recorded as point clouds or meshes with shape and texture data. This leads to a substantial volume of data that requires efficient compression and streaming. Nevertheless, there is a lack of a universally accepted standards for VV file formats, resulting in many organizations implementing their own individualized approaches. Hence, we suggest VVglTF, a specific extension that supports the glTF file format and ensures VV compatibility. The open-source 3D content file format glTF is optimized for the Internet. We utilize glTF's rendering workflow to play VV of any duration or file size efficiently. Custom extensions in glTF expand the functionality of the glTF model format and offer customization of VV playback. We also developed a simple and efficient VVglTF streaming system based on HTTP Live Streaming technology for video texturing. It is designed to efficiently play VV content across different network conditions by adjusting the frame rate and number of frames per glTF file. In our experiments we validate the efficiency of our approach.},
   booktitle={IBC 2024 Conference Proceedings},
   year={2024},
-  
   bibtex_show={true},
   doi={10.5594/JMI.2025/GLNG7938},
 }
