@@ -10,6 +10,7 @@ permalink: /GSvsPhotogrammetry/
 bibtex_key: GSvsPhotogrammetry
 teaser_image: assets/img/peterskapelle_comp.png
 ---
+
 ## Videos Used in 2AFC Task
 
 <table class="video-comparison">

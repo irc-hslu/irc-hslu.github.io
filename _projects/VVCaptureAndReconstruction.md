@@ -10,6 +10,7 @@ permalink: /VVCaptureAndReconstruction/
 bibtex_key: charisoudis2025vv
 teaser_image: assets/img/cvmp2025_teaser.png
 ---
+
 ## Pipeline
 
 <img src="../assets/img/cvmp2025_pipeline.png" alt="pipeline" style="max-width:100%; height:auto;">
@@ -18,17 +19,17 @@ teaser_image: assets/img/cvmp2025_teaser.png
 
 ### Images
 
-+ Comparison between point cloud data (PCD) and Gaussian splats (GS)
+- Comparison between point cloud data (PCD) and Gaussian splats (GS)
 
 <img src="../assets/img/cvmp2025_reconstructions.png" alt="reconstructions" style="max-width:100%; height:auto;">
 
 ### Videos
 
-*Coming soon...*
+_Coming soon..._
 
 ## Code
 
-*Coming soon...*
+_Coming soon..._
 
 ## Citation
 

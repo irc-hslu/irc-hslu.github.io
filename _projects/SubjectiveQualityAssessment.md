@@ -13,10 +13,12 @@ bibtex_key: eusipco2026
 This webpage is dedicated to the EUSIPCO 2026 paper titled "Evaluation of Dynamic Gaussian Splats versus Point Clouds for Sparse Captures".
 
 ### Subjective Quality Assessment Website
+
 The survey is now closed, but you may still view it at the following link (data collection is disabled):
-[https://hslu-quality-survey.streamlit.app/~/+/]( https://hslu-quality-survey.streamlit.app/~/+/)
+[https://hslu-quality-survey.streamlit.app/~/+/](https://hslu-quality-survey.streamlit.app/~/+/)
 
 ### Gaussian Splat vs Point Cloud Stimuli
+
 Here we present the survey stimuli with Gaussian splat and point cloud reconstructions shown on the left and right, respectively, along with the names of the captures used to generate the reconstructions. In the experiment, we also used the same stimuli with the reconstruction order reversed.
 
 <p style="margin-top: 1rem;  margin-bottom: 0rem;">Den </p>

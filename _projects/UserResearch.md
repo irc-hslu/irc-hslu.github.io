@@ -7,7 +7,7 @@ importance: 1
 category: user research
 related_publications: false
 permalink: /UXGuidelines/
-#bibtex_key: 
+#bibtex_key:
 teaser_image: assets/img/ux_teaser.png
 ---
 
@@ -17,10 +17,10 @@ Integrating users into the research process is an integral part of our work to d
 
 The guide focuses on the following core principles:
 
-* Involve users early and often
-* Use iterative research cycles
-* Select methods based on research goals
-* Turn findings into actionable outcomes
+- Involve users early and often
+- Use iterative research cycles
+- Select methods based on research goals
+- Turn findings into actionable outcomes
 
 ### Support from the UX Team
 
@@ -33,4 +33,3 @@ The UX team is happy to support research projects at varying stages. We can supp
 ### Guide Document
 
 [Download the UX Guideline PDF](/assets/pdf/UXGuidelines.pdf)
-

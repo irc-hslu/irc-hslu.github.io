@@ -17,11 +17,11 @@ Redirected Walking (RDW) allows for natural locomotion in limited virtual spaces
 
 This research explores the application of auditory cognitive assessment within RDW through the following areas:
 
-* **Limitations of Visual Presentation**: Analysing how visual UI elements encounter issues, cross geometry, or introduce contradicting depth cues when paths are curving or visually busy.
-* **Auditory Presentation Feasibility**: Proposing auditory presentation for verbal WM paradigms that require a small set of stimuli to implement.
-* **Cognitive Modality**: Evaluating evidence regarding whether visual or auditory presentation modes meaningfully alter encoding and cognitive processing on WM tasks.
+- **Limitations of Visual Presentation**: Analysing how visual UI elements encounter issues, cross geometry, or introduce contradicting depth cues when paths are curving or visually busy.
+- **Auditory Presentation Feasibility**: Proposing auditory presentation for verbal WM paradigms that require a small set of stimuli to implement.
+- **Cognitive Modality**: Evaluating evidence regarding whether visual or auditory presentation modes meaningfully alter encoding and cognitive processing on WM tasks.
 
 ### Preliminary Insights
 
-* The proposed solution of presenting auditory stimuli eliminates issues for verbal WM tasks in VEs with variable paths.
-* The results of multiple studies on WM support the feasibility of the proposed auditory presentation with verbal working memory paradigms.
+- The proposed solution of presenting auditory stimuli eliminates issues for verbal WM tasks in VEs with variable paths.
+- The results of multiple studies on WM support the feasibility of the proposed auditory presentation with verbal working memory paradigms.
