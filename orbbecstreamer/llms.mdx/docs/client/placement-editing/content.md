@@ -111,10 +111,12 @@ is also removed when you discard the draft or select **Commit placement**,
 and the checkbox shows `a placement commit is in progress` until the
 commit is settled.
 
-Verified on 2026-09-28 in headless Chromium 153 with software rendering
-(SwiftShader), on both WebGL2 and WebGPU: dragging a translate arrow moved
-x (to 0.104 m), and dragging a rotate ring turned yaw (to about -45°),
-with nothing sent. It has not been tried on real GPU hardware yet.
+Verified on 2026-09-28 with real mouse drags in Chromium 153 on Linux, on
+both WebGL2 and WebGPU, with software rendering (SwiftShader) and on a
+real GPU (NVIDIA GeForce RTX 4090 through Vulkan). Dragging a translate
+arrow moved x to 0.104 m. Dragging a rotate ring turned yaw to about −45°.
+Nothing was sent to the server. The runs used a headless browser; other
+browsers and GPUs have not been tried.
 
 ### Commit, discard or rebase [#commit-discard-or-rebase]
 

@@ -87,8 +87,9 @@ The scenario, in order:
   had no HEVC decoding, so the checks ran on the renderer's geometry and
   no frames were drawn. The page drives the editor's controllers, not the
   mouse or keyboard, so it does not exercise dragging the 3D handle. That
-  was verified separately on 2026-09-28 with real mouse drags in headless
-  Chromium 153 (SwiftShader, WebGL2 and WebGPU); see
+  was verified separately with real mouse drags in headless Chromium 153:
+  on 2026-09-28 with SwiftShader, and the same day on a real GPU (NVIDIA
+  RTX 4090 through Vulkan), on WebGL2 and WebGPU each time. See
   [Placement editing](/docs/client/placement-editing#edit-in-3d).
 
 The same scenario runs in Node on a simulated clock as part of `npm test`
@@ -107,3 +108,35 @@ The same scenario runs in Node on a simulated clock as part of `npm test`
 * **The run fails after you clicked controls on the page:** the scenario
   expects to drive the workspaces itself. Reload and run it without
   clicking.
+
+## Run headless on a real GPU [#run-headless-on-a-real-gpu]
+
+On a Linux machine with an NVIDIA GPU, headless Chromium can render on the
+GPU through ANGLE and Vulkan instead of SwiftShader:
+
+```bash
+# WebGPU on the GPU (the app picks WebGPU when an adapter exists)
+chromium --headless=new --use-angle=vulkan --enable-features=Vulkan \
+  --ignore-gpu-blocklist --enable-unsafe-webgpu \
+  --remote-debugging-port=9222 http://localhost:5173/dev/placement-check.html?autorun=1
+
+# WebGL2 on the GPU (turn WebGPU off so the app falls back to WebGL2)
+chromium --headless=new --use-angle=vulkan --enable-features=Vulkan \
+  --ignore-gpu-blocklist --disable-gpu-compositing \
+  --disable-features=WebGPU,WebGPUService \
+  --remote-debugging-port=9222 http://localhost:5173/dev/placement-check.html?autorun=1
+```
+
+To check that the GPU is really in use, read the renderer string from a
+WebGL2 context (`WEBGL_debug_renderer_info`): it names the GPU, for example
+`ANGLE (NVIDIA, Vulkan … NVIDIA GeForce RTX 4090)`, instead of `SwiftShader`.
+
+Troubleshooting:
+
+* **A DevTools screenshot of the canvas is black or blank:** headless page
+  screenshots do not capture a GPU-composited canvas. For WebGL2, add
+  `--disable-gpu-compositing`. For WebGPU, read the canvas back in the
+  page instead of taking a page screenshot.
+* **The panel shows `renderer: webgpu` although you wanted WebGL2:**
+  WebGPU is available on the GPU even without `--enable-unsafe-webgpu`.
+  Turn it off with `--disable-features=WebGPU,WebGPUService`.

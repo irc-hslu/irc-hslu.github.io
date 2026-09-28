@@ -10,8 +10,11 @@ to the debug recorder today and to browsers once serving exists (see
 
 ## How it works [#how-it-works]
 
-One encoder thread takes processed batches from a short queue and encodes
-colour, then depth, for each bundle:
+One encoder thread takes processed batches from a short queue. For each
+bundle it converts and submits colour, converts and submits depth, and then
+collects both access units, so the colour and depth NVENC sessions encode at
+the same time (the RTX 4090 has two NVENC engines). Each input surface is
+registered with NVENC once, not every frame:
 
 ```text
 processed batch ──► encode queue (2, latest wins) ──► encoder thread
@@ -142,17 +145,28 @@ latency after a stall.
 From the 2026-09-26 baseline (two Femto Bolts, RTX 4090,
 `dev-relwithdebinfo`, 15 fps, `concatenated_batch`, 1280 × 576 surfaces):
 
-| Metric                                                    | p50        | p99        |
-| --------------------------------------------------------- | ---------- | ---------- |
-| Time in the encode queue (`encode_queue`), one 5 s window | 0.2 ms     | 0.6 ms     |
-| Colour access unit out (`encode_color`), one 5 s window   | 1.4 ms     | 2.1 ms     |
-| Colour and depth both out (`encode_bundle`), across runs  | 1.9–2.4 ms | 3.5–4.2 ms |
+| Metric                                                                 | p50        | p99        |
+| ---------------------------------------------------------------------- | ---------- | ---------- |
+| Time in the encode queue (`encode_queue`), one 5 s window              | 0.2 ms     | 0.6 ms     |
+| Colour access unit out (`encode_color`), one 5 s window, before step 6 | 1.4 ms     | 2.1 ms     |
+| Colour and depth both out (`encode_bundle`), across runs               | 1.9–2.4 ms | 3.5–4.2 ms |
 
 Isolated encodes of 30–35 ms appear in the maximum without raising the p99.
 The `LIVE PIPELINE` `encode` row and the `encode_*` latency lines show these
 numbers on your machine; see [Read the telemetry](./telemetry#latency-report).
-A planned change (latency plan step 6: register inputs once, submit both
-channels before waiting) is expected to save 1–2 ms.
+These numbers are from before latency plan step 6 (surfaces registered once,
+colour and depth encoded in parallel). Isolated tests at the same 1280 × 576
+size with noise input, the worst case for the encoder:
+
+| Colour + depth access units out                               | p50          | p99        |
+| ------------------------------------------------------------- | ------------ | ---------- |
+| Before step 6 (registered every frame, colour then depth)     | 3.5 ms       | 7.1 ms     |
+| Registered once, colour then depth                            | 1.4–1.6 ms   | 1.8–1.9 ms |
+| Registered once, both submitted, then both collected (step 6) | 0.72–0.85 ms | 0.9–1.0 ms |
+
+Since step 6, `encode_color` also covers converting and submitting depth, so
+it is close to `encode_bundle`. A new hardware baseline will replace the
+first table.
 
 ## Limits and guarantees [#limits-and-guarantees]
 

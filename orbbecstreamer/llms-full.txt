@@ -1166,8 +1166,9 @@ The scenario, in order:
   had no HEVC decoding, so the checks ran on the renderer's geometry and
   no frames were drawn. The page drives the editor's controllers, not the
   mouse or keyboard, so it does not exercise dragging the 3D handle. That
-  was verified separately on 2026-09-28 with real mouse drags in headless
-  Chromium 153 (SwiftShader, WebGL2 and WebGPU); see
+  was verified separately with real mouse drags in headless Chromium 153:
+  on 2026-09-28 with SwiftShader, and the same day on a real GPU (NVIDIA
+  RTX 4090 through Vulkan), on WebGL2 and WebGPU each time. See
   [Placement editing](/docs/client/placement-editing#edit-in-3d).
 
 The same scenario runs in Node on a simulated clock as part of `npm test`
@@ -1186,6 +1187,38 @@ The same scenario runs in Node on a simulated clock as part of `npm test`
 * **The run fails after you clicked controls on the page:** the scenario
   expects to drive the workspaces itself. Reload and run it without
   clicking.
+
+## Run headless on a real GPU [#run-headless-on-a-real-gpu]
+
+On a Linux machine with an NVIDIA GPU, headless Chromium can render on the
+GPU through ANGLE and Vulkan instead of SwiftShader:
+
+```bash
+# WebGPU on the GPU (the app picks WebGPU when an adapter exists)
+chromium --headless=new --use-angle=vulkan --enable-features=Vulkan \
+  --ignore-gpu-blocklist --enable-unsafe-webgpu \
+  --remote-debugging-port=9222 http://localhost:5173/dev/placement-check.html?autorun=1
+
+# WebGL2 on the GPU (turn WebGPU off so the app falls back to WebGL2)
+chromium --headless=new --use-angle=vulkan --enable-features=Vulkan \
+  --ignore-gpu-blocklist --disable-gpu-compositing \
+  --disable-features=WebGPU,WebGPUService \
+  --remote-debugging-port=9222 http://localhost:5173/dev/placement-check.html?autorun=1
+```
+
+To check that the GPU is really in use, read the renderer string from a
+WebGL2 context (`WEBGL_debug_renderer_info`): it names the GPU, for example
+`ANGLE (NVIDIA, Vulkan … NVIDIA GeForce RTX 4090)`, instead of `SwiftShader`.
+
+Troubleshooting:
+
+* **A DevTools screenshot of the canvas is black or blank:** headless page
+  screenshots do not capture a GPU-composited canvas. For WebGL2, add
+  `--disable-gpu-compositing`. For WebGPU, read the canvas back in the
+  page instead of taking a page screenshot.
+* **The panel shows `renderer: webgpu` although you wanted WebGL2:**
+  WebGPU is available on the GPU even without `--enable-unsafe-webgpu`.
+  Turn it off with `--disable-features=WebGPU,WebGPUService`.
 
 
 # Setup check (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/setup-check)
@@ -1575,10 +1608,12 @@ is also removed when you discard the draft or select **Commit placement**,
 and the checkbox shows `a placement commit is in progress` until the
 commit is settled.
 
-Verified on 2026-09-28 in headless Chromium 153 with software rendering
-(SwiftShader), on both WebGL2 and WebGPU: dragging a translate arrow moved
-x (to 0.104 m), and dragging a rotate ring turned yaw (to about -45°),
-with nothing sent. It has not been tried on real GPU hardware yet.
+Verified on 2026-09-28 with real mouse drags in Chromium 153 on Linux, on
+both WebGL2 and WebGPU, with software rendering (SwiftShader) and on a
+real GPU (NVIDIA GeForce RTX 4090 through Vulkan). Dragging a translate
+arrow moved x to 0.104 m. Dragging a rotate ring turned yaw to about −45°.
+Nothing was sent to the server. The runs used a headless browser; other
+browsers and GPUs have not been tried.
 
 ### Commit, discard or rebase [#commit-discard-or-rebase]
 
@@ -4374,8 +4409,11 @@ to the debug recorder today and to browsers once serving exists (see
 
 ## How it works [#how-it-works]
 
-One encoder thread takes processed batches from a short queue and encodes
-colour, then depth, for each bundle:
+One encoder thread takes processed batches from a short queue. For each
+bundle it converts and submits colour, converts and submits depth, and then
+collects both access units, so the colour and depth NVENC sessions encode at
+the same time (the RTX 4090 has two NVENC engines). Each input surface is
+registered with NVENC once, not every frame:
 
 ```text
 processed batch ──► encode queue (2, latest wins) ──► encoder thread
@@ -4506,17 +4544,28 @@ latency after a stall.
 From the 2026-09-26 baseline (two Femto Bolts, RTX 4090,
 `dev-relwithdebinfo`, 15 fps, `concatenated_batch`, 1280 × 576 surfaces):
 
-| Metric                                                    | p50        | p99        |
-| --------------------------------------------------------- | ---------- | ---------- |
-| Time in the encode queue (`encode_queue`), one 5 s window | 0.2 ms     | 0.6 ms     |
-| Colour access unit out (`encode_color`), one 5 s window   | 1.4 ms     | 2.1 ms     |
-| Colour and depth both out (`encode_bundle`), across runs  | 1.9–2.4 ms | 3.5–4.2 ms |
+| Metric                                                                 | p50        | p99        |
+| ---------------------------------------------------------------------- | ---------- | ---------- |
+| Time in the encode queue (`encode_queue`), one 5 s window              | 0.2 ms     | 0.6 ms     |
+| Colour access unit out (`encode_color`), one 5 s window, before step 6 | 1.4 ms     | 2.1 ms     |
+| Colour and depth both out (`encode_bundle`), across runs               | 1.9–2.4 ms | 3.5–4.2 ms |
 
 Isolated encodes of 30–35 ms appear in the maximum without raising the p99.
 The `LIVE PIPELINE` `encode` row and the `encode_*` latency lines show these
 numbers on your machine; see [Read the telemetry](./telemetry#latency-report).
-A planned change (latency plan step 6: register inputs once, submit both
-channels before waiting) is expected to save 1–2 ms.
+These numbers are from before latency plan step 6 (surfaces registered once,
+colour and depth encoded in parallel). Isolated tests at the same 1280 × 576
+size with noise input, the worst case for the encoder:
+
+| Colour + depth access units out                               | p50          | p99        |
+| ------------------------------------------------------------- | ------------ | ---------- |
+| Before step 6 (registered every frame, colour then depth)     | 3.5 ms       | 7.1 ms     |
+| Registered once, colour then depth                            | 1.4–1.6 ms   | 1.8–1.9 ms |
+| Registered once, both submitted, then both collected (step 6) | 0.72–0.85 ms | 0.9–1.0 ms |
+
+Since step 6, `encode_color` also covers converting and submitting depth, so
+it is close to `encode_bundle`. A new hardware baseline will replace the
+first table.
 
 ## Limits and guarantees [#limits-and-guarantees]
 
@@ -5400,21 +5449,21 @@ and `batch_wait`, because alignment runs on the CPU per camera.
 
 The latency plan, from `ROADMAP.md` (Performance):
 
-| Step | What                                                                      | Status                                        |
-| ---- | ------------------------------------------------------------------------- | --------------------------------------------- |
-| 1    | Stage instrumentation and hardware baseline                               | Done                                          |
-| 1b   | Capture at 30 fps                                                         | Pending product decision                      |
-| 2    | On-demand aligned keyframes                                               | Done (encoder side; caller with serving)      |
-| 3    | Preview, debug and drop logging off the hot threads                       | Done                                          |
-| 4    | Latest-wins queues of 2, slot exhaustion as a counted drop                | Done                                          |
-| 4b   | Smaller Orbbec SDK frame queues                                           | Pending (needs cameras)                       |
-| 5a   | Pooled GPU output buffers (no `cudaMalloc`/`cudaFree` while running)      | Done                                          |
-| 5b   | Event-based stage hand-off, RVM writing masks directly, stream priorities | Pending                                       |
-| 6    | NVENC: register once, submit both then wait, publish per access unit      | Pending                                       |
-| 7    | Serving: per-client backlog bounded by age, then drop and keyframe        | Pending (with serving)                        |
-| 8    | Colour path off the CPU (raw colour format, GPU conversion and alignment) | Pending; worth 8–10 ms plus the CPU alignment |
-| 9    | Delay-based rate control                                                  | Pending                                       |
-| 10   | OS and deployment tuning (thread pinning, governor, priorities)           | Pending                                       |
+| Step | What                                                                          | Status                                                                                                                                                    |
+| ---- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Stage instrumentation and hardware baseline                                   | Done                                                                                                                                                      |
+| 1b   | Capture at 30 fps                                                             | Pending product decision                                                                                                                                  |
+| 2    | On-demand aligned keyframes                                                   | Done (encoder side; caller with serving)                                                                                                                  |
+| 3    | Preview, debug and drop logging off the hot threads                           | Done                                                                                                                                                      |
+| 4    | Latest-wins queues of 2, slot exhaustion as a counted drop                    | Done                                                                                                                                                      |
+| 4b   | Smaller Orbbec SDK frame queues                                               | Pending (needs cameras)                                                                                                                                   |
+| 5a   | Pooled GPU output buffers (no `cudaMalloc`/`cudaFree` while running)          | Done                                                                                                                                                      |
+| 5b   | Event-based stage hand-off, RVM writing masks directly, stream priorities     | Pending                                                                                                                                                   |
+| 6    | NVENC: register inputs once, submit colour and depth before collecting either | Done (both access units out in 0.73 ms p50 / 1.0 ms p99 in an isolated test, was 3.5 / 7.1 ms); publishing each access unit on its own comes with serving |
+| 7    | Serving: per-client backlog bounded by age, then drop and keyframe            | Pending (with serving)                                                                                                                                    |
+| 8    | Colour path off the CPU (raw colour format, GPU conversion and alignment)     | Pending; worth 8–10 ms plus the CPU alignment                                                                                                             |
+| 9    | Delay-based rate control                                                      | Pending                                                                                                                                                   |
+| 10   | OS and deployment tuning (thread pinning, governor, priorities)               | Pending                                                                                                                                                   |
 
 ## Related pages [#related-pages]
 
@@ -6582,7 +6631,7 @@ frame set; the others from the batch.
 | `processing`        | processing taken → done                                | GPU processing, including waiting for the upload to finish.                                                                                                                                          |
 | `side_path`         | processing done → encode enqueued                      | The hand-off to the encoder. With the preview on, it includes picking the preview's three images (GPU buffer handles, no image copy); the preview itself runs on its own thread. A few microseconds. |
 | `encode_queue`      | encode enqueued → encoder took it                      | Time in the encode queue.                                                                                                                                                                            |
-| `encode_color`      | encoder took it → colour access unit out of NVENC      | Colour encode.                                                                                                                                                                                       |
+| `encode_color`      | encoder took it → colour access unit out of NVENC      | Colour encode. Colour and depth are encoded in parallel, so this also covers converting and submitting depth and is close to `encode_bundle`.                                                        |
 | `encode_bundle`     | encoder took it → depth access unit out                | Colour and depth encode (both access units out).                                                                                                                                                     |
 | `handoff`           | depth out → bundle handed to its consumer              | Bundle assembly. The consumer is the debug recorder today, the network later.                                                                                                                        |
 | `sdk->handoff`      | last camera's SDK delivery → hand-off                  | **The part the server code controls.**                                                                                                                                                               |

@@ -127,21 +127,21 @@ and `batch_wait`, because alignment runs on the CPU per camera.
 
 The latency plan, from `ROADMAP.md` (Performance):
 
-| Step | What                                                                      | Status                                        |
-| ---- | ------------------------------------------------------------------------- | --------------------------------------------- |
-| 1    | Stage instrumentation and hardware baseline                               | Done                                          |
-| 1b   | Capture at 30 fps                                                         | Pending product decision                      |
-| 2    | On-demand aligned keyframes                                               | Done (encoder side; caller with serving)      |
-| 3    | Preview, debug and drop logging off the hot threads                       | Done                                          |
-| 4    | Latest-wins queues of 2, slot exhaustion as a counted drop                | Done                                          |
-| 4b   | Smaller Orbbec SDK frame queues                                           | Pending (needs cameras)                       |
-| 5a   | Pooled GPU output buffers (no `cudaMalloc`/`cudaFree` while running)      | Done                                          |
-| 5b   | Event-based stage hand-off, RVM writing masks directly, stream priorities | Pending                                       |
-| 6    | NVENC: register once, submit both then wait, publish per access unit      | Pending                                       |
-| 7    | Serving: per-client backlog bounded by age, then drop and keyframe        | Pending (with serving)                        |
-| 8    | Colour path off the CPU (raw colour format, GPU conversion and alignment) | Pending; worth 8–10 ms plus the CPU alignment |
-| 9    | Delay-based rate control                                                  | Pending                                       |
-| 10   | OS and deployment tuning (thread pinning, governor, priorities)           | Pending                                       |
+| Step | What                                                                          | Status                                                                                                                                                    |
+| ---- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Stage instrumentation and hardware baseline                                   | Done                                                                                                                                                      |
+| 1b   | Capture at 30 fps                                                             | Pending product decision                                                                                                                                  |
+| 2    | On-demand aligned keyframes                                                   | Done (encoder side; caller with serving)                                                                                                                  |
+| 3    | Preview, debug and drop logging off the hot threads                           | Done                                                                                                                                                      |
+| 4    | Latest-wins queues of 2, slot exhaustion as a counted drop                    | Done                                                                                                                                                      |
+| 4b   | Smaller Orbbec SDK frame queues                                               | Pending (needs cameras)                                                                                                                                   |
+| 5a   | Pooled GPU output buffers (no `cudaMalloc`/`cudaFree` while running)          | Done                                                                                                                                                      |
+| 5b   | Event-based stage hand-off, RVM writing masks directly, stream priorities     | Pending                                                                                                                                                   |
+| 6    | NVENC: register inputs once, submit colour and depth before collecting either | Done (both access units out in 0.73 ms p50 / 1.0 ms p99 in an isolated test, was 3.5 / 7.1 ms); publishing each access unit on its own comes with serving |
+| 7    | Serving: per-client backlog bounded by age, then drop and keyframe            | Pending (with serving)                                                                                                                                    |
+| 8    | Colour path off the CPU (raw colour format, GPU conversion and alignment)     | Pending; worth 8–10 ms plus the CPU alignment                                                                                                             |
+| 9    | Delay-based rate control                                                      | Pending                                                                                                                                                   |
+| 10   | OS and deployment tuning (thread pinning, governor, priorities)               | Pending                                                                                                                                                   |
 
 ## Related pages [#related-pages]
 
