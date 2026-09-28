@@ -1,0 +1,109 @@
+# Placement check (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/placement-check)
+
+
+
+## What it is [#what-it-is]
+
+The placement check (`client/dev/placement-check.html`, code in
+`client/src/dev/placementCheck.tsx` and `client/src/dev/placementScenario.ts`)
+is a dev-only page for [placement editing](/docs/client/placement-editing)
+and [world anchors](/docs/client/viewer#where-each-server-appears-world-anchors).
+It is never part of the production build.
+
+It runs two clients of one [mock server](/docs/client/developer/mock-server):
+
+* **Client A** has a 3D view (WebGPU or WebGL2; none if neither starts)
+  and decodes with WebCodecs when the browser can.
+* **Client B** has no 3D view.
+
+Both use the app's own setup workspace, server cards and World anchors
+section. The mock serves the reference recordings when the dev server has
+them (`client/reference/hevc-web/`), otherwise it is snapshot-only.
+
+"Where a client draws the server" is read from its renderer, so the
+checks work with or without media. With media and HEVC decoding, A's
+cloud visibly moves in the 3D view.
+
+## How to use it [#how-to-use-it]
+
+Start the dev server in `client/`:
+
+```bash
+npm run dev
+```
+
+Open this URL:
+
+```text
+http://localhost:5173/dev/placement-check.html?autorun=1
+```
+
+Without `autorun=1`, press **Run scenario** once the columns appear.
+
+The scenario, in order:
+
+1. Both clients connect at the same placement revision.
+2. A enters setup. The Placement section shows the server placement, and
+   **Edit placement** is available.
+3. A starts a draft and types a pose (x 0.5 m, z 1 m, yaw 30°). The draft
+   is dirty, A draws the server at the draft, B does not move, and the mock
+   still has the old revision after a wait.
+4. A selects **Commit placement (expected revision 1)**. A and B get
+   revision 2 and both draw the committed placement; A's draft is cleared.
+5. B starts its own draft without the lock. A commits another edit
+   (revision 3) and leaves setup. B enters setup: its draft is kept,
+   marked stale, and **Commit placement** is unavailable with the stale
+   reason. Pressing it anyway sends nothing.
+6. B selects **Rebase on server placement (revision 3)**, which keeps its
+   pose, and commits. A and B get revision 4 and draw B's pose.
+7. A moves the world anchor (x 2 m, yaw 90°). Only A's drawing moves; B
+   and every revision stay the same. A scaled anchor pose is refused.
+   **Reset to identity** restores A's drawing.
+8. B leaves setup, and the lock is free.
+
+## Expected result [#expected-result]
+
+* `body[data-state]` ends as `done`, and the log ends with
+  `verdict: 8 steps passed`.
+* `window.__placementCheckReport` holds the report: `state`, `media`,
+  `renderer`, `steps[]` (`name`, `ok`, `detail`), `log`, `errors` and
+  `verdict`. The same JSON is in the collapsed "report JSON" panel.
+* Without HEVC decoding, the log starts with two
+  `Subscribe to bundle-cam0 failed: not-decode-compatible` warnings.
+  They are expected: the clients cannot decode the streams, so no frames
+  are drawn, but the placement checks still pass.
+* Recorded run by the client team's UI engineer on 2026-09-28 (Linux,
+  Chromium 153.0.8010.36 snap, headless), with:
+
+  ```bash
+  chromium --headless=new --no-sandbox --disable-gpu --use-angle=swiftshader \
+    --enable-unsafe-swiftshader --virtual-time-budget=60000 --dump-dom \
+    "http://localhost:5193/dev/placement-check.html?autorun=1"
+  ```
+
+  (dev server on port 5193 for that run). Result: `data-state="done"`,
+  `verdict: 8 steps passed`, `errors` empty. A drew with WebGL2
+  (SwiftShader), the mock used the reference recording, and this browser
+  had no HEVC decoding, so the checks ran on the renderer's geometry and
+  no frames were drawn. The page drives the editor's controllers, not the
+  mouse or keyboard, so it does not exercise dragging the 3D handle. That
+  was verified separately on 2026-09-28 with real mouse drags in headless
+  Chromium 153 (SwiftShader, WebGL2 and WebGPU); see
+  [Placement editing](/docs/client/placement-editing#edit-in-3d).
+
+The same scenario runs in Node on a simulated clock as part of `npm test`
+(`client/src/tests/placementEditor.test.ts`).
+
+## Troubleshooting [#troubleshooting]
+
+* **`failed` with `timed out waiting for: …`:** the named step did not
+  reach the expected state within 8 s. The text after it shows the
+  placement revision A, B and the mock had at that moment.
+* **`failed` with `watchdog: not done after 90 s`:** the run hung. Reload
+  the page and check the browser console.
+* **The 3D view stays empty:** the browser has no WebGPU or WebGL2, or no
+  HEVC decoding. The scenario still passes; the report's `renderer` field
+  says which case applies.
+* **The run fails after you clicked controls on the page:** the scenario
+  expects to drive the workspaces itself. Reload and run it without
+  clicking.
