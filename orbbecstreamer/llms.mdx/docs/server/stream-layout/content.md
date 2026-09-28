@@ -65,9 +65,11 @@ image, so a colour tile and a depth tile of one camera have the same size
 once. Concatenated needs two whatever the camera count.
 
 **HEVC level.** The server chooses the lowest HEVC level whose picture size,
-sample rate and Main-tier bitrate admit the stream. It uses the whole surface
-and the whole bitrate. With the dev profile (640 × 576 at 15 fps, 12 Mbit/s
-colour and 8 Mbit/s depth per camera):
+sample rate and Main-tier bitrate admit the stream, and configures the
+encoder with exactly that level and Main tier, so the codec string the browser
+receives describes the bitstream (a GPU test compares the two). It uses the
+whole surface and the whole bitrate. With the dev profile (640 × 576 at
+15 fps, 12 Mbit/s colour and 8 Mbit/s depth per camera):
 
 | Cameras | Concatenated colour | Concatenated depth | Per-camera colour | Per-camera depth |
 | ------- | ------------------- | ------------------ | ----------------- | ---------------- |
@@ -76,7 +78,7 @@ colour and 8 Mbit/s depth per camera):
 | 4       | 5.2                 | 5.1                | 4.0               | 3.1              |
 
 The level is part of the codec string sent to the browser, for example
-`hev1.1.6.L150.B0` for level 5.0 colour. Check that the browser can decode
+`hev1.1.6.L150.90` for level 5.0 colour. Check that the browser can decode
 the level before adding cameras. At high bitrates the level is set by the
 bitrate, not the picture size, so lowering `bitrate_bps` also lowers it.
 
@@ -139,14 +141,14 @@ descriptors, §8 depth quantization).
 **Colour**
 
 * HEVC Main, 8-bit 4:2:0, `hev1` sample format; codec string
-  `hev1.1.6.L<level>.B0`.
+  `hev1.1.6.L<level>.90`.
 * Input is the RGB8 frame after colour-to-depth alignment, converted on the
   GPU to NV12, BT.709 limited range (signalled in the VUI).
 * Colour is not masked.
 
 **Depth: `QuantizedP010V1`**
 
-* HEVC Main10, P010 4:2:0, `hev1`; codec string `hev1.2.4.L<level>.B0`.
+* HEVC Main10, P010 4:2:0, `hev1`; codec string `hev1.2.4.L<level>.90`.
   Full range, no colour description in the VUI.
 * Same tiling and size as colour. There is a single plane of codes; the
   surface height equals the image height.
@@ -169,11 +171,11 @@ descriptors, §8 depth quantization).
 
 ## Troubleshooting [#troubleshooting]
 
-| Problem                                                                    | Fix                                                                                                                          |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `Unsupported encoding session_mode: <value>`                               | Use `concatenated_batch` or `per_camera` (or an alias listed above).                                                         |
-| `Concatenated NVENC requires identical camera geometries`                  | All cameras must use the same stream profile. They share `streams`, so check that every camera supports it.                  |
-| `Concatenated camera order or geometry changed after NVENC initialization` | A camera dropped out or came back while running. Restart the server.                                                         |
-| `no HEVC level up to 6.2 admits ...`                                       | The concatenated surface or bitrate is too large. Lower `bitrate_bps`, use fewer cameras or switch to `per_camera`.          |
-| NVENC fails to open a session with many cameras in `per_camera`            | Consumer GeForce drivers cap concurrent NVENC sessions. Use `concatenated_batch`, which needs two.                           |
-| The browser cannot decode the stream                                       | Compare the codec string's level with what the browser supports; lower the bitrate or the camera count, or use `per_camera`. |
+| Problem                                                                    | Fix                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Unsupported encoding session_mode: <value>`                               | Use `concatenated_batch` or `per_camera` (or an alias listed above).                                                                                                                                                        |
+| `Concatenated NVENC requires identical camera geometries`                  | All cameras must use the same stream profile. They share `streams`, so check that every camera supports it.                                                                                                                 |
+| `Concatenated camera order or geometry changed after NVENC initialization` | A camera dropped out or came back while running. Restart the server.                                                                                                                                                        |
+| `Encoding: no HEVC level up to 6.2 admits ...` when the config loads       | The encoder surface or bitrate is too large for any Main-tier level (the server checks this at start-up, before opening cameras). Lower `bitrate_bps`, the resolution or fps, use fewer cameras, or switch to `per_camera`. |
+| NVENC fails to open a session with many cameras in `per_camera`            | Consumer GeForce drivers cap concurrent NVENC sessions. Use `concatenated_batch`, which needs two.                                                                                                                          |
+| The browser cannot decode the stream                                       | Compare the codec string's level with what the browser supports; lower the bitrate or the camera count, or use `per_camera`.                                                                                                |

@@ -68,8 +68,5 @@ message, and how to build for a GPU other than the tested one.
   </Step>
 </Steps>
 
-Every environment variable the build and the runtime read is listed in
-[Getting started notes](/docs/server/getting-started-notes#environment-variables).
-
 Next: [First stream](/docs/getting-started/first-stream). Want the browser
 client too? See [Run the dev build](/docs/client/dev-build).
