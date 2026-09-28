@@ -145,8 +145,10 @@ cost is not measured yet. It adds to `processing` in the
 * **Colour must be `rgb8`** for `rvm`, `rgb_luma_threshold` and
   `bilateral_cuda`. With another colour format the simple masks are skipped
   and RVM and the bilateral filter stop the server.
-* **The radius limit is checked at the first batch**, not when the config is
-  loaded: `Resolved bilateral radius exceeds maximum_radius_pixels`.
+* **The radius limit is checked at start-up**, from the configured depth
+  size after alignment (640 × 576 with `color_to_depth`), before any camera
+  is opened: `processing (bilateral filter at depth 640x576): Resolved
+  bilateral radius exceeds maximum_radius_pixels`.
 * **The RVM engine is fixed** in batch size, image size and downsample
   ratio. Changing the number of cameras or the depth profile needs another
   engine.

@@ -250,7 +250,18 @@ into the `runtime_id` column with no space, as in the example above. The
 numbers in the other columns are correct.
 
 The whole-session latency report follows, in the same format as the 5 s
-report. Use it for tail latencies.
+report. Use it for tail latencies. The last two lines before `pipeline stopped
+cleanly` are totals:
+
+```text
+[info] frame batcher: 1029 batches, 0 stale and 0 duplicate/regressive frame sets dropped
+[info] keyframes: 0 requested, 0 forced (on-demand; periodic IDRs not counted)
+```
+
+`stale` frame sets had no partner from every camera within the timestamp
+tolerance (a sync problem when it grows). `keyframes` counts on-demand
+keyframe requests and the IDRs they forced; until serving exists nothing
+requests them, so both stay 0.
 
 ## What good looks like [#what-good-looks-like]
 

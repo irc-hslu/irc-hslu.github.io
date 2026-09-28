@@ -77,7 +77,8 @@ a second, stops capture and every stage, and exits with
 `orbbec-streamer failed: <reason>`. See
 [Run the server](./running#stop-the-server). A debug-recorder error only
 disables the recorder (`worker=failed` in the telemetry). A camera error
-ends that camera's capture thread without stopping the server; see
+ends that camera's capture thread, and the main loop then stops the server
+with `camera capture stopped: ...`; see
 [Capture and synchronisation](./capture-and-sync#limits-and-guarantees).
 
 ## Bounded queues [#bounded-queues]

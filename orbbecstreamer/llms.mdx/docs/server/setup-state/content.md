@@ -122,7 +122,9 @@ clients can connect, `true` only changes the phase name in the log; keep it
 At every start, after the cameras are running, the server writes
 `<debug_recording.directory>/setup.json` (default `debug/live/setup.json`),
 even with recording off. It is a local debug file for tools and recordings,
-not part of the client protocol, and it is overwritten on each start.
+not part of the client protocol, and it is replaced on each start: written
+to `setup.json.tmp` and renamed over the old file, so a reader never sees a
+half-written file.
 
 | Section          | Contents                                                                                                                                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

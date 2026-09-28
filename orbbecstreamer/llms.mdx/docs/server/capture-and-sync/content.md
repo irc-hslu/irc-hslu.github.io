@@ -181,9 +181,17 @@ Femto Bolts, 15 fps, `rgb8`):
   name and share one capture profile.
 * **Orbbec only.** `vendor` accepts only `orbbec`.
 * **No hot-plug.** The camera set is fixed at start-up. A camera that fails
-  or is unplugged while running ends its capture thread (logged as
-  `Orbbec capture error: ...` when the SDK reports an error); the server keeps
-  running but produces no more batches. Restart it.
+  or is unplugged while running ends its capture thread. Within a second the
+  server stops with `orbbec-streamer failed: camera capture stopped: [<camera
+  id>: Orbbec capture error: ...]` and exit code 1, instead of running on
+  without batches. Fix the camera and restart the server.
+* **Unmatched frame sets are reported.** When a frame set finds no partner
+  from every camera within `sync.timestamp_tolerance_us`, or a camera's
+  pending limit overflows, the batcher drops it. After the first 5 s (start-up
+  settling is not reported) the server logs at most every 10 s: `frame batcher
+  dropped N frame set(s) without a match from every camera (M in total)`. The
+  session summary ends with the totals (`frame batcher: ... stale ...
+  dropped`).
 * **Bounded memory.** Frame sets waiting for partners are limited per
   camera; nothing on the capture side can grow without bound.
 * **No waiting on later stages.** The capture thread only pushes into the
