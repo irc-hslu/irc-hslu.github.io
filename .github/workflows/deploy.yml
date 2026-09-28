@@ -111,3 +111,6 @@ jobs:
           folder: _site
           # Deployed separately by irc-hslu/orbbecstreamer; keep it when cleaning.
           clean-exclude: orbbecstreamer
+          # Rebase instead of force-pushing, so a docs deploy that lands in between
+          # is kept rather than overwritten.
+          force: false
