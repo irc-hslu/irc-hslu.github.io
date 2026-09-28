@@ -100,8 +100,17 @@ jobs:
         run: |
           npm install -g purgecss
           purgecss -c purgecss.config.js
+      # The site is already built; don't let GitHub Pages run Jekyll again. A second
+      # Jekyll pass drops folders starting with "_", such as the OrbbecStreamer docs' _next/.
+      - name: Disable Pages Jekyll
+        run: touch _site/.nojekyll
       - name: Deploy 🚀
         if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: _site
+          # Deployed separately by irc-hslu/orbbecstreamer; keep it when cleaning.
+          clean-exclude: orbbecstreamer
+          # Rebase instead of force-pushing, so a docs deploy that lands in between
+          # is kept rather than overwritten.
+          force: false
