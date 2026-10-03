@@ -22,10 +22,10 @@ Error codes such as `lock-held`, `not-lock-owner`, `calibration-running`, `calib
 
 ## Protocol references still on screen [#protocol-references-still-on-screen]
 
-The UI strings in `client/src/ui/` carry no change-request numbers or § references. Two messages from other modules still cite the contract, and the user pages quote them cut short:
+None. The UI strings in `client/src/ui/` carry no change-request numbers or § references. The last two messages that cited the contract now say the rule in plain words (2026-09-28):
 
-* `Not applied: anchorFromServer must be rigid (§9): …` comes from `client/src/calibration/placementDraft.ts`. §9 requires placements to be rigid transforms. The placement fields and handle can’t produce such a pose.
-* `depth bitstream has 8-bit luma, §8 needs 10` comes from `client/src/media/playback/recordingManifest.ts`. §8 defines depth as one 10-bit code per pixel.
+* `Not applied: The pose must be rigid: scale, shear, mirroring and perspective are not allowed.` comes from `client/src/calibration/placementDraft.ts` (§9 requires placements to be rigid transforms). The placement fields and handle can’t produce such a pose.
+* `depth bitstream has 8-bit luma; depth must be 10-bit` comes from `client/src/media/playback/recordingManifest.ts` (§8 defines depth as one 10-bit code per pixel).
 
 ## Keep this page current [#keep-this-page-current]
 

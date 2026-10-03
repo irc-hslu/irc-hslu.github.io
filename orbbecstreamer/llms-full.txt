@@ -371,10 +371,10 @@ Error codes such as `lock-held`, `not-lock-owner`, `calibration-running`, `calib
 
 ## Protocol references still on screen [#protocol-references-still-on-screen]
 
-The UI strings in `client/src/ui/` carry no change-request numbers or § references. Two messages from other modules still cite the contract, and the user pages quote them cut short:
+None. The UI strings in `client/src/ui/` carry no change-request numbers or § references. The last two messages that cited the contract now say the rule in plain words (2026-09-28):
 
-* `Not applied: anchorFromServer must be rigid (§9): …` comes from `client/src/calibration/placementDraft.ts`. §9 requires placements to be rigid transforms. The placement fields and handle can’t produce such a pose.
-* `depth bitstream has 8-bit luma, §8 needs 10` comes from `client/src/media/playback/recordingManifest.ts`. §8 defines depth as one 10-bit code per pixel.
+* `Not applied: The pose must be rigid: scale, shear, mirroring and perspective are not allowed.` comes from `client/src/calibration/placementDraft.ts` (§9 requires placements to be rigid transforms). The placement fields and handle can’t produce such a pose.
+* `depth bitstream has 8-bit luma; depth must be 10-bit` comes from `client/src/media/playback/recordingManifest.ts` (§8 defines depth as one 10-bit code per pixel).
 
 ## Keep this page current [#keep-this-page-current]
 
@@ -1057,7 +1057,7 @@ While you edit, the section shows `changed locally, not committed (the 3D view s
 * **Discard draft** throws the draft away. Your 3D view shows the server’s placement again. Nothing is sent.
 * **Rebase on server placement (revision 2)** appears when someone else committed a placement after you started your draft. It keeps your draft’s position and rotation, and makes the newer revision its starting point, so you can commit.
 
-While a commit is on its way, the fields are read-only and the button shows `in progress`. The result appears under the section:
+While a commit is on its way, the fields are read-only and the button shows `in progress`. The result appears under the section, and screen readers announce it:
 
 | Result                                                                                    | Meaning                                                                      |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -1068,6 +1068,19 @@ While a commit is on its way, the fields are read-only and the button shows `in 
 | `Commit placement failed (<reason>): <message>. The draft is kept.`                       | The server didn’t answer, for example `timeout`, or the connection was lost. |
 
 After a commit, the cloud may freeze or disappear for a moment. The server restarts its video for the new placement, and the client never draws a frame with another revision’s placement.
+
+### Keyboard focus [#keyboard-focus]
+
+When the button you selected disappears, keyboard focus moves to the next control that makes sense, so you don’t lose your place:
+
+| You select                                      | Focus moves to                   |
+| ----------------------------------------------- | -------------------------------- |
+| **Edit placement**                              | The first draft field, **x (m)** |
+| **Discard draft**                               | **Edit placement**               |
+| **Commit placement**, once the draft is cleared | **Edit placement**               |
+| **Rebase on server placement**                  | **Commit placement**             |
+
+If that control isn’t there, focus moves to the **Placement** heading. When you move focus elsewhere yourself, it stays where you put it.
 
 ## Where your draft is kept [#where-your-draft-is-kept]
 
@@ -1089,7 +1102,7 @@ Your 3D view shows the draft only while the setup view for that server is open. 
 | **Commit placement** says `the draft equals the server placement`                                                                                                                                            | There is nothing to commit.                                                                                                  | Change a field, or select **Discard draft**.                                                                                           |
 | **Edit placement** says `no server placement known yet`                                                                                                                                                      | The client hasn’t received the server’s state yet.                                                                           | Wait until the card shows a live status.                                                                                               |
 | **Edit placement** says `the server placement is not rigid`                                                                                                                                                  | The server’s placement stretches or skews the cloud.                                                                         | Fix the placement on the server side.                                                                                                  |
-| A message that starts with `Not applied: anchorFromServer must be rigid`                                                                                                                                     | The client refused a pose that would stretch or mirror the cloud. The fields and handle can’t produce one, so this is a bug. | Report it with the values you entered.                                                                                                 |
+| `Not applied: The pose must be rigid: scale, shear, mirroring and perspective are not allowed.`                                                                                                              | The client refused a pose that would stretch or mirror the cloud. The fields and handle can’t produce one, so this is a bug. | Report it with the values you entered.                                                                                                 |
 | `Move in 3D is not available: no rendering backend`                                                                                                                                                          | The browser can’t draw 3D.                                                                                                   | Edit with the fields. See [Check your browser](/docs/client/browser-requirements).                                                     |
 | `Move in 3D is not available: the server is not drawn in this session`                                                                                                                                       | The server’s cloud isn’t in the 3D view yet, or the card shows a conflict.                                                   | Wait until the card is live, then tick **Move in 3D** again.                                                                           |
 | **Move in 3D** shows `a placement commit is in progress`                                                                                                                                                     | The draft can’t change until the commit is settled.                                                                          | Wait for the result.                                                                                                                   |
@@ -1430,6 +1443,8 @@ Shared updates are calibration results and placement changes that the server sen
 * With it off, the server still tells your client that something changed. The card then shows `Metadata is stale: a shared update was withheld.` and a **Refresh stale metadata** button, which fetches the server’s full state.
 * When the change also restarts the server’s video, as a placement change or a committed calibration does, the client fetches the full state by itself.
 
+For a recording whose files were refused, the checkbox is unavailable, with the reason `the source is invalid` under it. It stays reachable with the keyboard so screen readers can read the reason, but ticking it changes nothing.
+
 ## What each button does [#what-each-button-does]
 
 Every button stays in place when it’s unavailable, and the reason is written under it. The result of your last action appears at the bottom of the card, and screen readers announce it.
@@ -1446,6 +1461,8 @@ Every button stays in place when it’s unavailable, and the reason is written u
 **Acquire lock** only holds the lock. To calibrate or place the server, use **Set up**, which also takes over a lock you already hold. A browser that can’t decode video can still take the lock.
 
 For a recording whose files were refused, every button except **Remove** is unavailable, with the reason `the source is invalid`.
+
+When you select **Remove**, the card disappears with its button. Keyboard focus moves to the list heading, for example `Servers (1)`, and screen readers announce `Removed <name>.`, with the card’s name.
 
 Results at the bottom of the card look like this:
 
@@ -1525,6 +1542,18 @@ From the top, the setup view shows:
 Other clients show the server as `locked-by-other`, with your client’s name. While the setup view is open, the 3D view keeps drawing every server. It doesn’t move the camera to the server you’re setting up.
 
 When a button is unavailable, the reason is written under it. While a request waits for the server’s answer, its button shows `in progress`.
+
+## Use a keyboard or screen reader [#use-a-keyboard-or-screen-reader]
+
+When the setup view opens, keyboard focus moves to its title. Unavailable buttons stay reachable with the keyboard, so you can hear their reason.
+
+Screen readers announce these without moving focus:
+
+* **Results and exits**, at once: for example a calibration result that waits for **Commit**, or why the session ended.
+* **Start, Cancel and Commit outcomes**, at once, named by their section: for example `Depth quantization: Commit: accepted; the new revision comes into force with the server update.` Nothing is announced for a section while one of its requests waits for the server’s answer.
+* **Progress of a running calibration**, at most every 5 seconds: for example `Depth quantization running: <time>, <count> valid samples.`
+
+When a message no longer applies, for example progress after the run ended, it is cleared and not read again.
 
 ## Leave the setup view [#leave-the-setup-view]
 

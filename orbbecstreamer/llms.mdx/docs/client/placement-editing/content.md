@@ -67,7 +67,7 @@ While you edit, the section shows `changed locally, not committed (the 3D view s
 * **Discard draft** throws the draft away. Your 3D view shows the server’s placement again. Nothing is sent.
 * **Rebase on server placement (revision 2)** appears when someone else committed a placement after you started your draft. It keeps your draft’s position and rotation, and makes the newer revision its starting point, so you can commit.
 
-While a commit is on its way, the fields are read-only and the button shows `in progress`. The result appears under the section:
+While a commit is on its way, the fields are read-only and the button shows `in progress`. The result appears under the section, and screen readers announce it:
 
 | Result                                                                                    | Meaning                                                                      |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -78,6 +78,19 @@ While a commit is on its way, the fields are read-only and the button shows `in 
 | `Commit placement failed (<reason>): <message>. The draft is kept.`                       | The server didn’t answer, for example `timeout`, or the connection was lost. |
 
 After a commit, the cloud may freeze or disappear for a moment. The server restarts its video for the new placement, and the client never draws a frame with another revision’s placement.
+
+### Keyboard focus [#keyboard-focus]
+
+When the button you selected disappears, keyboard focus moves to the next control that makes sense, so you don’t lose your place:
+
+| You select                                      | Focus moves to                   |
+| ----------------------------------------------- | -------------------------------- |
+| **Edit placement**                              | The first draft field, **x (m)** |
+| **Discard draft**                               | **Edit placement**               |
+| **Commit placement**, once the draft is cleared | **Edit placement**               |
+| **Rebase on server placement**                  | **Commit placement**             |
+
+If that control isn’t there, focus moves to the **Placement** heading. When you move focus elsewhere yourself, it stays where you put it.
 
 ## Where your draft is kept [#where-your-draft-is-kept]
 
@@ -99,7 +112,7 @@ Your 3D view shows the draft only while the setup view for that server is open. 
 | **Commit placement** says `the draft equals the server placement`                                                                                                                                            | There is nothing to commit.                                                                                                  | Change a field, or select **Discard draft**.                                                                                           |
 | **Edit placement** says `no server placement known yet`                                                                                                                                                      | The client hasn’t received the server’s state yet.                                                                           | Wait until the card shows a live status.                                                                                               |
 | **Edit placement** says `the server placement is not rigid`                                                                                                                                                  | The server’s placement stretches or skews the cloud.                                                                         | Fix the placement on the server side.                                                                                                  |
-| A message that starts with `Not applied: anchorFromServer must be rigid`                                                                                                                                     | The client refused a pose that would stretch or mirror the cloud. The fields and handle can’t produce one, so this is a bug. | Report it with the values you entered.                                                                                                 |
+| `Not applied: The pose must be rigid: scale, shear, mirroring and perspective are not allowed.`                                                                                                              | The client refused a pose that would stretch or mirror the cloud. The fields and handle can’t produce one, so this is a bug. | Report it with the values you entered.                                                                                                 |
 | `Move in 3D is not available: no rendering backend`                                                                                                                                                          | The browser can’t draw 3D.                                                                                                   | Edit with the fields. See [Check your browser](/docs/client/browser-requirements).                                                     |
 | `Move in 3D is not available: the server is not drawn in this session`                                                                                                                                       | The server’s cloud isn’t in the 3D view yet, or the card shows a conflict.                                                   | Wait until the card is live, then tick **Move in 3D** again.                                                                           |
 | **Move in 3D** shows `a placement commit is in progress`                                                                                                                                                     | The draft can’t change until the commit is settled.                                                                          | Wait for the result.                                                                                                                   |

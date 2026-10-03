@@ -35,6 +35,18 @@ Other clients show the server as `locked-by-other`, with your client’s name. W
 
 When a button is unavailable, the reason is written under it. While a request waits for the server’s answer, its button shows `in progress`.
 
+## Use a keyboard or screen reader [#use-a-keyboard-or-screen-reader]
+
+When the setup view opens, keyboard focus moves to its title. Unavailable buttons stay reachable with the keyboard, so you can hear their reason.
+
+Screen readers announce these without moving focus:
+
+* **Results and exits**, at once: for example a calibration result that waits for **Commit**, or why the session ended.
+* **Start, Cancel and Commit outcomes**, at once, named by their section: for example `Depth quantization: Commit: accepted; the new revision comes into force with the server update.` Nothing is announced for a section while one of its requests waits for the server’s answer.
+* **Progress of a running calibration**, at most every 5 seconds: for example `Depth quantization running: <time>, <count> valid samples.`
+
+When a message no longer applies, for example progress after the run ended, it is cleared and not read again.
+
 ## Leave the setup view [#leave-the-setup-view]
 
 Select **Leave setup (release lock)**. The client cancels any calibration that’s still running, then releases the lock. The setup view closes at once and the server cards come back, with no message on screen. Screen readers announce `Left setup: the setup lock was released. Setup workspace closed.` Every client then shows the server `unlocked`.

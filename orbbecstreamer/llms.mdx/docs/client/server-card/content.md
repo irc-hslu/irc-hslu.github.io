@@ -98,6 +98,8 @@ Shared updates are calibration results and placement changes that the server sen
 * With it off, the server still tells your client that something changed. The card then shows `Metadata is stale: a shared update was withheld.` and a **Refresh stale metadata** button, which fetches the server’s full state.
 * When the change also restarts the server’s video, as a placement change or a committed calibration does, the client fetches the full state by itself.
 
+For a recording whose files were refused, the checkbox is unavailable, with the reason `the source is invalid` under it. It stays reachable with the keyboard so screen readers can read the reason, but ticking it changes nothing.
+
 ## What each button does [#what-each-button-does]
 
 Every button stays in place when it’s unavailable, and the reason is written under it. The result of your last action appears at the bottom of the card, and screen readers announce it.
@@ -114,6 +116,8 @@ Every button stays in place when it’s unavailable, and the reason is written u
 **Acquire lock** only holds the lock. To calibrate or place the server, use **Set up**, which also takes over a lock you already hold. A browser that can’t decode video can still take the lock.
 
 For a recording whose files were refused, every button except **Remove** is unavailable, with the reason `the source is invalid`.
+
+When you select **Remove**, the card disappears with its button. Keyboard focus moves to the list heading, for example `Servers (1)`, and screen readers announce `Removed <name>.`, with the card’s name.
 
 Results at the bottom of the card look like this:
 
