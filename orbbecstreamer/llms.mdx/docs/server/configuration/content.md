@@ -44,8 +44,9 @@ development rig (its camera serials, hardware sync, the RVM mask and full debug
 recording), so copy and adapt it first; see
 [Adapt the config to your rig](./running#adapt-the-config-to-your-rig).
 
+From the `server/` folder:
+
 ```bash
-cd server
 ./build/dev-debug/orbbec_streamer --live config/dev/live.yaml
 ```
 
@@ -58,10 +59,10 @@ The loader rejects an unknown key, a bad value or an inconsistent combination
 before any camera is opened. There are two checks.
 
 **Parse and validate the file.** Printing the calibration board loads the
-config through the same loader and does not touch cameras:
+config through the same loader and does not touch cameras. From the
+`server/` folder:
 
 ```bash
-cd server
 ./build/dev-debug/orbbec_streamer --print-charuco-board /tmp/board.png --live config/dev/live.yaml
 ```
 
@@ -78,10 +79,9 @@ pipeline starts.
 **Full start-up check.** Copy the config, prefix every serial number so no
 camera matches, disable the preview and shorten the camera wait. The server
 then validates everything, logs the effective settings and stops because no
-camera matches:
+camera matches. From the `server/` folder:
 
 ```bash
-cd server
 sed -e 's/serial_number: "/serial_number: "NO-SUCH-/' \
     -e 's/camera_wait_timeout_ms: .*/camera_wait_timeout_ms: 1000/' \
     -e 's/preview: true/preview: false/' \
@@ -248,14 +248,14 @@ Foreground segmentation. Depth outside the mask is sent as "invalid".
 
 `backend` values:
 
-| Value                     | Status                                                                                                 |
-| ------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `rvm`                     | Robust Video Matting on TensorRT. The working segmenter. Requires `streams.alignment: color_to_depth`. |
-| `none`                    | No mask is generated; the bilateral filter then treats every pixel as foreground.                      |
-| `fill_all`                | Mask of all foreground (test backend).                                                                 |
-| `rgb_luma_threshold`      | Luma threshold at 128 on colour (test backend).                                                        |
-| `sam3`                    | Placeholder: fills the mask with foreground. It is the code default, so set `backend` explicitly.      |
-| `tensorrt`, `onnxruntime` | Accepted by the parser, but fail with `Selected foreground mask backend is not implemented`.           |
+| Value                     | Status                                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `rvm`                     | Robust Video Matting (a person-segmentation model) on TensorRT, the NVIDIA inference runtime. The working segmenter. Requires `streams.alignment: color_to_depth`. |
+| `none`                    | No mask is generated; the bilateral filter then treats every pixel as foreground.                                                                                  |
+| `fill_all`                | Mask of all foreground (test backend).                                                                                                                             |
+| `rgb_luma_threshold`      | Luma threshold at 128 on colour (test backend).                                                                                                                    |
+| `sam3`                    | Placeholder: fills the mask with foreground. It is the code default, so set `backend` explicitly.                                                                  |
+| `tensorrt`, `onnxruntime` | Accepted by the parser, but fail with `Selected foreground mask backend is not implemented`.                                                                       |
 
 The RVM engine is built for a fixed batch size (`b2` in the file name is two
 cameras) and a fixed geometry (`640x576`). It must match the number of active
@@ -279,7 +279,8 @@ The four `bilateral_*` range checks apply only when
 
 ### `encoding` [#encoding]
 
-NVENC HEVC encoding. See [Stream layout](./stream-layout) for what
+Video encoding with NVENC, the NVIDIA hardware video encoder, as HEVC
+(H.265). See [Stream layout](./stream-layout) for what
 `session_mode` produces.
 
 | Key                               | Type                                                                                    | Default                              | Description                                                                                                                                                                                                                          |
@@ -288,7 +289,7 @@ NVENC HEVC encoding. See [Stream layout](./stream-layout) for what
 | `session_mode`                    | `concatenated_batch` (aliases `concatenated`, `joint`), `per_camera` (alias `separate`) | `per_camera`                         | Stream layout. On the wire these are `concatenated` and `per-camera`.                                                                                                                                                                |
 | `gpu_ordinal`                     | integer                                                                                 | `0`                                  | CUDA device used by NVENC.                                                                                                                                                                                                           |
 | `queue_capacity`                  | integer                                                                                 | `2`                                  | Input queue of the encoder, in batches. When it is full the oldest queued batch is dropped, so the encoder always works on recent frames. Each extra slot can add one frame period of latency after a stall. Must be greater than 0. |
-| `gop_length`                      | integer (frames)                                                                        | `60`                                 | IDR period. `0` means an infinite GOP (only the first frame and on-demand keyframes are IDR). At 15 fps, 60 frames is 4 s.                                                                                                           |
+| `gop_length`                      | integer (frames)                                                                        | `60`                                 | Distance between IDR frames (keyframes a decoder can start from), also called the GOP length. `0` means an infinite GOP (only the first frame and on-demand keyframes are IDR). At 15 fps, 60 frames is 4 s.                         |
 | `color.bitrate_bps`               | integer (bit/s)                                                                         | `12000000`                           | Colour bitrate per camera. Must be greater than 0.                                                                                                                                                                                   |
 | `depth.bitrate_bps`               | integer (bit/s)                                                                         | `8000000`                            | Depth bitrate per camera. Must be greater than 0.                                                                                                                                                                                    |
 | `depth.minimum_depth_mm`          | integer (mm)                                                                            | `500`                                | Start of the quantized depth range. Must satisfy `0 < minimum < maximum <= 65535`.                                                                                                                                                   |
@@ -297,8 +298,9 @@ NVENC HEVC encoding. See [Stream layout](./stream-layout) for what
 | `depth.adaptive_uniform_mix`      | float                                                                                   | `0.50`                               | 0 to 1. Share of a uniform distribution mixed into the measured depth histogram when the calibrator builds a profile.                                                                                                                |
 
 Bitrates are per camera: in `concatenated_batch` mode the encoder runs at the
-bitrate times the number of cameras. Rate control is CBR with a one-frame
-buffer, no B-frames and no look-ahead.
+bitrate times the number of cameras. Rate control is constant bitrate (CBR)
+with a one-frame buffer, no B-frames (frames that reference later frames)
+and no look-ahead.
 
 **Depth quantization profile.** At start-up the server looks for
 `quantization_profile_path`:
@@ -309,10 +311,10 @@ buffer, no B-frames and no look-ahead.
   `depth quantization profile not found ...; using linear 10-bit mapping`
   and uses a linear mapping over the range.
 
-Create or refresh the profile with the calibrator (needs the cameras):
+Create or refresh the profile with the calibrator. It needs the cameras.
+From the `server/` folder:
 
 ```bash
-cd server
 ./build/dev-debug/orbbec_streamer_depth_quantization_calibrator --config config/dev/live.yaml
 ```
 
@@ -323,7 +325,9 @@ recompute. `--output`, `--duration-s` and `--uniform-mix` override
 
 ### `calibration` [#calibration]
 
-Camera-pose calibration with a printed ChArUco board.
+Camera-pose calibration measures the position and orientation of each
+camera. It uses a printed ChArUco board: a chessboard with an ArUco marker
+in each white square.
 
 | Key                     | Type      | Default                       | Description                                                                                                                    |
 | ----------------------- | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -337,10 +341,9 @@ Camera-pose calibration with a printed ChArUco board.
 
 Starting calibration from a browser needs the network session, which is not
 yet available, so `autocalibrate: true` has no client to wait for today. Run
-calibration locally instead:
+calibration locally instead. From the `server/` folder:
 
 ```bash
-cd server
 ./build/dev-debug/orbbec_streamer --live config/dev/live.yaml --calibrate-camera-pose
 ```
 
@@ -378,6 +381,50 @@ client protocol.
 
 There is no telemetry section. The server logs rates, drops and
 stage-by-stage latency on a fixed schedule.
+
+## Environment variables [#environment-variables]
+
+The server code, CMake files and scripts read only the variables below. The
+scripts in `server/scripts/` read no environment variables; they find `git`,
+`nvcc`, `nvidia-smi` and `trtexec` on `PATH`.
+
+### Build time [#build-time]
+
+| Variable                           | Read by                        | Purpose                                                                                                                                    | Example                                                     |
+| ---------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `CC`, `CXX`                        | CMake, set by the presets      | C and C++ compilers. The presets set them to GCC 15, so you do not set them yourself.                                                      | `CXX=/usr/bin/g++-15`                                       |
+| `CUDAHOSTCXX`                      | CMake, set by the presets      | Host compiler for `nvcc`. It must be the same GCC version as `CXX`, or configure stops.                                                    | `CUDAHOSTCXX=/usr/bin/g++-15`                               |
+| `CUDA_HOME`                        | CUDA tools, set by the presets | CUDA toolkit root                                                                                                                          | `CUDA_HOME=/usr/local/cuda`                                 |
+| `PATH`                             | CMake, set by the presets      | The presets prepend `/usr/local/cuda/bin` to your `PATH`                                                                                   | `PATH=/usr/local/cuda/bin:$PATH`                            |
+| `LD_LIBRARY_PATH`                  | CMake, set by the presets      | The presets prepend `/usr/local/cuda/lib64`. For a TensorRT tar install, add its `lib` folder yourself.                                    | `LD_LIBRARY_PATH=/opt/TensorRT-11.1.0/lib:$LD_LIBRARY_PATH` |
+| `TensorRT_ROOT` or `TENSORRT_ROOT` | `cmake/FindTensorRT.cmake`     | Where to look for TensorRT headers, `libnvinfer` and `trtexec` when they are not in the system paths. Not needed with the Debian packages. | `TensorRT_ROOT=/opt/TensorRT-11.1.0`                        |
+
+These CMake cache variables are passed with `-D` and are not environment
+variables, but people often need them:
+
+| Variable                                | Default          | Purpose                                                                                                                                   |
+| --------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `CMAKE_CUDA_ARCHITECTURES`              | `89`             | GPU compute capability to compile for. The presets set it on every configure, so override it in a `CMakeUserPresets.json`, not with `-D`. |
+| `OrbbecSDK_DIR`                         | `/usr/local/lib` | Folder that contains `OrbbecSDKConfig.cmake`                                                                                              |
+| `TensorRT_ROOT`                         | not set          | Same as the environment variable above                                                                                                    |
+| `ORBBEC_STREAMER_PROTOCOL_CONTRACT_DIR` | `../protocol`    | Protocol contract, schema and vectors for the conformance test                                                                            |
+
+### Run time [#run-time]
+
+| Variable                      | Read by                 | Purpose                                                                                                                                                                                                                        | Example                                 |
+| ----------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| `ORBBEC_STREAMER_STATUS_MODE` | `--live` status display | `dashboard` forces the full-screen status dashboard. `log` writes each status update to the log instead. When not set, the dashboard is used if stdout is a terminal, `TERM` is set and not `dumb`, and `NO_COLOR` is not set. | `ORBBEC_STREAMER_STATUS_MODE=log`       |
+| `TERM`                        | `--live` status display | Unset or `dumb` turns the dashboard off                                                                                                                                                                                        | `TERM=xterm-256color`                   |
+| `NO_COLOR`                    | `--live` status display | Any value turns the dashboard off                                                                                                                                                                                              | `NO_COLOR=1`                            |
+| `DISPLAY`, `WAYLAND_DISPLAY`  | `--live` preview window | If neither is set, the server turns the preview window off and logs a warning                                                                                                                                                  | `DISPLAY=:0`                            |
+| `LD_LIBRARY_PATH`             | dynamic loader          | Must include the TensorRT `lib` folder for a tar install, and `/usr/local/cuda/lib64` if CUDA is not in the loader's default paths                                                                                             | `LD_LIBRARY_PATH=/usr/local/cuda/lib64` |
+
+Example: run the live pipeline with plain log output, for instance when you
+redirect it to a file. From the `server/` folder:
+
+```bash
+ORBBEC_STREAMER_STATUS_MODE=log ./build/dev-debug/orbbec_streamer --live config/dev/live.yaml
+```
 
 ## Troubleshooting [#troubleshooting]
 

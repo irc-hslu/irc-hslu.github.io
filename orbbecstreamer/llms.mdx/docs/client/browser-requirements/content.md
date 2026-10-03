@@ -1,95 +1,48 @@
-# Browser requirements (https://irc-hslu.github.io/orbbecstreamer/docs/client/browser-requirements)
+# Check your browser (https://irc-hslu.github.io/orbbecstreamer/docs/client/browser-requirements)
 
 
 
-## What it is [#what-it-is]
 
-The client uses three browser features. It still runs when one is missing,
-but with less functionality. Following the protocol's compatibility rule
-(§16), a browser that cannot decode or render remains a valid **control and
-setup client**. It can connect and show server state, but it draws no point
-clouds.
 
-| Feature                                            | Used for                        | Without it                                                      |
-| -------------------------------------------------- | ------------------------------- | --------------------------------------------------------------- |
-| WebTransport                                       | The connection to a live server | Adding a server by URL fails to connect. Recordings still play. |
-| WebCodecs `VideoDecoder` with HEVC Main (8-bit)    | Colour streams                  | Control and setup only: no point clouds                         |
-| WebCodecs `VideoDecoder` with HEVC Main10 (10-bit) | Depth streams                   | Control and setup only: no point clouds                         |
-| WebGPU, or WebGL2 as fallback                      | Drawing the point clouds        | `rendering-incompatible`; control and setup only                |
+The client needs three browser features to show point clouds. If one is missing, the client still opens: you can connect to servers, read their status and set them up, but no point clouds are drawn.
 
-All of these need a **secure context**: `https://`, or `http://localhost`.
-The dev server listens on `http://localhost:5173`, which counts as secure.
+| Feature                                                                  | What the client uses it for         | Without it                                               |
+| ------------------------------------------------------------------------ | ----------------------------------- | -------------------------------------------------------- |
+| WebTransport                                                             | Connecting to a live server         | Adding a server fails to connect. Recordings still play. |
+| WebCodecs video decoding with HEVC Main (8-bit) and HEVC Main10 (10-bit) | Decoding the colour and depth video | No point clouds. Setup and control still work.           |
+| WebGPU, or WebGL2 as a fallback                                          | Drawing the point clouds            | No point clouds. Setup and control still work.           |
 
-## How to check your browser [#how-to-check-your-browser]
+HEVC is the video format the servers send. The browser only turns these features on for secure pages: pages served over `https://`, or from `http://localhost`. The development server at `http://localhost:5173` counts as secure.
 
-1. Start the dev build (see [Run the dev build](/docs/client/dev-build)).
-2. Open [http://localhost:5173/](http://localhost:5173/).
-3. Read the top of the side panel:
-   * `renderer: webgpu` or `renderer: webgl2` names the backend that was
-     created.
-   * `decoders: WebCodecs` means the WebCodecs decoder exists. It does not
-     yet mean that HEVC is supported.
-4. Add a server or open a recording. HEVC support is probed when the
-   connection opens. A compatibility line on the server card means a
-   channel cannot be decoded (see
-   [Read the server card](/docs/client/server-card)).
+## Check what your browser supports [#check-what-your-browser-supports]
 
-## Expected result [#expected-result]
+1. Start the client and open [http://localhost:5173/](http://localhost:5173/). See [Run the client](/docs/client/dev-build).
+2. Read the lines at the top of the side panel:
+   * `renderer: webgpu` or `renderer: webgl2` names the 3D backend the client started.
+   * `decoders: WebCodecs` means the browser has WebCodecs. It doesn’t yet say whether it can decode HEVC.
+3. Select **renderer notes** under those lines to see why the client picked its backend, for example `WebGPU not supported`.
+4. Add a server or play a recording. The client checks HEVC support when the connection opens. If the browser can’t decode the server’s video, the server card shows a line that starts with `Setup and control only`.
 
-On a fully capable browser, the panel shows `renderer: webgpu` (or
-`webgl2`) and `decoders: WebCodecs`. Server cards show no compatibility line.
+## What you should see [#what-you-should-see]
 
-With something missing, the panel shows one of these, verbatim:
+On a browser that can do everything, the panel shows `renderer: webgpu` or `renderer: webgl2`, then `decoders: WebCodecs`, and server cards show no `Setup and control only` line.
 
-* **No WebGPU and no WebGL2:**
-  `renderer: rendering-incompatible. Rendering incompatible: neither WebGPU nor WebGL2 is available. This browser can still connect as a control and setup client (§16); no point clouds are drawn.`
-  * The decoders line then reads: `Decoding is off: nothing could be drawn without a rendering backend (§16). client.hello still reports this browser's HEVC support.`
-  * The client still tells each server which HEVC profiles this browser
-    can decode, but it creates no decoder.
-* **No WebCodecs:** `decoders: WebCodecs VideoDecoder is unavailable: control and setup only (§16).`
-* **HEVC not supported for a channel:** the server card shows a line such as
-  `Setup and control only: this browser lacks HEVC colour decoding and HEVC Main10 depth decoding.`
+<img alt="The top of the side panel: renderer webgl2, decoders WebCodecs, and the opened renderer notes, which say WebGPU not supported and desynchronized (low-latency) canvas granted" src="__img0" />
 
-## Known results [#known-results]
+When something is missing, you see one of these messages:
 
-These were observed on the project's test machine. Other browsers have not
-been tested yet.
+* **No WebGPU and no WebGL2**: the panel shows `renderer: rendering-incompatible. Rendering incompatible: neither WebGPU nor WebGL2 is available. This browser can still connect as a control and setup client; no point clouds are drawn.` The next line starts with `decoders: Decoding is off: nothing could be drawn without a rendering backend.`
+* **No WebCodecs**: the panel shows `decoders: WebCodecs VideoDecoder is unavailable: control and setup only.`
+* **No HEVC decoding**: the server card shows, for example, `Setup and control only: this browser lacks HEVC colour decoding and HEVC Main10 depth decoding.`
 
-* **Headless Chromium 153 (snap) on Linux, over SSH, 2026-09-23:**
-  * WebCodecs works; H.264, VP9 and AV1 decode in software.
-  * No hardware video decoding is available.
-  * HEVC is reported unsupported for both colour and depth, in every
-    hardware-acceleration mode, even with the VA-API flags.
-  * The client therefore connects and stays control-only. This is why the
-    wiring and latency check pages use a synthetic decoder. The decode
-    check uses real WebCodecs, and so reports the missing support.
-* **Real HEVC decoding in a browser has not been verified yet.**
-  * The next test is desktop Chrome or Edge with GPU video decode, or
-    Safari.
-  * It is tracked in `client/docs/development/ROADMAP.md` under
-    "Phase 2 — media and rendering" ("Check with real decoded HEVC frames in
-    a browser").
-* **Rendering in headless Chromium with SwiftShader:**
-  * WebGL2 works.
-  * WebGPU works with `--enable-unsafe-webgpu`.
-  * WebGPU failed with a lost device on 2026-09-24, while about 20 stray
-    headless Chromium instances were running on the same machine. After
-    they were closed, the wiring check passed on WebGPU (see the roadmap
-    item "Wiring check on WebGPU"). Headless WebGPU on SwiftShader is
-    sensitive to machine load.
+## Browsers tested so far [#browsers-tested-so-far]
 
-## Troubleshooting [#troubleshooting]
+Nobody has confirmed HEVC decoding in any browser yet. The only browser the team has tested is headless Chromium 153 on Linux, and it reports no HEVC decoding. The next test is desktop Chrome or Edge with GPU video decoding, or Safari. The detailed results are on [Test the client](/docs/client/developer/test-the-client#browsers-tested-so-far).
 
-* **`rendering-incompatible` on a desktop browser:** hardware acceleration
-  may be off. Turn on "Use graphics acceleration when available" in
-  the browser settings, then check `chrome://gpu` (Chrome or Edge) for
-  WebGL2 and WebGPU status.
-* **Every server card says the browser lacks HEVC decoding:** the browser has no
-  HEVC decoder for this platform. Try another browser or machine with GPU
-  video decoding. The client still works for control and setup.
-* **Nothing works when opened from another machine by IP address:**
-  plain `http://` is only a secure context on `localhost`. The page must
-  be served over HTTPS with a certificate that machine trusts; the
-  repository has no HTTPS dev configuration yet.
-* **`renderer notes` in the panel:** expand them. They say why WebGPU was
-  skipped, for example `WebGPU not supported`.
+## Fix browser problems [#fix-browser-problems]
+
+These are the common browser problems and their fixes:
+
+* **`rendering-incompatible` on a desktop browser**: hardware acceleration may be off. Turn on **Use graphics acceleration when available** in the browser settings. In Chrome or Edge, open `chrome://gpu` to check the WebGL2 and WebGPU status.
+* **Every server card says the browser lacks HEVC decoding**: this browser has no HEVC decoder on this machine. Try another browser, or a machine with GPU video decoding. You can still use the client to set up servers.
+* **Nothing works when you open the client from another computer**: plain `http://` pages are only secure on `localhost`. Open the client on the machine that runs it.

@@ -2,8 +2,16 @@
 
 
 
-While `--live` runs, the server prints three kinds of telemetry to the
-terminal:
+While `--live` runs, the server prints its own health to the terminal:
+frame rates, dropped frames and how long each stage takes. This page shows
+each kind of output, explains every column, and lists the values of a
+healthy run.
+
+In this page, a **batch** is one synchronised frame set from every camera.
+The pipeline moves batches through its stages: capture, upload to the GPU,
+GPU processing, and encoding.
+
+The server prints three kinds of telemetry:
 
 | Output                                                                   | When                                                           | Content                                               |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------- | ----------------------------------------------------- |
@@ -15,29 +23,69 @@ There is no config section for telemetry and no metrics endpoint yet.
 Network metrics (per-client queues, drops, stalls) will come with the
 WebTransport server; see [Serve to browsers](./serving).
 
+## Check a run in four steps [#check-a-run-in-four-steps]
+
+1. Wait about 6 s after `live pipeline started` for the first rate table.
+2. In `LIVE PIPELINE`, check that `capture`, `upload` and `process` run at
+   the configured frame rate, and `encode` at cameras × frame rate.
+3. Check that every `dropped` counter stays at `0`.
+4. After a minute, compare the latest latency report with
+   [What good looks like](#what-good-looks-like).
+
+If a number is off, go to [Troubleshooting](#troubleshooting).
+
 ## Choose the display mode [#choose-the-display-mode]
 
 On an interactive terminal the rate tables are redrawn in place on a
 separate screen, which also overwrites the latency reports within a second.
-To keep every report, use log mode:
+To keep every report, use log mode. From the `server/` folder:
 
 ```bash
-cd server
 ORBBEC_STREAMER_STATUS_MODE=log ./build/dev-relwithdebinfo/orbbec_streamer --live config/dev/live.yaml 2>&1 | tee live.log
 ```
 
-| `ORBBEC_STREAMER_STATUS_MODE` | Behaviour                                                                                                   |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| unset                         | In-place display if stdout is a terminal, `TERM` is not `dumb` and `NO_COLOR` is unset; otherwise log mode. |
-| `log`                         | Every table is an ordinary log line. Use this for measurements and log files.                               |
-| `dashboard`                   | Always redraw in place.                                                                                     |
+| `ORBBEC_STREAMER_STATUS_MODE` | Behaviour                                                                                                            |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| unset                         | In-place display if stdout is a terminal, `TERM` is set and not `dumb`, and `NO_COLOR` is unset; otherwise log mode. |
+| `log`                         | Every table is an ordinary log line. Use this for measurements and log files.                                        |
+| `dashboard`                   | Always redraw in place.                                                                                              |
+
+The in-place display keeps the rate tables at the top of the screen and
+redraws them every second. Log lines, such as warnings, still appear below
+the tables. A real screen with two cameras at 15 fps, the preview open and
+GPU-output recording on (serial numbers replaced):
+
+```text
+LIVE PIPELINE
+stage              fps     dropped       MiB/s
+capture           14.0           -           -
+upload            14.0           0           -
+process           14.0           0           -
+encode            28.0           0        0.40
+preview           14.0           -           -
+
+CAMERA INGRESS
+camera                        frame_sets/s    frames/s       MiB/s
+orbbec:CL8K0000000A                    15.0        30.0        26.4
+orbbec:CL8K0000000B                    14.0        28.0        24.6
+
+
+DEBUG RECORDING RATES  queues(in/out)=0/0 drops(in/out)=0/0 worker=ok
+camera          in_color    in_depth   out_color   out_depth   dec_color   dec_depth  decoder
+cam0                 0.0         0.0         0.0         0.0         0.0         0.0  disabled/disabled
+cam1                 0.0         0.0         0.0         0.0         0.0         0.0  disabled/disabled
+multicam             0.0         0.0        14.0        14.0        14.0        14.0  ffmpeg-cuda/ffmpeg-cuda
+
+[2026-10-03 18:19:33.501] [info] live preview: frame=390 color=640x576 mask_nonzero=368640/368640 depth_min=45 depth_max=13479
+```
 
 The in-place display is closed before the session summary is printed, so the
 summary stays on screen.
 
 ## Rate tables [#rate-tables]
 
-Example from a run with two Femto Bolt cameras at 15 fps,
+The rate tables show how many frames each stage handles per second and how
+many it dropped. Example from a run with two Femto Bolt cameras at 15 fps,
 `session_mode: concatenated_batch` and debug recording on:
 
 ```text
@@ -70,7 +118,7 @@ single readings jump between 14 and 16 at 15 fps.
 | `capture` | Synchronised batches (one frame set from every camera) per second.                                                                                                                                                         | -                                                                                                                                                 | -                                        |
 | `upload`  | Batches copied to the GPU per second.                                                                                                                                                                                      | Total batches dropped since start: evicted from the full upload queue (2 batches), plus batches dropped because every GPU upload slot was in use. | -                                        |
 | `process` | Batches through GPU processing (mask, depth filter) per second.                                                                                                                                                            | Total evicted from the full processing queue (2 batches).                                                                                         | -                                        |
-| `encode`  | Encoded camera views per second. With N cameras this is N × the batch rate, in both encoding modes.                                                                                                                        | Total evicted from the full encode queue (`encoding.queue_capacity`, default 2).                                                                  | Encoded colour + depth bitstream, MiB/s. |
+| `encode`  | Encoded camera views (one camera's colour and depth image) per second. With N cameras this is N × the batch rate, in both encoding modes.                                                                                  | Total evicted from the full encode queue (`encoding.queue_capacity`, default 2).                                                                  | Encoded colour + depth bitstream, MiB/s. |
 | `preview` | Preview frames shown per second (only with an open preview window). The preview runs on its own thread and shows the newest batch whenever it is free, so a rate below `capture` is normal and does not slow the pipeline. | -                                                                                                                                                 | -                                        |
 
 `dropped` is a running total, not a rate, and it is exact. The queues are
@@ -123,7 +171,7 @@ Shown only when debug recording is on.
 | `drops(in/out)`          | Total batches the recorder dropped because it fell behind. Recording never slows the pipeline; it drops instead. |
 | `worker`                 | `ok`, or `failed` after a recorder error (logged as `<name> debug worker disabled: <reason>`).                   |
 | `in_color`, `in_depth`   | Frames per second written to `gpu-input-*.mkv`.                                                                  |
-| `out_color`, `out_depth` | Encoded access units per second received for recording.                                                          |
+| `out_color`, `out_depth` | Encoded access units (one compressed video frame each) per second received for recording.                        |
 | `dec_color`, `dec_depth` | Frames per second decoded locally (with `locally_decode_gpu_outputs`).                                           |
 | `decoder`                | Colour/depth decoder backend, for example `ffmpeg-cuda`, or `disabled`.                                          |
 
@@ -132,7 +180,8 @@ The `multicam` row is the concatenated encoder output in
 
 ## Latency report [#latency-report]
 
-Every 5 s (a real window: two cameras at 15 fps, `concatenated_batch`,
+The latency report shows how long each stage of the pipeline takes. The
+server prints it every 5 s. Example (a real window: two cameras at 15 fps, `concatenated_batch`,
 `mask.backend: fill_all`, no preview):
 
 ```text
@@ -162,7 +211,8 @@ Each line is one metric: the number of samples `n`, then the 50th, 99th and
 99.9th percentile and the maximum, in milliseconds. Metrics without samples
 are left out.
 
-* **p50** is the typical value. **p99** is exceeded by 1 in 100 samples;
+* A percentile is the value below which that share of samples falls.
+  **p50** is the typical value. **p99** is exceeded by 1 in 100 samples;
   this is the number to compare against targets. **p99.9** and **max** show
   rare stalls. With about 75 batches per 5 s window at 15 fps, p99, p99.9
   and max are close to the single worst sample; use the whole-session report for tails.
@@ -182,27 +232,27 @@ are left out.
 In the order they are printed. *Per camera* metrics come from each camera's
 frame set; the others from the batch.
 
-| Metric              | From → to                                              | What it contains                                                                                                                                                                                     |
-| ------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `capture->sdk`      | capture timestamp → SDK delivered the frame set        | Per camera. Sensor, USB, SDK decode and frame sync.                                                                                                                                                  |
-| `capture->host_rx`  | capture → host received the later of colour/depth      | Per camera.                                                                                                                                                                                          |
-| `capture->depth_rx` | capture → host received the depth frame                | Per camera.                                                                                                                                                                                          |
-| `capture->color_rx` | capture → host received the colour frame               | Per camera. Colour arrives after depth; see below.                                                                                                                                                   |
-| `sdk_internal`      | host received → SDK delivered                          | Per camera. SDK colour conversion, frame sync, SDK queues.                                                                                                                                           |
-| `align`             | SDK delivered → aligned frame set built                | Per camera. Colour-to-depth alignment on the CPU.                                                                                                                                                    |
-| `arrival_skew`      | first camera aligned → last camera aligned             | Batch, only with 2+ cameras. How far apart the cameras are.                                                                                                                                          |
-| `batch_wait`        | first camera aligned → batch emitted                   | Batch. Time the batcher waited for the slowest camera.                                                                                                                                               |
-| `upload_queue`      | batch emitted → upload stage took it                   | Time in the upload queue.                                                                                                                                                                            |
-| `upload_submit`     | upload taken → staging and host-to-GPU copies enqueued | CPU copy into pinned memory.                                                                                                                                                                         |
-| `processing_queue`  | upload submitted → processing stage took it            | Time in the processing queue.                                                                                                                                                                        |
-| `processing`        | processing taken → done                                | GPU processing, including waiting for the upload to finish.                                                                                                                                          |
-| `side_path`         | processing done → encode enqueued                      | The hand-off to the encoder. With the preview on, it includes picking the preview's three images (GPU buffer handles, no image copy); the preview itself runs on its own thread. A few microseconds. |
-| `encode_queue`      | encode enqueued → encoder took it                      | Time in the encode queue.                                                                                                                                                                            |
-| `encode_color`      | encoder took it → colour access unit out of NVENC      | Colour encode. Colour and depth are encoded in parallel, so this also covers converting and submitting depth and is close to `encode_bundle`.                                                        |
-| `encode_bundle`     | encoder took it → depth access unit out                | Colour and depth encode (both access units out).                                                                                                                                                     |
-| `handoff`           | depth out → bundle handed to its consumer              | Bundle assembly. The consumer is the debug recorder today, the network later.                                                                                                                        |
-| `sdk->handoff`      | last camera's SDK delivery → hand-off                  | **The part the server code controls.**                                                                                                                                                               |
-| `capture->handoff`  | latest capture timestamp → hand-off                    | End to end inside the server, including the camera.                                                                                                                                                  |
+| Metric              | From → to                                                                             | What it contains                                                                                                                                                                                                                        |
+| ------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `capture->sdk`      | capture timestamp → SDK delivered the frame set                                       | Per camera. Sensor, USB, SDK decode and frame sync.                                                                                                                                                                                     |
+| `capture->host_rx`  | capture → host received the later of colour/depth                                     | Per camera.                                                                                                                                                                                                                             |
+| `capture->depth_rx` | capture → host received the depth frame                                               | Per camera.                                                                                                                                                                                                                             |
+| `capture->color_rx` | capture → host received the colour frame                                              | Per camera. Colour arrives after depth; see below.                                                                                                                                                                                      |
+| `sdk_internal`      | host received → SDK delivered                                                         | Per camera. SDK colour conversion, frame sync, SDK queues.                                                                                                                                                                              |
+| `align`             | SDK delivered → aligned frame set built                                               | Per camera. Colour-to-depth alignment on the CPU.                                                                                                                                                                                       |
+| `arrival_skew`      | first camera aligned → last camera aligned                                            | Batch, only with 2+ cameras. How far apart the cameras are.                                                                                                                                                                             |
+| `batch_wait`        | first camera aligned → batch emitted                                                  | Batch. Time the batcher waited for the slowest camera.                                                                                                                                                                                  |
+| `upload_queue`      | batch emitted → upload stage took it                                                  | Time in the upload queue.                                                                                                                                                                                                               |
+| `upload_submit`     | upload taken → staging and host-to-GPU copies enqueued                                | CPU copy into pinned memory.                                                                                                                                                                                                            |
+| `processing_queue`  | upload submitted → processing stage took it                                           | Time in the processing queue.                                                                                                                                                                                                           |
+| `processing`        | processing taken → done                                                               | GPU processing, including waiting for the upload to finish.                                                                                                                                                                             |
+| `side_path`         | processing done → encode enqueued                                                     | The hand-off to the encoder. With the preview on, it includes picking the preview's three images (GPU buffer handles, no image copy); the preview itself runs on its own thread. A few microseconds.                                    |
+| `encode_queue`      | encode enqueued → encoder took it                                                     | Time in the encode queue.                                                                                                                                                                                                               |
+| `encode_color`      | encoder took it → colour access unit out of NVENC (the NVIDIA hardware video encoder) | Colour encode. Colour and depth are encoded in parallel, so this also covers converting and submitting depth and is close to `encode_bundle`.                                                                                           |
+| `encode_bundle`     | encoder took it → depth access unit out                                               | Colour and depth encode (both access units out).                                                                                                                                                                                        |
+| `handoff`           | depth out → bundle handed to its consumer                                             | Bundle assembly. A bundle is a colour and a depth access unit encoded together: one per batch in `concatenated_batch` mode, one per camera and batch in `per_camera` mode. The consumer is the debug recorder today, the network later. |
+| `sdk->handoff`      | last camera's SDK delivery → hand-off                                                 | **The part the server code controls.**                                                                                                                                                                                                  |
+| `capture->handoff`  | latest capture timestamp → hand-off                                                   | End to end inside the server, including the camera.                                                                                                                                                                                     |
 
 In `per_camera` mode each camera's bundle carries the batch stamps, so batch
 metrics are counted once per camera, `arrival_skew` is not recorded, and a
@@ -211,7 +261,8 @@ cameras before it. `concatenated_batch` mode has none of these caveats.
 
 ## Session summary [#session-summary]
 
-At shutdown, after `Ctrl+C`:
+When the server stops, it prints totals for the whole run. Example after
+`Ctrl+C`:
 
 ```text
 SESSION SUMMARY
@@ -260,12 +311,13 @@ cleanly` are totals:
 
 `stale` frame sets had no partner from every camera within the timestamp
 tolerance (a sync problem when it grows). `keyframes` counts on-demand
-keyframe requests and the IDRs they forced; until serving exists nothing
-requests them, so both stay 0.
+keyframe requests and the IDRs (keyframes that a decoder can start from)
+they forced. Nothing requests keyframes until the server serves browsers, so
+both stay 0.
 
 ## What good looks like [#what-good-looks-like]
 
-Reference: the baseline of 2026-09-26
+These values come from a reference measurement of 2026-09-26
 (`server/docs/architecture/latency-review/baseline-2026-09-26.md`). Two
 hardware-synced Femto Bolts, RTX 4090, `dev-relwithdebinfo` build, depth
 640×576 and colour 1280×720 at 15 fps, colour requested as `rgb8`,

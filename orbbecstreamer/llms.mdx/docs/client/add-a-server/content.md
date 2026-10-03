@@ -4,82 +4,65 @@
 
 
 
-## What it is [#what-it-is]
 
-The side panel's "Add server" form opens a WebTransport session to one
-capture server. Each server you add gets a server card in the
-"Servers" list. You can add several servers, and all their point
-clouds are drawn in the same 3D view.
 
-## How to do it [#how-to-do-it]
+Each server you add gets its own card in the side panel, and all servers draw their point clouds in the same 3D view. You can add several servers.
 
-1. Start the client (see [Run the dev build](/docs/client/dev-build)) and
-   open [http://localhost:5173/](http://localhost:5173/).
-2. In **Add server**, type the server's WebTransport URL, for example
-   `https://capture-01.local:4433/orbbec`. Replace the host, port and path
-   with your server's.
-3. Click **Connect to server**.
+The capture server doesn’t accept browser connections yet. See [Serve to browsers](/docs/server/serving). Until it does, use the mock server below to try the client, or [play a recording](/docs/client/playback).
 
-The URL must follow these rules. The form checks them before connecting:
+## Connect to a capture server [#connect-to-a-capture-server]
 
-| Rule                               | Message when broken                                 |
-| ---------------------------------- | --------------------------------------------------- |
-| Not empty                          | `enter a server URL, e.g. https://host:4433/orbbec` |
-| A valid absolute URL               | `not a URL: …`                                      |
-| Scheme `https:`                    | `WebTransport needs an https: URL, got …`           |
-| No fragment, not even an empty `#` | `WebTransport URLs cannot have a fragment (#…)`     |
+The client connects over WebTransport, a browser connection type for fast, two-way streaming. You need the server’s WebTransport address, for example `https://capture-01.local:4433/orbbec`.
 
-The browser must trust the server's TLS certificate. The client opens the
-session with no extra options: it does not use
-`serverCertificateHashes`, so a self-signed certificate is accepted only
-if the browser already trusts it.
+1. Start the client and open it. See [Run the client](/docs/client/dev-build).
+2. In **Add server**, type the server’s address into **WebTransport URL**. Replace the host name, port and path in the example with your server’s.
+3. Select **Connect to server**.
 
-<img alt="The Add server form in the side panel: a WebTransport URL field and an Add button" src="__img0" />
+<img alt="The Add server form: the WebTransport URL field with the placeholder https://host:4433/orbbec, and the Connect to server button" src="__img0" />
 
-## Expected result [#expected-result]
+The form checks the address before it connects. The address must start with `https://` and must not contain a `#`.
 
-A new server card appears under "Servers" at once, with the status
-`connecting`. After the handshake, the card shows the server's name and
-id. The client then subscribes to every camera bundle the server
-announces, and that server's point cloud should appear in the 3D view.
-This path is built and tested against simulated servers, but has not yet
-been run against a real server or in a browser with HEVC decoding. That
-check is tracked in `client/docs/development/ROADMAP.md` (Phase 2,
-"Check with real decoded HEVC frames in a browser").
+Your browser must also trust the server’s security certificate. The client can’t accept a certificate your browser doesn’t already trust.
 
-Every line and action of the card is described in
-[Read the server card](/docs/client/server-card).
+## Add the mock server instead [#add-the-mock-server-instead]
 
-How connections behave:
+The development server has a simulated capture server, the mock server. It behaves like a real server, so you can try every screen without hardware.
 
-* **Connect timeout:** a connection attempt that has not completed its
-  handshake after 10 s is closed as `connect timeout`.
-* **Reconnect:**
-  * A lost session is retried automatically after 1 s. The delay doubles
-    up to 30 s between attempts, with no attempt limit.
-  * It is not retried after Remove, after a protocol version mismatch, or
-    after a conflict. The card's **Reconnect** action starts a new
-    session at once whenever the card shows `error` or `disconnected`.
-    It is unavailable while the card is connecting or connected.
+1. Start the client with `npm run dev`. See [Run the client](/docs/client/dev-build).
+2. In **Dev: mock server**, select **Add mock server**.
 
-## Troubleshooting [#troubleshooting]
+The line under the button says `Added a mock server (snapshot only, no media).` The mock server sends status but no video, so you can try every card and setup screen, but no point cloud appears. The built copy of the client (`npm run build`) has no mock server.
 
-* **`last close: transport error: …` and status `error`:** the session could
-  not be opened.
-  * Check that the server is running and reachable at that host and port
-    over UDP (WebTransport runs on HTTP/3, over QUIC).
-  * Check that the browser trusts the server's certificate.
-  * In a browser without WebTransport, every attempt fails this way.
-* **`connect timeout`:** opening the session and completing the
-  handshake took longer than 10 s. The server may be unreachable, or it
-  may not answer the hello; check the server's logs.
-* **`Protocol version mismatch; cannot connect.`** or
-  `last close: protocol error version-mismatch: …`: the server speaks
-  another major protocol version. Update the client or the server.
-  The client does not retry.
-* **Conflict:** two cards point at the same server (for example by IP
-  address and by host name). Remove one.
-* **Card `streaming` but `uploaded 0`:**
-  * A compatibility line means this browser cannot decode HEVC. See
-    [Browser requirements](/docs/client/browser-requirements).
-  * Otherwise, check the bundle rows of the card's layout for an error.
+## What you should see [#what-you-should-see]
+
+A new card appears under **Servers** at once, with the status `connecting`. After a moment, the card shows the server’s name, its ID and a live status such as `ready` or `streaming`. The client then asks the server for all its video streams.
+
+No point cloud appears yet. The mock server sends no video, a real server can’t be connected yet, and HEVC decoding hasn’t worked in any browser tested so far. See [Check your browser](/docs/client/browser-requirements).
+
+<img alt="The Servers list with one card for the Dev mock server: status streaming, its server ID and mock address, and a Setup and control only line because the capture browser can’t decode HEVC" src="__img1" />
+
+[Read a server card](/docs/client/server-card) explains every line of the card.
+
+If the connection drops, the client reconnects by itself. It waits 1 second before the first try, then doubles the wait each time, up to 30 seconds, and keeps trying. It doesn’t retry after you select **Remove**, after a protocol version mismatch, or after a conflict.
+
+## Fix connection problems [#fix-connection-problems]
+
+These messages appear on the server card:
+
+* **Status `error` and `last close: transport error: …`**: the client couldn’t open the connection.
+  * Check that the server is running and that you can reach its host and port over UDP. WebTransport runs over UDP, not TCP.
+  * Check that your browser trusts the server’s certificate.
+  * A browser without WebTransport fails this way on every try. See [Check your browser](/docs/client/browser-requirements).
+* **`connect timeout`**: the server didn’t finish connecting within 10 seconds. It may be unreachable, or it may not answer. Check the server’s logs.
+* **`Protocol version mismatch; cannot connect.`**: the server uses another major version of the protocol. Update the client or the server. The client doesn’t retry.
+* **`conflict: server … is already rendered by …`**: two cards reach the same server, for example once by IP address and once by host name. Select **Remove** on one of them.
+* **Status `streaming`, but the counts stay at `uploaded 0`**: a `Setup and control only` line means your browser can’t decode the video. See [Check your browser](/docs/client/browser-requirements). Otherwise, look at the bundle lines in the card’s **layout** for an error.
+
+These messages appear under the **Add server** form:
+
+| Message                                             | Fix                                        |
+| --------------------------------------------------- | ------------------------------------------ |
+| `enter a server URL, e.g. https://host:4433/orbbec` | Type an address.                           |
+| `not a URL: …`                                      | Type a full address, including `https://`. |
+| `WebTransport needs an https: URL, got …`           | Start the address with `https://`.         |
+| `WebTransport URLs cannot have a fragment (#…)`     | Remove the `#` and everything after it.    |

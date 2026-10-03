@@ -2,25 +2,15 @@
 
 
 
-## What it is [#what-it-is]
-
 The client has three tools for measuring its own latency:
 
-* **The per-stage latency probe** (`client/src/connections/latencyProbe.ts`).
-  It times each frame through the client, from the last network byte to the
-  animation frame after the draw, and reports p50/p90/p99/max per stage.
-  It is off unless a pipeline asks for it. When off, no clock is read on the
-  media path.
-* **The latency check page** (`client/dev/latency-check.html`). It runs the
-  probe in a real browser over two recordings and shows the stage table.
-* **The end-to-end benchmark** (`npm run bench:e2e`). It runs the client
-  media path in Node with the browser parts simulated, and can compare two
-  commits.
+* **The per-stage latency probe** (`client/src/connections/latencyProbe.ts`). It times each frame through the client, from the last network byte to the animation frame after the draw, and reports p50/p90/p99/max per stage. It is off unless a pipeline asks for it. When off, no clock is read on the media path.
+* **The latency check page** (`client/dev/latency-check.html`). It runs the probe in a real browser over two recordings and shows the stage table.
+* **The end-to-end benchmark** (`npm run bench:e2e`). It runs the client media path in Node with the browser parts simulated, and can compare two commits.
 
-The main app does not turn the probe on. Only the latency check page and
-your own code do.
+The main app does not turn the probe on. Only the latency check page and your own code do.
 
-### Stages [#stages]
+## Latency stages [#latency-stages]
 
 All values are in milliseconds.
 
@@ -38,23 +28,13 @@ All values are in milliseconds.
 | `clientTotal`      | pair          | last byte of the later channel → `present`                                                                 |
 | `captureToPresent` | pair          | capture → `present`                                                                                        |
 
-A stage is left out of the report until it has a sample. For example,
-`network` has no samples until the clock-sync offset is known. The window is
-the last 512 samples per stage and channel.
+A stage is left out of the report until it has a sample. For example, `network` has no samples until the clock-sync offset is known. The window is the last 512 samples per stage and channel.
 
 ## Run the latency check page [#run-the-latency-check-page]
 
-You need `client/reference/hevc-web/` with `gpu-output-color.hevc`,
-`gpu-output-depth.hevc` and, optionally, `public/hevcsetup.json`.
+You need `client/reference/hevc-web/` with `gpu-output-color.hevc`, `gpu-output-depth.hevc` and, optionally, `public/hevcsetup.json`.
 
-This folder is not in the repository, and neither is `hevc-web.zip`; ask
-the client team for the archive. Put `hevc-web.zip` in `client/`, then run
-this in `client/`:
-
-```bash
-mkdir -p reference/hevc-web
-unzip hevc-web.zip -d reference/hevc-web
-```
+These sample recordings aren’t published and aren’t in the repository, so this page can only run where a local copy exists. See [Sample recordings](/docs/client/developer/test-the-client#sample-recordings).
 
 Start the dev server in `client/`:
 
@@ -78,42 +58,27 @@ URL parameters:
 
 What the page does:
 
-* It plays both recordings through the real connection, decoding, pairing,
-  feed and renderer code. It uses a **synthetic decoder** that ignores the
-  HEVC bytes and emits generated frames.
-* It waits for both servers to upload a pair (at most 30 s), then discards
-  1 s of start-up samples, then measures for `seconds`.
+* It plays both recordings through the real connection, decoding, pairing, feed and renderer code. It uses a **synthetic decoder** that ignores the HEVC bytes and emits generated frames.
+* It waits for both servers to upload a pair (at most 30 s), then discards 1 s of start-up samples, then measures for `seconds`.
 
 ### Cross-origin isolation [#cross-origin-isolation]
 
-The dev server sends `Cross-Origin-Opener-Policy: same-origin` and
-`Cross-Origin-Embedder-Policy: require-corp`. This makes the page
-cross-origin isolated, so `performance.now()` keeps a 5 µs resolution in
-Chrome instead of 100 µs. Many client stages take only tens of µs, so they
-need the fine timer. `vite preview` and the production build do not send
-these headers.
+The dev server sends `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. This makes the page cross-origin isolated, so `performance.now()` keeps a 5 µs resolution in Chrome instead of 100 µs. Some client stages, such as `transport` and `queue`, take tens of µs or less, so they need the fine timer. `vite preview` and the production build do not send these headers.
 
-## Expected result [#expected-result]
+## What you should see [#what-you-should-see]
 
-When the run ends, `document.body.dataset.state` is `done` or `failed`. The
-HUD shows:
+When the run ends, `document.body.dataset.state` is `done` or `failed`. The HUD shows:
 
-* a status line: state, engine, `crossOriginIsolated`, measured timer
-  resolution;
+* a status line: state, engine, `crossOriginIsolated`, measured timer resolution;
 * one stage table per server, with `n`, p50, p90, p99 and max in ms.
 
-The full report is under **report JSON** at the bottom right, and in
-`window.__latencyCheckReport`. It contains:
+The full report is under **report JSON** at the bottom right, and in `window.__latencyCheckReport`. It contains:
 
 * `crossOriginIsolated` and `timerResolutionMs`;
-* `entries[].latency.stages[]`, where each stage has `stage`, `channel`,
-  `count`, `p50`, `p90`, `p99` and `max`;
+* `entries[].latency.stages[]`, where each stage has `stage`, `channel`, `count`, `p50`, `p90`, `p99` and `max`;
 * `errors`, `notes` and `verdict`.
 
-`done` means every server uploaded pairs, there were no errors, and every
-server has `present` samples. The recorded run is in
-`client/docs/development/latency-audit.md` §9.2: headless Chromium, WebGL2
-on SwiftShader, `seconds=8`, timer resolution 0.005 ms. Its p50 values:
+`done` means every server uploaded pairs, there were no errors, and every server has `present` samples. The recorded run is in `client/docs/development/latency-audit.md` §9.2: headless Chromium, WebGL2 on SwiftShader, `seconds=8`, timer resolution 0.005 ms. Its p50 values:
 
 | Stage       | p50              |
 | ----------- | ---------------- |
@@ -132,16 +97,14 @@ on SwiftShader, `seconds=8`, timer resolution 0.005 ms. Its p50 values:
 | `upload`                          | Yes, for the engine in use. On SwiftShader it is software rendering.                                                |
 | `decode`                          | No. It times the synthetic decoder, not WebCodecs.                                                                  |
 | `pairWait`                        | Partly. The synthetic decoder outputs colour about 15 ms before depth, so colour `pairWait` shows that skew.        |
-| `network`, `captureToPresent`     | No. Recordings have no network, and the capture time comes from the recording's clock.                              |
+| `network`, `captureToPresent`     | No. Recordings have no network, and the capture time comes from the recording’s clock.                              |
 | `draw`, `present`, `clientTotal`  | Only on a real GPU. On SwiftShader the points are rasterised on the CPU, so render-loop ticks are tens of ms apart. |
 
-To measure real decode, network and display time, use a real server and a
-real browser decoder. The probe measures the same stages there.
+To measure real decode, network and display time, use a real server and a real browser decoder. The probe measures the same stages there.
 
 ### Use the probe in your own code [#use-the-probe-in-your-own-code]
 
-Set `latencyProbe: true` in the `ConnectionManager` options. The manager
-passes it to every `ServerPipeline`. Then read the report:
+Set `latencyProbe: true` in the `ConnectionManager` options. The manager passes it to every `ServerPipeline`. Then read the report:
 
 ```ts
 // `options`: your usual ConnectionManager options.
@@ -152,20 +115,16 @@ const report = manager.pipeline(id)?.latencyReport(); // null when the probe is 
 manager.pipeline(id)?.resetLatency(); // clear the windows
 ```
 
-`latencyReport()` sorts the sample windows, so call it for diagnostics, not
-per frame.
+`latencyReport()` sorts the sample windows, so call it for diagnostics, not per frame.
 
 ## Run the end-to-end benchmark [#run-the-end-to-end-benchmark]
 
-This runs the client media path in Node. The path is: byte source,
-transport, router, keyframe gate, decoder, pairing, feed, then a recording
-upload target. The browser parts are simulated:
+This runs the client media path in Node. The path is: byte source, transport, router, keyframe gate, decoder, pairing, feed, then a recording upload target. The browser parts are simulated:
 
 * `EncodedVideoChunk` copies its data unless given a transfer list;
 * decode takes 0 ms;
 * `VideoFrame.copyTo` is a memcpy;
-* on stream rotation and reconnect, the support probe takes 1 ms and a new
-  decoder's first output takes 10 ms.
+* on stream rotation and reconnect, the support probe takes 1 ms and a new decoder’s first output takes 10 ms.
 
 The numbers are therefore client overhead in Node, not browser timings.
 
@@ -202,8 +161,7 @@ Results on the current code, 2026-09-28:
 | copies per frame set    | 19.3 KiB     | 61.5 KiB     |
 
 * With `--byob`, copies are 0.0 KiB.
-* The rotation line shows a first upload about 1.2 ms after a new stream,
-  and about 12 ms after a reconnect. It shows 2 `isConfigSupported` calls.
+* The rotation line shows a first upload about 1.2 ms after a new stream, and about 12 ms after a reconnect. It shows 2 `isConfigSupported` calls.
 * Absolute times depend on the machine.
 
 ### Compare against another commit [#compare-against-another-commit]
@@ -217,8 +175,7 @@ ln -s "$PWD/client/node_modules" ../bench-before/client/node_modules
 git worktree remove ../bench-before
 ```
 
-The output labels each block with the other tree's path. Against `43ad3cd`,
-on the same machine as the results above:
+The output labels each block with the other tree’s path. Against `43ad3cd`, on the same machine as the results above:
 
 |                         | 640×576      | 1920×576     |
 | ----------------------- | ------------ | ------------ |
@@ -226,13 +183,11 @@ on the same machine as the results above:
 
 The rotation line showed about 20 ms and 24 `isConfigSupported` calls.
 
-The other tree must have the same module layout
-(`src/connections/transport.ts`, `src/media/decoding/decodingSink.ts`,
-`src/rendering/renderFeed.ts`, and so on). See `client/scripts/bench/README.md`.
+The other tree must have the same module layout (`src/connections/transport.ts`, `src/media/decoding/decodingSink.ts`, `src/rendering/renderFeed.ts`, and so on). See `client/scripts/bench/README.md`.
 
-## Troubleshooting [#troubleshooting]
+## Fix measurement problems [#fix-measurement-problems]
 
-**`crossOriginIsolated` is false, or `timerResolutionMs` is 0.1.**
+### `crossOriginIsolated` is false, or `timerResolutionMs` is 0.1 [#crossoriginisolated-is-false-or-timerresolutionms-is-01]
 
 * The page was not served by the Vite dev server with its headers.
 * Open it through `npm run dev` at `http://localhost:5173`.
@@ -242,83 +197,34 @@ The other tree must have the same module layout
   curl -sI http://localhost:5173/dev/latency-check.html | grep -i cross-origin
   ```
 
-  Both `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` must
-  appear. Sub-millisecond stages are unreliable without them.
+  Both `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` must appear. Sub-millisecond stages are unreliable without them.
 
-**`failed` with "no pair uploaded by every server within the timeout" after 30 s.**
+### `failed` with “no pair uploaded by every server within the timeout” after 30 s [#failed-with-no-pair-uploaded-by-every-server-within-the-timeout-after-30-s]
 
 * The recordings are probably missing from `client/reference/hevc-web/`.
-* The dev server answers a missing file with its HTML index page (HTTP 200),
-  so the page does not fail at the download. It fails 30 s later because
-  nothing can be played.
-* Extract the reference files as shown above.
+* The dev server answers a missing file with its HTML index page (HTTP 200), so the page does not fail at the download. It fails 30 s later because nothing can be played.
+* Without the unpublished sample recordings, this check can’t pass.
 
-**`failed` with "rendering-incompatible: WebGPU required but unavailable".**
+### `failed` with “rendering-incompatible: WebGPU required but unavailable” [#failed-with-rendering-incompatible-webgpu-required-but-unavailable]
 
-* `engine=webgpu` was forced in a browser without a WebGPU adapter, for
-  example headless Chromium without a GPU.
-* Use `engine=webgl2`, or run in a headed Chrome on a machine with a
-  supported GPU.
+* `engine=webgpu` was forced in a browser without a WebGPU adapter, for example headless Chromium without a GPU.
+* Use `engine=webgl2`, or run in a headed Chrome on a machine with a supported GPU.
 
-**`failed` with "VideoFrame (WebCodecs) unavailable (secure context required)".**
+### `failed` with “VideoFrame (WebCodecs) unavailable (secure context required)” [#failed-with-videoframe-webcodecs-unavailable-secure-context-required]
 
 * The page was opened over plain HTTP from another machine.
 * Use `localhost`, or serve with HTTPS.
 
-**`draw` and `present` are tens of milliseconds.**
+### `draw` and `present` are tens of milliseconds [#draw-and-present-are-tens-of-milliseconds]
 
-* The render loop ticks that slowly because the renderer is software
-  (SwiftShader, typical in headless Chromium).
+* The render loop ticks that slowly because the renderer is software (SwiftShader, typical in headless Chromium).
 * These two stages are only meaningful on a real GPU.
 
-**`--root` fails with "Cannot find module".**
+### `--root` fails with “Cannot find module” [#--root-fails-with-cannot-find-module]
 
-* The other tree has no `node_modules`. Create the symlink shown in the
-  procedure.
-* Or the other tree's module layout is too old for the harness.
+* The other tree has no `node_modules`. Create the symlink shown in the procedure.
+* Or the other tree’s module layout is too old for the harness.
 
 ## Other dev check pages [#other-dev-check-pages]
 
-All are served by `npm run dev` in `client/`. Each sets
-`document.body.dataset.state` to `done` or `failed` and publishes its report
-on `window`.
-
-**Decode check**
-
-* URL: `http://localhost:5173/dev/decode-check.html?autorun=samples`
-* What it checks:
-  * that real WebCodecs HEVC decoding works in this browser;
-  * which decoder configuration is picked;
-  * the formats and layouts of the frames;
-  * the depth codes read back from Main10 output.
-* Parameters:
-  * `autorun=samples` (or `autorun=bundled`) starts with the reference
-    recordings;
-  * `color=<url>` and `depth=<url>` replace the recording URLs;
-  * without `autorun`, you can pick files.
-* Report: `window.__decodeCheckReport`.
-* Needs a browser that can decode HEVC. Headless Chromium without it ends
-  `failed` with "no HEVC configuration is supported".
-
-**Render check**
-
-* URL: `http://localhost:5173/dev/render-check.html?autorun=1&engine=webgl2`
-* What it checks: the renderer and feed, using a synthetic two-camera bundle
-  (generated depth codes and colour, no HEVC, no reference files needed).
-* Parameters:
-  * `frames=N` (default 90);
-  * `debug=1` draws below-range codes blue and above-range codes red;
-  * `engine=webgl2` or `engine=webgpu`;
-  * `readback=1` paints the read-back frame into an overlay after the run.
-* Report: `window.__renderCheckReport`.
-
-**Wiring check**
-
-* URL: `http://localhost:5173/dev/wiring-check.html?autorun=1&engine=webgl2`
-* What it checks: the full composition, with two recordings side by side
-  through the connection manager, pipelines and one shared renderer, using
-  the synthetic decoder. `done` needs both servers connected, pairs uploaded,
-  and drawn points in both halves of the read-back.
-* Parameters: `engine=webgl2` or `engine=webgpu`, and `readback=1`.
-* Needs the reference recordings.
-* Report: `window.__wiringCheckReport`.
+The decode, render and wiring checks are described on [Test the client](/docs/client/developer/test-the-client#open-the-dev-check-pages).

@@ -2,56 +2,70 @@
 
 
 
-This page sets up an Ubuntu 26.04 machine so it can build the server. It
-installs system packages, the CUDA toolkit, TensorRT and the Orbbec SDK,
-fetches the vcpkg submodule and, if you want RVM person segmentation, builds
-the RVM TensorRT engine. Check [Requirements](./requirements) first. The next
-step is [Build](./build).
+This page sets up an Ubuntu 26.04 machine so it can build the server. Check
+[Requirements](./requirements) first. The next page is [Build](./build).
 
-Commands that change the system need `sudo`. Run the other commands as your
-normal user.
+Do these steps in order:
+
+1. [Get the source](#get-the-source)
+2. [Install the system packages](#system-packages)
+3. [Install the CUDA toolkit and driver](#cuda-toolkit-and-driver)
+4. [Install TensorRT](#tensorrt)
+5. [Install the Orbbec SDK](#orbbec-sdk)
+6. [Bootstrap vcpkg](#vcpkg)
+7. [Check the environment](#check-the-environment)
+8. Optional: [build the RVM segmentation engine](#rvm-segmentation-engine-optional)
+
+Commands that change the system start with `sudo`. Run the other commands as
+your normal user.
 
 ## Get the source [#get-the-source]
 
-The server lives in `server/` of the monorepo. CMake also reads the protocol
-contract in `../protocol`, so clone the whole repository with its submodules:
+The server lives in the `server/` folder of the repository. CMake also reads
+the protocol contract in `protocol/` next to it, so clone the whole repository
+with its submodules (other Git repositories that it includes).
 
-```bash
-git clone --recurse-submodules git@github.com:irc-hslu/orbbecstreamer.git
-cd orbbecstreamer/server
-```
+1. Clone the repository. With a GitHub SSH key:
 
-Without a GitHub SSH key, clone over HTTPS instead and fetch the submodules as
-shown below:
+   ```bash
+   git clone --recurse-submodules git@github.com:irc-hslu/orbbecstreamer.git
+   cd orbbecstreamer/server
+   ```
 
-```bash
-git clone https://github.com/irc-hslu/orbbecstreamer.git
-cd orbbecstreamer/server
-```
+   Without a GitHub SSH key, clone over HTTPS:
 
-If you already cloned without submodules, run this in `server/`:
+   ```bash
+   git clone https://github.com/irc-hslu/orbbecstreamer.git
+   cd orbbecstreamer/server
+   ```
 
-```bash
-git submodule update --init --recursive
-```
+2. Fetch the submodules. Skip this if you cloned with SSH and
+   `--recurse-submodules`. From the `server/` folder, with a GitHub SSH key:
 
-There are two submodules:
+   ```bash
+   git submodule update --init --recursive
+   ```
+
+   Without an SSH key, use this instead. It fetches the SSH submodule URLs over
+   HTTPS; the RVM fork is public:
+
+   ```bash
+   git -c url."https://github.com/".insteadOf="git@github.com:" submodule update --init --recursive
+   ```
+
+The two submodules are:
 
 | Submodule                            | Purpose                                                                                                |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | `server/external/vcpkg`              | Pinned vcpkg that builds the C++ dependencies. Always needed.                                          |
 | `server/external/RobustVideoMatting` | RVM model source, needed only to build the RVM engine. The submodule URL uses SSH (`git@github.com:`). |
 
-Without a GitHub SSH key, fetch the submodules over HTTPS instead. The RVM fork
-is public:
-
-```bash
-git -c url."https://github.com/".insteadOf="git@github.com:" submodule update --init --recursive
-```
-
-All the following commands run in `server/` unless the step says otherwise.
+All the following commands run in the `server/` folder unless the step says
+otherwise.
 
 ## System packages [#system-packages]
+
+Install the compiler, build tools and libraries from Ubuntu's archive:
 
 ```bash
 sudo apt update
@@ -79,56 +93,58 @@ sudo apt install -y \
 Skip this step if `nvidia-smi` shows driver 580 or newer and
 `/usr/local/cuda/bin/nvcc --version` shows CUDA 13.
 
-The commands in this section and in [TensorRT](#tensorrt) have not been run
-on a fresh machine. On the reference machine, the CUDA toolkit and TensorRT
-come from NVIDIA's repository, but the driver is Ubuntu's
-`nvidia-driver-580-server` package.
+The commands in this step and in [TensorRT](#tensorrt) have not been run on a
+fresh machine. On the reference machine, the CUDA toolkit and TensorRT come
+from NVIDIA's repository, but the driver is Ubuntu's `nvidia-driver-580-server`
+package.
 
-Add NVIDIA's CUDA repository for Ubuntu 26.04:
+1. Add NVIDIA's CUDA repository for Ubuntu 26.04:
 
-```bash
-wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
-sudo dpkg -i cuda-keyring_1.1-1_all.deb && rm cuda-keyring_1.1-1_all.deb
-sudo apt update
-```
+   ```bash
+   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
+   sudo dpkg -i cuda-keyring_1.1-1_all.deb && rm cuda-keyring_1.1-1_all.deb
+   sudo apt update
+   ```
 
-Install the toolkit. `cuda-toolkit-13-3` is the tested version. The plain
-`cuda-toolkit` package installs the newest release (13.4 at the time of
-writing), which is not tested.
+2. Install the tested toolkit version, CUDA 13.3:
 
-```bash
-sudo apt install -y cuda-toolkit-13-3
-```
+   ```bash
+   sudo apt install -y cuda-toolkit-13-3
+   ```
 
-If you have no NVIDIA driver yet, install the tested 580 branch from Ubuntu's
-archive and reboot:
+   Do not install the plain `cuda-toolkit` package. It installs the newest
+   release (13.4 at the time of writing), which is not tested.
 
-```bash
-sudo apt install -y nvidia-driver-580-server
-sudo reboot
-```
+3. If you have no NVIDIA driver yet, install the tested 580 branch from
+   Ubuntu's archive and reboot:
 
-Do not use `cuda-drivers` for the tested stack: in NVIDIA's repository it
-installs the newest driver, currently 615.71.09, which is not tested. The
-repository has no 580 branch; its oldest is 595, and its
-`nvidia-driver-pinning-<branch>` packages (for example
-`nvidia-driver-pinning-595`) hold `cuda-drivers` on one branch if you do want
-a driver from there.
+   ```bash
+   sudo apt install -y nvidia-driver-580-server
+   sudo reboot
+   ```
 
-The presets add `/usr/local/cuda/bin` to `PATH` and `/usr/local/cuda/lib64` to
-`LD_LIBRARY_PATH` for CMake. To run `nvcc` and the tests from your own shell,
-add them to `~/.bashrc` as well:
+   Do not use `cuda-drivers` for the tested stack. In NVIDIA's repository it
+   installs the newest driver, currently 615.71.09, which is not tested. That
+   repository has no 580 branch; its oldest is 595. If you do want a driver
+   from there, its `nvidia-driver-pinning-<branch>` packages (for example
+   `nvidia-driver-pinning-595`) hold `cuda-drivers` on one branch.
 
-```bash
-echo 'export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}' >> ~/.bashrc
-echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}' >> ~/.bashrc
-source ~/.bashrc
-```
+4. Add CUDA to your shell. The presets already add `/usr/local/cuda/bin` to
+   `PATH` and `/usr/local/cuda/lib64` to `LD_LIBRARY_PATH` for CMake. To run
+   `nvcc`, `make check-env` and the tests from your own shell, add them to
+   `~/.bashrc` too:
+
+   ```bash
+   echo 'export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}' >> ~/.bashrc
+   echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}' >> ~/.bashrc
+   source ~/.bashrc
+   ```
 
 ## TensorRT [#tensorrt]
 
-TensorRT comes from the same NVIDIA repository. You need the C++ SDK, not the
-Python `pip install tensorrt` package, which has no C++ headers.
+TensorRT is NVIDIA's library for running neural networks on the GPU. The build
+needs its C++ SDK, which comes from the same NVIDIA repository. The Python
+`pip install tensorrt` package does not work: it has no C++ headers.
 
 ```bash
 sudo apt install -y tensorrt-dev libnvinfer-bin
@@ -139,11 +155,13 @@ sudo apt install -y tensorrt-dev libnvinfer-bin
 The tested version is TensorRT `11.1.0.106-1+cuda13.3`. Plain `tensorrt-dev`
 installs the newest build, currently `11.3.0.99-1+cuda13.4`, which targets
 CUDA 13.4 and is not tested. The repository also has `11.2.1.2-1+cuda13.3`,
-which targets the tested CUDA 13.3 but is itself not tested. To stay on the tested stack, see
+which targets the tested CUDA 13.3 but is itself not tested. To stay on the
+tested stack, pin the version as described in
 [Troubleshooting](#troubleshooting).
 
-For a TensorRT tar archive instead of the Debian packages, point CMake at it
-before you configure (replace the path with your extracted folder):
+If you use a TensorRT tar archive instead of the Debian packages, point CMake
+at it before you configure. Replace `/opt/TensorRT-11.1.0` with the folder you
+extracted:
 
 ```bash
 export TensorRT_ROOT=/opt/TensorRT-11.1.0
@@ -152,49 +170,60 @@ export LD_LIBRARY_PATH="$TensorRT_ROOT/lib:$LD_LIBRARY_PATH"
 
 ## Orbbec SDK [#orbbec-sdk]
 
-Install Orbbec SDK 2.8.7 from its GitHub release:
+The Orbbec SDK is the library the server uses to talk to the cameras.
 
-```bash
-wget https://github.com/orbbec/OrbbecSDK_v2/releases/download/v2.8.7/OrbbecSDK_v2.8.7_amd64.deb
-sudo dpkg -i OrbbecSDK_v2.8.7_amd64.deb && rm OrbbecSDK_v2.8.7_amd64.deb
-```
+1. Install Orbbec SDK 2.8.7 from its GitHub release:
+
+   ```bash
+   wget https://github.com/orbbec/OrbbecSDK_v2/releases/download/v2.8.7/OrbbecSDK_v2.8.7_amd64.deb
+   sudo dpkg -i OrbbecSDK_v2.8.7_amd64.deb && rm OrbbecSDK_v2.8.7_amd64.deb
+   ```
+
+2. Unplug and replug the cameras, so the new udev rule (the Linux rule that
+   lets normal users open the cameras) applies.
 
 The package installs to `/opt/OrbbecSDK_v2.8.7`. Its install script then:
 
 * copies the libraries and `OrbbecSDKConfig.cmake` to `/usr/local/lib`, where
   the presets look for them (`OrbbecSDK_DIR=/usr/local/lib`)
 * copies the headers to `/usr/local/include/libobsensor`
-* installs the udev rule `/etc/udev/rules.d/99-obsensor-libusb.rules`, so
-  normal users can open the cameras
+* installs the udev rule `/etc/udev/rules.d/99-obsensor-libusb.rules`
 * installs `OrbbecViewer` to `/usr/local/bin`
-
-Unplug and replug the cameras after the install so the udev rule applies.
 
 ## vcpkg [#vcpkg]
 
-vcpkg builds the C++ dependencies listed in `vcpkg.json` (Boost.Asio and
-Boost.Beast, CLI11, nlohmann-json, json-schema-validator, OpenCV, spdlog, zstd,
-lz4). Bootstrap the pinned copy once:
+vcpkg is a C++ package manager. It builds the C++ dependencies listed in
+`vcpkg.json`: Boost.Asio and Boost.Beast, CLI11, nlohmann-json,
+json-schema-validator, OpenCV, spdlog, zstd and lz4. Bootstrap the pinned copy
+once, from the `server/` folder:
 
 ```bash
 ./external/vcpkg/bootstrap-vcpkg.sh
 ```
 
-The dependencies are built during the first `cmake --preset` run, not now.
+This only prepares vcpkg. It builds the dependencies later, during the first
+`cmake --preset` run on the [Build](./build) page.
 
 ## Check the environment [#check-the-environment]
+
+From the `server/` folder, print the toolchain versions:
 
 ```bash
 make check-env
 ```
 
+Compare the output with [Expected result](#expected-result).
+
 ## RVM segmentation engine (optional) [#rvm-segmentation-engine-optional]
 
-Skip this step unless you want `mask.backend: rvm` in the live config or want
+Skip this step unless you want `mask.backend: rvm` in the config file, or want
 to run the RVM smoke tests. The other mask backends (`none`, `fill_all`,
-`rgb_luma_threshold`) need no engine.
+`rgb_luma_threshold`) need no engine. You can come back to this step after the
+build.
 
-`scripts/setup_rvm.py` does the whole job:
+The engine is a TensorRT file built from the RVM (Robust Video Matting)
+network, which separates people from the background. `scripts/setup_rvm.py`
+builds it:
 
 1. updates the RVM fork checkout in `external/RobustVideoMatting`, or clones
    it if the folder does not exist
@@ -202,36 +231,44 @@ to run the RVM smoke tests. The other mask backends (`none`, `fill_all`,
 3. exports a fixed-shape FP16 ONNX model on the CPU
 4. builds one TensorRT engine per batch size with `trtexec`
 
-The script needs PyTorch, torchvision, ONNX and NVIDIA ModelOpt. `pyproject.toml`
-and `uv.lock` pin them. Install them with [uv](https://docs.astral.sh/uv/).
-uv is not packaged for Ubuntu; install it with its official installer, which
-puts it in `~/.local/bin`, then open a new shell:
+The script needs PyTorch, torchvision, ONNX and NVIDIA ModelOpt.
+`pyproject.toml` and `uv.lock` pin their versions.
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+To run it with [uv](https://docs.astral.sh/uv/), a Python package manager:
 
-Then install the Python packages and run the script:
+1. Install uv with its official installer (uv is not packaged for Ubuntu). It
+   goes to `~/.local/bin`:
 
-```bash
-uv sync
-uv run python scripts/setup_rvm.py
-```
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
 
-The defaults build batch sizes 1 and 2 at 640 × 576 with downsample ratio 0.5.
-This matches the depth resolution in `config/dev/live.yaml`. The engine's
-batch size must equal the number of active cameras: batch 1 for one camera,
-batch 2 for two. Set `mask.rvm_engine_path` to the matching engine. For other
-values, see `uv run python scripts/setup_rvm.py --help`.
+2. Open a new shell, so `~/.local/bin` is on your `PATH`.
+
+3. From the `server/` folder, install the Python packages and run the script:
+
+   ```bash
+   uv sync
+   uv run python scripts/setup_rvm.py
+   ```
 
 Without uv, create a virtual environment and let the script install what is
-missing:
+missing. From the `server/` folder:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
 python scripts/setup_rvm.py --install-python-deps
 ```
+
+The defaults build batch sizes 1 and 2 at 640 × 576 with downsample ratio 0.5.
+This matches the depth resolution in `config/dev/live.yaml`. The engine's
+batch size must equal the number of active cameras: batch 1 for one camera,
+batch 2 for two. Set `mask.rvm_engine_path` in the config to the matching
+engine. For other values, see `uv run python scripts/setup_rvm.py --help`.
+
+A TensorRT engine works only with the GPU model and TensorRT version that
+built it. Run `setup_rvm.py` again after you change either one.
 
 The RVM model and weights are GPL-3.0. Confirm that this licence suits you
 before you distribute the engine.
@@ -264,30 +301,28 @@ After the Orbbec SDK install, this command lists both files without an error:
 ls /usr/local/lib/OrbbecSDKConfig.cmake /etc/udev/rules.d/99-obsensor-libusb.rules
 ```
 
-After the RVM step, `models/rvm/generated/` contains:
+After the optional RVM step, `models/rvm/generated/` contains:
 
 ```text
 rvm_mobilenetv3_b1_640x576_ds0.5_float16.engine
 rvm_mobilenetv3_b2_640x576_ds0.5_float16.engine
 ```
 
-plus an `.onnx` model and a `.json` manifest for each batch size, and a
-timing cache. None of these files are committed. The script ends with
+It also contains an `.onnx` model and a `.json` manifest for each batch size,
+and a timing cache. None of these files are committed. The script ends with
 `RVM setup complete.`
-
-A TensorRT engine works only with the GPU model and TensorRT version that
-built it. Run `setup_rvm.py` again after you change either one.
 
 ## Troubleshooting [#troubleshooting]
 
 | Symptom                                                                                                 | Cause and fix                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `git@github.com: Permission denied (publickey)` while fetching submodules                               | No GitHub SSH key is set up. Fetch the submodules over HTTPS with the `insteadOf` command in [Get the source](#get-the-source).                                                                                                                                                                                                                                        |
+| `make check-env` stops after `CUDA:` with `make: *** [Makefile:…: check-env] Error 1`                   | `/usr/local/cuda/bin` is not on your `PATH`. Do step 4 of [CUDA toolkit and driver](#cuda-toolkit-and-driver), then open a new shell.                                                                                                                                                                                                                                  |
 | `setup_rvm.py` fails with `source directory exists but is not a Git checkout`                           | The RVM submodule is not initialised, so `external/RobustVideoMatting` is an empty folder. Initialise the submodules as in [Get the source](#get-the-source).                                                                                                                                                                                                          |
 | Configure fails with `Could NOT find TensorRT (missing: TensorRT_INCLUDE_DIR TensorRT_NVINFER_LIBRARY)` | Install `tensorrt-dev`, or set `TensorRT_ROOT` (or `TENSORRT_ROOT`) to a tar install. Then configure again.                                                                                                                                                                                                                                                            |
 | Configure fails with `Could not find a package configuration file provided by "OrbbecSDK"`              | The Orbbec SDK is missing or not in `/usr/local/lib`. Reinstall the `.deb`, or pass `-DOrbbecSDK_DIR=<folder that contains OrbbecSDKConfig.cmake>` to `cmake --preset dev-debug`.                                                                                                                                                                                      |
 | Configure fails with a pkg-config error that names `ffnvcodec`                                          | Install `libffmpeg-nvenc-dev`.                                                                                                                                                                                                                                                                                                                                         |
-| Configure fails on `libavcodec`, `libavformat`, `libavutil` or `libswscale`                             | Install the matching `-dev` package from the list above.                                                                                                                                                                                                                                                                                                               |
+| Configure fails on `libavcodec`, `libavformat`, `libavutil` or `libswscale`                             | Install the matching `-dev` package from [System packages](#system-packages).                                                                                                                                                                                                                                                                                          |
 | `dpkg -l tensorrt-dev` shows a `+cuda13.4` version                                                      | apt installed the newest TensorRT, which targets CUDA 13.4 and is not tested. To stay on the tested stack, pin every TensorRT package to `11.1.0.106-1+cuda13.3` with `sudo apt install <package>=11.1.0.106-1+cuda13.3` for `tensorrt-dev` and each `libnvinfer*` and `libnvonnxparsers*` package it depends on. This pinning has not been tested on a fresh machine. |
 | `setup_rvm.py` fails with `trtexec not found; install libnvinfer-bin or pass --trtexec`                 | Install `libnvinfer-bin`, or pass `--trtexec /path/to/trtexec`.                                                                                                                                                                                                                                                                                                        |
 | `setup_rvm.py` fails with `missing Python packages: ...`                                                | Run it with `uv run`, or add `--install-python-deps` inside a virtual environment.                                                                                                                                                                                                                                                                                     |

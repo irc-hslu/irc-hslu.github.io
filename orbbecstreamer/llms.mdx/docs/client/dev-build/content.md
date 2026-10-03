@@ -1,146 +1,76 @@
-# Run the dev build (https://irc-hslu.github.io/orbbecstreamer/docs/client/dev-build)
+# Run the client (https://irc-hslu.github.io/orbbecstreamer/docs/client/dev-build)
 
 
 
-## What it is [#what-it-is]
 
-The client is a Vite + React + TypeScript app in `client/`. You run it from
-the Vite dev server. The production build is a static folder (`client/dist/`)
-with one page, `index.html`.
 
-## How to do it [#how-to-do-it]
+The client is a web page that you serve from your own machine with a development server. You install it once, start the server, then open the page in your browser.
 
-You need Node.js with npm. The repository pins no Node version. The client
-was built and tested with Node 24.
+## Install and start the client [#install-and-start-the-client]
 
-Install the dependencies (exact versions from `package-lock.json`):
+You need Node.js 24 with npm, and a copy of the OrbbecStreamer repository. The client was built and tested with Node.js 24; the repository doesn’t require a particular version.
+
+1. Install the client’s dependencies. Run this in the repository’s top folder:
+
+   ```bash
+   cd client
+   npm ci
+   ```
+
+   `npm ci` installs the exact versions listed in `client/package-lock.json`.
+
+2. Start the development server. Run this in the `client` folder:
+
+   ```bash
+   npm run dev
+   ```
+
+3. Open [http://localhost:5173/](http://localhost:5173/) in your browser.
+
+Leave the terminal open while you use the client. To stop the server, press **Ctrl+C** in that terminal.
+
+## What you should see [#what-you-should-see]
+
+The terminal shows a line like `VITE v6.4.3  ready in 300 ms`, then `➜  Local:   http://localhost:5173/`. The version and time may differ. In the browser, the page shows a dark 3D view on the left and a side panel on the right. On a narrow window, the panel moves below the 3D view.
+
+<img alt="The client right after it opens: an empty dark 3D view on the left, and the side panel on the right with the renderer and decoder lines, the Add server and Open recording forms, the Dev: mock server section, an empty Servers list and an empty World anchors section" src="__img0" />
+
+From the top, the side panel shows:
+
+* **Header**: `OrbbecStreamer client`, the protocol version, and the `renderer:` and `decoders:` lines. [Check your browser](/docs/client/browser-requirements) explains them.
+* **Add server**: connect to a capture server. See [Add a server](/docs/client/add-a-server).
+* **Open recording**: play recorded files. See [Play a recording](/docs/client/playback).
+* **Dev: mock server**: add a simulated server. This section exists only in the development server.
+* **Servers (0)**: one card per server you add.
+* **World anchors (0)**: see [Move an anchor in your view](/docs/client/world-anchors).
+
+## Build a static copy [#build-a-static-copy]
+
+You don’t need this step to use the client. It makes a folder of static files you can serve with any web server. Run this in the `client` folder:
 
 ```bash
-# working directory: the repository root
-cd client
-npm ci
+npm run build
+npm run preview
 ```
 
-Start the dev server:
-
-```bash
-# working directory: client/
-npm run dev
-```
-
-Open [http://localhost:5173/](http://localhost:5173/).
-
-Other scripts in `client/package.json` (also `test:watch`, `protocol:export` and `bench:e2e`; see [Latency measurement](/docs/client/developer/latency) for the last one):
-
-| Command (in `client/`) | What it does                                                             |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `npm run typecheck`    | TypeScript check, no output files                                        |
-| `npm test`             | All unit tests (Vitest, Node)                                            |
-| `npm run build`        | Type check, then production build into `client/dist/`                    |
-| `npm run preview`      | Serve `client/dist/` at [http://localhost:4173/](http://localhost:4173/) |
-
-## Expected result [#expected-result]
-
-* **Dev server:** Vite prints `Local: http://localhost:5173/`.
-* **In the browser:** a dark 3D view beside a side panel on the
-  right.
-* **The panel:**
-  * a header: `OrbbecStreamer client`, the protocol version, the
-    `renderer:` and `decoders:` lines;
-  * the "Add server" and "Open recording" forms;
-  * in the dev server only, a "Dev: mock server" section with an
-    **Add mock server** button (see
-    [Mock server](/docs/client/developer/mock-server));
-  * "Servers (0)".
-* **Build:** writes `client/dist/index.html` and `client/dist/assets/` (the
-  main bundle, Babylon.js chunks that load on demand, and source maps).
-
-## Dev check pages [#dev-check-pages]
-
-The dev server also serves check pages from `client/dev/`. They are
-**never** part of the production build. Each runs a real part of the
-client in the browser and writes a report.
-
-| Page                                                                                             | What it checks                                                                                                                         |
-| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [http://localhost:5173/dev/decode-check.html](http://localhost:5173/dev/decode-check.html)       | WebCodecs HEVC support and real decoding of a recording                                                                                |
-| [http://localhost:5173/dev/render-check.html](http://localhost:5173/dev/render-check.html)       | The renderer, with a synthetic two-camera scene                                                                                        |
-| [http://localhost:5173/dev/wiring-check.html](http://localhost:5173/dev/wiring-check.html)       | The full client stack with two recordings side by side and a synthetic decoder                                                         |
-| [http://localhost:5173/dev/latency-check.html](http://localhost:5173/dev/latency-check.html)     | Per-stage latency; see [Latency](/docs/client/developer/latency)                                                                       |
-| [http://localhost:5173/dev/cards-check.html](http://localhost:5173/dev/cards-check.html)         | Server cards: two clients of one mock server; see [Cards check](/docs/client/developer/cards-check)                                    |
-| [http://localhost:5173/dev/setup-check.html](http://localhost:5173/dev/setup-check.html)         | The setup workspace through a scripted calibration; see [Setup check](/docs/client/developer/setup-check)                              |
-| [http://localhost:5173/dev/placement-check.html](http://localhost:5173/dev/placement-check.html) | Placement editing and world anchors with two clients of one mock server; see [Placement check](/docs/client/developer/placement-check) |
-
-To run a page without clicking:
-
-* **Query parameters:**
-  * `?autorun=1` for the render, wiring, latency, cards, setup and
-    placement checks;
-  * `?autorun=samples` for the decode check;
-  * `?engine=webgl2` or `?engine=webgpu` forces a backend where the page
-    supports it.
-* **Reading the result:** each page sets `body[data-state]` to `done` or
-  `failed` and exposes its report on `window`, for example
-  `window.__wiringCheckReport`.
-
-The wiring check's read-back overlay:
-
-* `?readback=1` draws the read-back frame into an overlay. This is for
-  headless screenshots that miss a WebGPU canvas.
-* The report JSON sits in a collapsed "report JSON" panel at the bottom
-  right.
-
-The decode, wiring and latency checks fetch sample recordings from
-`client/reference/hevc-web/`. That folder is a local, untracked copy of a
-colleague's reference client and is **not in the repository**. Without
-it:
-
-* the decode check fails at once, reporting a missing file;
-* the wiring and latency checks fail only after about 30 s with "no pair
-  uploaded". The dev server answers a missing `.hevc` path with its HTML
-  page, not a 404.
-
-The decode check also accepts files you pick yourself. The render check
-needs no files.
-
-For testing without hardware, see also the
-[Mock server](/docs/client/developer/mock-server).
+`npm run build` checks the code and writes the files to `client/dist/`. `npm run preview` serves that folder at [http://localhost:4173/](http://localhost:4173/). The built copy has no **Dev: mock server** section.
 
 ## Troubleshooting [#troubleshooting]
 
-* **`Error: Port 5173 is already in use`:** the dev server uses a fixed
-  port (`strictPort`).
-  * Stop the other dev server.
-  * Or start this one on another port and open that port instead:
+These are the problems people hit most when starting the client:
 
-    ```bash
-    # working directory: client/
-    npm run dev -- --port 5174
-    ```
-* **`npm: command not found`:**
-  * On some machines Node is installed without npm, for example through
-    pnpm. Install npm with your Node distribution.
-  * Once `node_modules/` exists, the same tools run directly from
-    `client/`:
+* **`Error: Port 5173 is already in use`**: another development server is running. Stop it, or start this one on another port and open that port instead. In the `client` folder:
 
-    ```bash
-    # working directory: client/
-    ./node_modules/.bin/vite                 # npm run dev
-    ./node_modules/.bin/tsc --noEmit         # npm run typecheck
-    ./node_modules/.bin/vitest run           # npm test
-    ./node_modules/.bin/vite build           # npm run build (after tsc)
-    ./node_modules/.bin/vite preview         # npm run preview
-    ```
-* **The panel says `renderer: rendering-incompatible`:** see
-  [Browser requirements](/docs/client/browser-requirements).
-* **Opened from another machine and nothing connects:** the dev server
-  listens on `localhost` only, and plain HTTP is a secure context only on
-  `localhost`.
-  * `--host` exposes the server on the network, but the page then runs
-    over plain HTTP, and WebTransport, WebCodecs and WebGPU are
-    unavailable.
-  * Serving over HTTPS needs a `server.https` certificate in
-    `client/vite.config.ts`. The repository does not configure one yet.
-* **The decode check reports a missing file, or the wiring or latency
-  check fails after about 30 s with no pair uploaded:** the reference
-  recordings in `client/reference/hevc-web/` are missing. See above.
+  ```bash
+  npm run dev -- --port 5174
+  ```
+
+* **`npm: command not found`**: Node.js is installed without npm on this machine. Install npm with your Node.js distribution. Once `client/node_modules/` exists, you can also start the server without npm. In the `client` folder:
+
+  ```bash
+  ./node_modules/.bin/vite
+  ```
+
+* **The panel says `renderer: rendering-incompatible`**: your browser can’t draw 3D. See [Check your browser](/docs/client/browser-requirements).
+
+* **Nothing works when you open the page from another computer**: the development server only answers on this computer (`localhost`). Browsers also turn off the features the client needs on plain `http://` pages that aren’t `localhost`. Open the client on the machine that runs it. The repository has no HTTPS setup for the development server yet.

@@ -2,12 +2,23 @@
 
 
 
-The server captures colour and depth from one or more hardware-synchronised
-Orbbec cameras, aligns colour to depth in the Orbbec SDK, segments and filters
-the frames on the GPU, and encodes colour (HEVC Main) and depth (HEVC Main10)
-with NVENC.
-Browsers will receive the streams over WebTransport; that serving path is not
-available yet (see [Serve to browsers](/docs/server/serving)).
+The server is a C++/CUDA program. It runs on one Linux machine with an NVIDIA
+GPU and one or more Orbbec RGB-D cameras. It captures colour and depth, prepares
+the frames on the GPU and encodes them as video. Browsers will receive that
+video over WebTransport, but that serving path is not available yet (see
+[Serve to browsers](/docs/server/serving)).
+
+For each set of frames, the server:
+
+1. captures colour and depth from all cameras at the same instant: with
+   hardware sync, one camera triggers the others over a sync cable
+2. aligns colour to depth in the Orbbec SDK, so each colour pixel matches the
+   depth pixel at the same position
+3. optionally separates people from the background (segmentation), and
+   filters the depth, both on the GPU
+4. encodes colour as 8-bit HEVC Main and depth as 10-bit HEVC Main10 with
+   NVENC, the hardware video encoder on NVIDIA GPUs (HEVC is the H.265 video
+   codec)
 
 ## Status [#status]
 
@@ -22,24 +33,34 @@ available yet (see [Serve to browsers](/docs/server/serving)).
 | Local debug recording, [terminal telemetry](/docs/server/telemetry)                | Works                                                            |
 | WebTransport serving to browsers                                                   | Not available yet                                                |
 
+RVM (Robust Video Matting) is a neural network that separates people from the
+background. TensorRT is NVIDIA's library that runs it on the GPU from a
+prebuilt engine file.
+
 ## Where to start [#where-to-start]
 
-1. Check the [requirements](/docs/server/requirements): Ubuntu 26.04, an NVIDIA GPU with
-   NVENC (tested on an RTX 4090), CUDA 13, TensorRT, the Orbbec SDK 2.8.7, and
-   Orbbec cameras.
-2. [Install](/docs/server/install) the system packages, SDKs and vcpkg.
-3. [Build](/docs/server/build) with the CMake presets and run the tests.
-4. Write a [configuration](/docs/server/configuration) for your cameras and choose a
-   [stream layout](/docs/server/stream-layout).
-5. [Run the server](/docs/server/running) and [read the telemetry](/docs/server/telemetry).
+The first time, follow these pages in order:
+
+1. [Requirements](/docs/server/requirements): check that your machine has a
+   supported NVIDIA GPU, Ubuntu 26.04 and Orbbec cameras on USB 3.
+2. [Install](/docs/server/install): install the system packages, CUDA,
+   TensorRT, the Orbbec SDK and vcpkg.
+3. [Build and test](/docs/server/build): compile the server and run its tests.
+4. [Configuration](/docs/server/configuration): write a config file for your
+   cameras, and choose a [stream layout](/docs/server/stream-layout).
+5. [Run the server](/docs/server/running), then
+   [read the telemetry](/docs/server/telemetry) it prints.
 
 ## How it works [#how-it-works]
 
-* [Architecture](/docs/server/architecture): the pipeline, its threads and queues.
-* [Capture and sync](/docs/server/capture-and-sync), [GPU processing](/docs/server/gpu-processing)
-  and [encoding](/docs/server/encoding): each stage in more detail.
-* [Latency](/docs/server/latency): where the time goes and what the server does about it.
-* [Setup state](/docs/server/setup-state): phases, revisions and the setup lease.
+These pages explain the design. You do not need them to build and run the
+server.
+
+* [Architecture](/docs/server/how-it-works/architecture): the pipeline, its threads and queues.
+* [Capture and sync](/docs/server/how-it-works/capture-and-sync), [GPU processing](/docs/server/how-it-works/gpu-processing)
+  and [encoding](/docs/server/how-it-works/encoding): each stage in more detail.
+* [Latency](/docs/server/how-it-works/latency): where the time goes and what the server does about it.
+* [Setup state](/docs/server/how-it-works/setup-state): phases, revisions and the setup lease.
 
 The wire contract between server and browser is `protocol/wire-format.md` in
 the repository.

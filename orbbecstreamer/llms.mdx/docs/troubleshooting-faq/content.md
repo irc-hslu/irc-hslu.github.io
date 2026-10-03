@@ -12,7 +12,7 @@ belongs to:
 * [Build and test](/docs/server/build#troubleshooting): CMake configure, compiler mismatches and CTest.
 * [Configuration](/docs/server/configuration#troubleshooting): every live config validation error.
 * [Run the server](/docs/server/running#troubleshooting): start-up and runtime failures.
-* [Run the dev build](/docs/client/dev-build#troubleshooting): the client's dev server and build.
+* [Run the client](/docs/client/dev-build#troubleshooting): the client's dev server and build.
 
 ## FAQ [#faq]
 
@@ -21,7 +21,7 @@ serving is not implemented (see [Serve to browsers](/docs/server/serving)),
 so a browser cannot connect to a real server. Run
 [First stream](/docs/getting-started/first-stream) on the server instead;
 optionally preview a hand-built recording in the client (see
-[Play back .hevc recordings](/docs/client/playback)).
+[Play a recording](/docs/client/playback)).
 
 **Do I need the RVM segmentation model to get a first stream?** No.
 `mask.backend: "fill_all"` treats the whole frame as foreground and needs no

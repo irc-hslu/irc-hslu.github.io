@@ -73,10 +73,10 @@ least one attached Orbbec camera.
     today, without a server. Bridging your server's debug output into the
     client's recording format is manual: you write a manifest by hand (camera
     intrinsics, depth range and lookup table) alongside the raw `.hevc` files.
-    See [Play back .hevc recordings](/docs/client/playback) for the file
+    See [Play a recording](/docs/client/playback) for the file
     requirements and the manifest format. Real HEVC decoding has not been
     verified in a desktop browser yet either; see
-    [Browser requirements](/docs/client/browser-requirements).
+    [Check your browser](/docs/client/browser-requirements).
   </Step>
 </Steps>
 

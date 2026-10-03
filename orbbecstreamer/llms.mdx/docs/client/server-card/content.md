@@ -1,276 +1,157 @@
-# Read the server card (https://irc-hslu.github.io/orbbecstreamer/docs/client/server-card)
+# Read a server card (https://irc-hslu.github.io/orbbecstreamer/docs/client/server-card)
 
 
 
 
 
-## What it is [#what-it-is]
+Every server you add, and every recording you open, gets a card under **Servers** in the side panel. The card shows that server’s state as your client sees it, and holds the buttons for that server. It refreshes on every change, and every half second for the countdowns and counters.
 
-Every server you add, and every recording you open, gets a **server card**
-in the side panel under **Servers**. The card shows that server's state as
-this client sees it, and has the actions for it: open the setup workspace,
-take or release the setup lock, refresh the state, reconnect, and remove.
+## Read the card from top to bottom [#read-the-card-from-top-to-bottom]
 
-The card refreshes on every state change, and every 0.5 s for the lease
-countdown, the RTT and the frame counters.
+1. Read the **status label** in the top-left corner, for example `streaming`. It sums up the server’s state in one word. See [Status labels](#status-labels).
+2. Read the **title** next to it: the server’s name, or its address until the server answers.
+3. Check for an orange line under the title. It means something limits this client, for example a browser that can’t decode the video.
+4. Read the fields: **lock**, **calibration**, **layout**, **counts**, **network** and **shared updates**.
+5. Use the buttons at the bottom. When a button is unavailable, the reason is written under it.
 
-<img alt="A server card for a connected mock server: status streaming, server id and source, the lock, calibration per kind, layout, per-session counts, round-trip time and budget, the shared-updates checkbox and the Set up, Acquire lock, Release lock, Refresh, Reconnect and Remove actions. Captured in a browser without HEVC decoding, so the card shows the setup-and-control-only note and no frames" src="__img0" />
+## What you should see [#what-you-should-see]
 
-## How to use it [#how-to-use-it]
+<img alt="A server card for the Dev mock server: status streaming, the server ID and mock address, an orange Setup and control only line, the lock unlocked, three calibration rows, the layout with one bundle, the session counts, the round-trip time and budget, the Receive shared updates checkbox, and the Set up, Acquire lock, Refresh and Remove buttons, with Release lock and Reconnect unavailable" src="__img0" />
 
-### Header [#header]
+The browser that took this screenshot can’t decode HEVC, so it shows the `Setup and control only` line and no frames.
 
-* **Status label:** one word derived from the server's state. See
-  [Status labels](#status-labels).
-* **Title:** the server's name, or the URL until the server has answered.
-* **Notes under the header**, shown only when they apply:
-  * `waiting for the camera-pose calibration; the server accepts it without other setup`:
-    the status is `needs-setup`, and the server is waiting for its
-    camera-pose calibration, which it will accept without other setup.
-  * `resynchronising: waiting for a full snapshot`: the client saw an
-    unexpected update and is fetching the server's full state.
-  * `reconnect scheduled`: the session was lost and the client will try
-    again by itself.
-* **Id line:** `serverId: …` (or `serverId: not known yet`), then the
-  source:
-  * `webtransport https://capture-01.local:4433/orbbec` for a server;
-  * `recording file://<serverId>` for a recording.
-* **Compatibility line**, shown only when something is missing:
-  * `Setup and control only: this browser lacks HEVC Main10 depth decoding.`
-    (or colour decoding, or a WebGPU or WebGL2 backend): this browser
-    cannot decode or render the server's streams. The card and its lock
-    still work. See
-    [Browser requirements](/docs/client/browser-requirements).
-  * `Protocol version mismatch; cannot connect.`: the server speaks
-    another major protocol version. The client closes the session and
-    does not retry.
-* **Conflict**, shown when another card already shows the same server id:
-  `conflict: server capture-01 is already rendered by entry-1; this entry is disconnected`.
-* **Last close:** why the last session ended, for example
-  `last close: transport error: …`.
-* **Source issues:** a list of problems when a recording cannot be opened.
-  See [Play back .hevc recordings](/docs/client/playback).
+## What each line means [#what-each-line-means]
 
-### Fields [#fields]
+The lines under the title appear only when they apply:
 
-The lock, calibration and layout fields show `not known (not connected)`
-while there is no live session.
+* **`serverId: …`**: the server’s ID, then how the client reaches it: `webtransport https://…` for a server, `recording file://…` for a recording, `mock mock://…` for the mock server.
+* **`waiting for the camera-pose calibration; the server accepts it without other setup`**: the server needs a camera-pose calibration before it can stream.
+* **`resynchronising: waiting for a full snapshot`**: the client missed an update and is fetching the server’s full state. This clears by itself.
+* **`reconnect scheduled`**: the connection was lost and the client will try again by itself.
+* **`Setup and control only: this browser lacks …`**: this browser can’t decode or draw this server’s video. The card and the setup lock still work. See [Check your browser](/docs/client/browser-requirements).
+* **`Protocol version mismatch; cannot connect.`**: the server uses another major protocol version. The client closes the connection and doesn’t retry.
+* **`conflict: server … is already rendered by …; this entry is disconnected`**: another card already shows this server.
+* **`last close: …`**: why the last connection ended.
 
-| Field              | What it shows                                                                                                                                                                                                                               |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **lock**           | `unlocked`; `held by this client, expires in 12 s`; or `held by Client A (client-…), last announced expiry in 9 s` (the other client's name and id).                                                                                        |
-| **calibration**    | One row per kind: `camera-pose`, `depth-quantization` and `network`, each with its state (`missing`, `valid`, `stale`, `running` or `failed`), its revision, and the server's message if any. For example `camera-pose: valid, revision 3`. |
-| **layout**         | The stream layout (`concatenated` or `per-camera`) and the bundle count, then one row per bundle: its camera count, its availability, and its render status.                                                                                |
-| **counts**         | `this session: decoded pairs N · uploaded N · dropped N · streams N`.                                                                                                                                                                       |
-| **network**        | The minimum round-trip time from clock sync (`min RTT 0.42 ms`), and the server's network budget.                                                                                                                                           |
-| **shared updates** | The **Receive shared updates** checkbox, and a stale-metadata notice when one applies.                                                                                                                                                      |
+The fields show `not known (not connected)` while there is no connection:
 
-**Lock expiry.** The server sends the expiry in its own clock. The card
-converts it into a countdown with the clock offset measured by clock
-sync. Until clock sync has a result, it shows the raw server time
-instead, for example
-`expires at server time 16.000 s (clock offset not known yet)`. When the
-countdown reaches zero before the server has announced the change, it
-shows `expiry time reached, waiting for the server`. While this client
-holds the lock, it renews it every 5 s, so the countdown restarts from
-15 s.
+| Field              | What it shows                                                                                                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **lock**           | Who holds the setup lock: `unlocked`, `held by this client, expires in 12 s`, or `held by Client A (…), last announced expiry in 9 s`.                                             |
+| **calibration**    | One row each for `camera-pose`, `depth-quantization` and `network`: its state (`missing`, `valid`, `stale`, `running` or `failed`), its revision, and the server’s message if any. |
+| **layout**         | How the server packs its cameras into bundles (`per-camera` or `concatenated`), then one row per bundle.                                                                           |
+| **counts**         | For the current connection: `decoded pairs`, `uploaded`, `dropped` and `streams`.                                                                                                  |
+| **network**        | The shortest round-trip time to the server, `min RTT`, and the server’s network budget.                                                                                            |
+| **shared updates** | The **Receive shared updates** checkbox.                                                                                                                                           |
 
-**Another client's lock** shows the expiry the server **last announced**,
-for example `last announced expiry in 9 s`. The holder also renews every
-5 s, but this client learns the new expiry only if the server announces
-the lock state again after each renewal. That re-announcement is the
-client's proposal in change request 0008, not yet part of the protocol
-contract. When the announced time has passed, the card shows
-`expiry passed as last announced; the server may have renewed it`: the
-lock may still be held, and the lock line changes only when the server
-announces it.
+### Lock countdown [#lock-countdown]
 
-**Calibration rows** are highlighted when a kind has `failed`, or when
-`camera-pose` or `depth-quantization` is not `valid` (and not
-`running`): the server cannot stream until those two are valid. The
-`network` kind is per client and never blocks streaming.
+While you hold the lock, the client renews it every 5 seconds, so the countdown starts again from 15 seconds. The server gives the expiry in its own clock. Until the client has measured the clock difference, the line shows the server’s time instead, for example `expires at server time 16.000 s (clock offset not known yet)`. If the countdown reaches zero before the server confirms the change, it shows `expiry time reached, waiting for the server`.
 
-**Bundle rows**, for example
-`bundle-cam0: 1 camera, available; ready, drawing`:
+For another client’s lock, the card shows the last expiry the server announced. When that time has passed, the card shows `expiry passed as last announced; the server may have renewed it`. The other client may still hold the lock.
 
-* Availability: `available` or `unavailable`, then `, paused` if the
-  server paused the bundle, then the server's reason, if any. Before the
-  server has announced it: `availability not announced`.
-* Render status:
-  * `ready, drawing`
-  * `ready, no frame yet`
-  * `rendering incompatible (…): …`
-  * `metadata invalid (…): …`
-  * `upload error: …`
-  * `no render status yet`
+### Calibration rows [#calibration-rows]
 
-The row is highlighted when the bundle is unavailable or paused, or its
-render status is a problem.
+A row is highlighted when its state is `failed`, or when `camera-pose` or `depth-quantization` isn’t `valid` and isn’t `running`. The server can’t stream until those two are valid. The `network` row never stops streaming.
 
-**Counts** belong to the current session, from its handshake on:
+### Bundle rows [#bundle-rows]
 
-* "decoded pairs" counts matched colour and depth frames.
-* "uploaded" counts pairs sent to the GPU.
-* "dropped" counts pairs decoded but not drawn.
-* "streams" counts the media streams open now.
+A bundle row reads, for example, `bundle-cam0: 1 camera, available; ready, drawing`. After the camera count comes the availability: `available` or `unavailable`, `, paused` when the server paused the bundle, and the server’s reason. Before the server announces it, the row says `availability not announced`.
 
-Decoded pairs equal uploaded plus dropped, give or take the pairs still
-on their way to the GPU. After a disconnect the card keeps the last
-session's counts. A reconnect starts them from zero, and they stay at 0
-until the new session's first frames arrive. The bundle row shows
-`ready, no frame yet` until then.
+The last part is the drawing status:
 
-**Network budget:** `no budget yet` until the server sends one. After
-that it reads, for example,
-`active 40.0 Mbit/s, server maximum 100.0 Mbit/s, safe for this client 35.0 Mbit/s, network compatible`:
+* `ready, drawing`: frames are on screen
+* `ready, no frame yet`: waiting for the first frame
+* `rendering incompatible (…): …`: the 3D view can’t draw this bundle
+* `metadata invalid (…): …`: the server’s description of this bundle doesn’t add up
+* `upload error: …`: the graphics card rejected a frame
+* `no render status yet`: the 3D view hasn’t reported on this bundle yet
 
-* "active" is the budget the server currently applies;
-* "server maximum" is the server's own limit;
-* "safe for this client" is 70 % of the throughput measured for this
-  client;
-* `not network compatible (below the useful budget)`, highlighted, means
-  this client is too slow to be counted in the budget.
+The row is highlighted when the bundle is unavailable or paused, or when its drawing status is a problem.
 
-**Shared updates.** Calibration results and placement changes are
-*shared updates*: the server sends them to every client that asked for
-them.
+### Counts [#counts]
 
-* The checkbox **Receive shared updates (calibration results, placement)**
-  is on by default.
-* Turning it off stops them at once. Turning it on takes effect when the
-  server accepts.
-* While disconnected, the choice is stored and sent when the client next
-  connects.
-* With it off, the server still tells this client that something changed.
-  The card then shows
-  `Metadata is stale: a shared update was withheld.` and a
-  **Refresh stale metadata** button, which fetches the server's full state.
-* When the change also restarts the server's streams, as a placement
-  change or a committed calibration does, the client fetches the full
-  state by itself, so the card does not stay stale.
+The counts start at zero with each new connection:
 
-### Actions [#actions]
+* **decoded pairs**: colour and depth frames the client decoded and matched
+* **uploaded**: pairs sent to the graphics card
+* **dropped**: pairs decoded but not drawn
+* **streams**: video streams open now
 
-Every action is a button. When an action is not possible, its button
-stays focusable and the reason is written under it. The result of the
-last action appears in a line at the bottom of the card; screen readers
-announce it.
+Decoded pairs equal uploaded plus dropped, apart from pairs still on their way to the graphics card. After a disconnect, the card keeps the last connection’s counts.
 
-| Action           | What it does                                                                                                                                                                                                                                                                                              | Not possible when (reason shown)                                                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Set up**       | Opens the [setup workspace](/docs/client/setup-workspace) for this server in place of the server list, and takes its setup lock.                                                                                                                                                                          | `not connected`; `no connection`; `the source is invalid`; `the setup workspace is open for this server`; `the setup workspace is open for <name>; leave it first` |
-| **Acquire lock** | Asks the server for its setup lock. The lock line changes once the server announces the new owner.                                                                                                                                                                                                        | `not connected`; `this client already holds the lock`; `the lock is held by <name>`                                                                                |
-| **Release lock** | Gives the lock back.                                                                                                                                                                                                                                                                                      | `not connected`; `this client does not hold the lock`                                                                                                              |
-| **Refresh**      | Fetches the server's full state (a snapshot).                                                                                                                                                                                                                                                             | `not connected`; `a snapshot is already being requested`                                                                                                           |
-| **Reconnect**    | Starts a new session at once, without waiting for the automatic retry. After a conflict it tries again: if another card still shows the same server, it fails with the conflict (`Reconnect failed: closed locally: server <id> is already connected through <entry>`) and the card stays `disconnected`. | `already connecting`; `already connected`                                                                                                                          |
-| **Remove**       | Disconnects and removes the card and the server's point clouds. Always possible.                                                                                                                                                                                                                          |                                                                                                                                                                    |
+### Network budget [#network-budget]
 
-A browser that cannot decode HEVC can still take the lock. The lock is a
-setup tool, not a viewing one.
+The budget line reads `no budget yet` until the server sends one. Then it reads, for example, `active 40.0 Mbit/s, server maximum 100.0 Mbit/s, safe for this client 35.0 Mbit/s, network compatible`:
 
-For a recording whose files were rejected, every action except
-**Remove**, and the **Receive shared updates** checkbox, is unavailable,
-with the reason `the source is invalid`.
+* **active**: the budget the server applies now
+* **server maximum**: the server’s own limit
+* **safe for this client**: 70 % of the throughput measured for this client
+* **`not network compatible (below the useful budget)`**: shown highlighted when this client is too slow to count in the budget
 
-Every control's accessible name includes the card's title, for example
-"Acquire lock, Rig A", so screen readers can tell cards apart. When two
-cards have the same title (as in a conflict), the name adds the server
-id and the entry id.
+### Shared updates [#shared-updates]
 
-Results in the bottom line:
+Shared updates are calibration results and placement changes that the server sends to every client that asked for them. The **Receive shared updates (calibration results, placement)** checkbox is on by default:
+
+* Turning it off stops them at once. Turning it on takes effect when the server accepts.
+* While disconnected, the client stores your choice and sends it when it next connects.
+* With it off, the server still tells your client that something changed. The card then shows `Metadata is stale: a shared update was withheld.` and a **Refresh stale metadata** button, which fetches the server’s full state.
+* When the change also restarts the server’s video, as a placement change or a committed calibration does, the client fetches the full state by itself.
+
+## What each button does [#what-each-button-does]
+
+Every button stays in place when it’s unavailable, and the reason is written under it. The result of your last action appears at the bottom of the card, and screen readers announce it.
+
+| Button           | What it does                                                                                                        | Unavailable when                                                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Set up**       | Opens the setup view for this server and takes its setup lock. See [Set up a server](/docs/client/setup-workspace). | `not connected`; `no connection`; `the source is invalid`; `the setup workspace is open for this server`; `the setup workspace is open for <name>; leave it first` |
+| **Acquire lock** | Asks the server for its setup lock. The lock line changes once the server announces the new holder.                 | `not connected`; `this client already holds the lock`; `the lock is held by <name>`                                                                                |
+| **Release lock** | Gives the lock back.                                                                                                | `not connected`; `this client does not hold the lock`                                                                                                              |
+| **Refresh**      | Fetches the server’s full state.                                                                                    | `not connected`; `a snapshot is already being requested`                                                                                                           |
+| **Reconnect**    | Connects again at once, without waiting for the automatic retry.                                                    | `already connecting`; `already connected`                                                                                                                          |
+| **Remove**       | Disconnects, and removes the card and the server’s point clouds.                                                    | Always available                                                                                                                                                   |
+
+**Acquire lock** only holds the lock. To calibrate or place the server, use **Set up**, which also takes over a lock you already hold. A browser that can’t decode video can still take the lock.
+
+For a recording whose files were refused, every button except **Remove** is unavailable, with the reason `the source is invalid`.
+
+Results at the bottom of the card look like this:
 
 * `Acquire lock: accepted; waiting for the server's lock state`
 * `Release lock: released`
 * `Refresh: snapshot received`
-* `Shared updates off: accepted by the server`, or
-  `Shared updates off: stored; sent with the next hello` while
-  disconnected
+* `Shared updates off: accepted by the server`, or `Shared updates off: stored; sent with the next hello` while disconnected
 * `Reconnect: connected (session 2)`
-* `<action> rejected (<code>): <message>`: the server refused it. The code
-  and message are the server's own; the protocol does not fix them. For
-  example, from the mock server:
-  `Acquire lock rejected (lock-held): setup lock held by Client A`.
-* `<action> server error <code>: <message>`: the server answered with an
-  error; again the code is the server's own.
-* `<action> failed (<reason>): <message>`, for example `failed (timeout)`
-  when the server did not answer in time
-* `Reconnect failed: <why the session ended>`
+* `<action> rejected (<code>): <message>`: the server refused. The code and message come from the server.
+* `<action> failed (<reason>): <message>`: for example `failed (timeout)` when the server didn’t answer in time
 
-### Status labels [#status-labels]
+## Status labels [#status-labels]
 
-| Label              | Meaning                                                                                                                                              |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connecting`       | Opening the session or waiting for the server's hello                                                                                                |
-| `disconnected`     | No session, for example after a conflict or a close by the server. After a server close the client retries, so the label cycles back to `connecting` |
-| `error`            | The last session failed (a reconnect is scheduled unless it was a version mismatch), or the source was invalid                                       |
-| `needs-setup`      | Connected; the server needs setup before it can stream                                                                                               |
-| `locked-by-me`     | Connected; this client holds the server's setup lock                                                                                                 |
-| `locked-by-other`  | Connected; another client holds the setup lock                                                                                                       |
-| `paused-for-setup` | Connected; streaming is paused for setup                                                                                                             |
-| `ready`            | Connected and ready, not streaming                                                                                                                   |
-| `streaming`        | Connected and streaming                                                                                                                              |
+The label sums up the server’s state. The lock comes first: a server that streams while another client holds its lock shows `locked-by-other`.
 
-The lock comes before readiness and streaming: a server that is
-streaming while another client holds its lock shows `locked-by-other`.
+| Label              | Meaning                                                                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connecting`       | Opening the connection, or waiting for the server’s first answer                                                                                                       |
+| `disconnected`     | No connection, for example after a conflict. After the server closes the connection, the client retries, so the label goes back to `connecting`.                       |
+| `error`            | The last connection failed, or the recording’s files were refused. The client retries a server unless the protocol versions don’t match. It never retries a recording. |
+| `needs-setup`      | Connected; the server needs setup before it can stream                                                                                                                 |
+| `locked-by-me`     | Connected; this client holds the setup lock                                                                                                                            |
+| `locked-by-other`  | Connected; another client holds the setup lock                                                                                                                         |
+| `paused-for-setup` | Connected; the server paused streaming for setup                                                                                                                       |
+| `ready`            | Connected and ready, not streaming                                                                                                                                     |
+| `streaming`        | Connected and streaming                                                                                                                                                |
 
-## Expected result [#expected-result]
+## Fix card problems [#fix-card-problems]
 
-* A new card appears at once with `connecting`, then the server's name,
-  its id and a live status (`ready`, `streaming` or `needs-setup`).
+These are the common card problems and their fixes:
 
-* The lock line reads `unlocked`, the calibration rows list three kinds,
-  and the layout lists the server's bundles.
-
-* **Acquire lock** turns the label into `locked-by-me`, and the lock line
-  counts down from 15 s, restarting every 5 s. Other clients show
-  `locked-by-other` and the name of this client.
-
-* **Release lock** returns every client to `unlocked`.
-
-* **Set up** replaces the server list with the setup workspace for this
-  server and takes the lock; leaving the workspace brings the cards back.
-  See [Setup workspace](/docs/client/setup-workspace).
-
-**Acquire lock** on the card only holds the lock. To run calibrations, use
-**Set up**; it adopts a lock this client already holds.
-
-## Troubleshooting [#troubleshooting]
-
-* **Acquire lock is refused:**
-  * `the lock is held by <name>` under the button, or
-    `Acquire lock rejected (<code>): <message>` (from the mock server:
-    `Acquire lock rejected (lock-held): …`): another client holds it. Ask
-    that operator to release it. A lock whose holder disappeared expires
-    15 s after its last renewal.
-  * `not connected`: the session is not up. Wait for it, or use
-    **Reconnect**.
-* **The lock is gone after a reconnect:** expected. A lock never survives
-  a reconnect. Acquire it again.
-* **`Release lock failed (no-lease)`:** this client does not hold the lock
-  any more, for example because it expired. Nothing needs releasing.
-* **`Metadata is stale: a shared update was withheld.`:** shared updates
-  are off, and another client changed something. Select
-  **Refresh stale metadata**, or turn shared updates back on and then
-  refresh.
-* **`Refresh server error <code>: <message>`:** the server could not
-  answer the refresh (from the mock server: `Refresh server error busy: …`).
-  Try again.
-* **The lock shows `expires at server time …`:** clock sync has not
-  finished. It needs a few round trips after connecting; the countdown
-  appears by itself.
-* **`budget: no budget yet`:** the server has not sent a network budget
-  to this client.
-* **The card stays `error` with `reconnect scheduled`:** the client
-  retries after 1 s, doubling the wait up to 30 s. Select **Reconnect** to
-  try at once. If it keeps failing, read the **last close** line and see
-  [Add a server](/docs/client/add-a-server).
-* **Counts at 0 and `ready, no frame yet` right after a reconnect:**
-  expected for a moment. The new session starts its counts from zero and
-  waits for its first frames. If they stay at 0, check that the server is
-  streaming and that no compatibility line is shown.
-* **`Reconnect failed: …`:** the new session could not be opened. The
-  text after the colon is the reason, as in the **last close** line.
-  `closed locally: server <id> is already connected through <entry>`
-  means another card still shows that server: remove one of the two.
-* **To replay a recording:** **Reconnect** is unavailable while the card
-  is connected. Select **Remove**, then open the recording again.
+* **Acquire lock is refused**: `the lock is held by <name>` under the button means another client holds it. Ask that person to release it. A lock whose holder disappeared runs out 15 seconds after its last renewal.
+* **The lock is gone after a reconnect**: a lock never survives a reconnect. Acquire it again.
+* **`Release lock failed (no-lease)`**: your client doesn’t hold the lock any more, for example because it ran out. Nothing needs releasing.
+* **`Metadata is stale: a shared update was withheld.`**: shared updates are off, and another client changed something. Select **Refresh stale metadata**.
+* **`Refresh server error <code>: <message>`**: the server couldn’t answer. Try again.
+* **The lock shows `expires at server time …`**: the client is still measuring the clock difference. The countdown appears by itself after a few round trips.
+* **The card stays `error` with `reconnect scheduled`**: select **Reconnect** to try at once. If it keeps failing, read the **last close** line and see [Add a server](/docs/client/add-a-server).
+* **Counts at 0 and `ready, no frame yet` right after a reconnect**: the new connection is waiting for its first frames. If the counts stay at 0, check that the server is streaming and that the card shows no `Setup and control only` line.
+* **`Reconnect failed: closed locally: server <id> is already connected through <entry>`**: another card still shows that server. Remove one of the two.
+* **You want to replay a recording**: **Reconnect** is unavailable while connected. Select **Remove**, then open the recording again.

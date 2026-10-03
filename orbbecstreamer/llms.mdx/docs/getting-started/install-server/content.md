@@ -45,7 +45,10 @@ message, and how to build for a GPU other than the tested one.
     ```
 
     The first configure builds every vcpkg dependency from source and can take
-    a long time. See [Build and test](/docs/server/build) for the Makefile
+    a long time. The presets set the compiler, CUDA and library-path variables
+    for you; see
+    [Environment variables](/docs/server/configuration#environment-variables)
+    for the full list. See [Build and test](/docs/server/build) for the Makefile
     shortcuts, the CTest labels, CLion setup, and how to build for a GPU below
     compute capability 8.9.
   </Step>
@@ -69,4 +72,4 @@ message, and how to build for a GPU other than the tested one.
 </Steps>
 
 Next: [First stream](/docs/getting-started/first-stream). Want the browser
-client too? See [Run the dev build](/docs/client/dev-build).
+client too? See [Run the client](/docs/client/dev-build).
