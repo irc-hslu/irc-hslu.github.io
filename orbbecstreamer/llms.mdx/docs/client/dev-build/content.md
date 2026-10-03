@@ -4,11 +4,11 @@
 
 
 
-The client is a web page that you serve from your own machine with a development server. You install it once, start the server, then open the page in your browser.
+You serve the client from your own machine with a development server: install it once, start the server, then open the page in your browser.
 
 ## Install and start the client [#install-and-start-the-client]
 
-You need Node.js 24 with npm, and a copy of the OrbbecStreamer repository. The client was built and tested with Node.js 24; the repository doesn’t require a particular version.
+You need Node.js 24 with npm, and a copy of the OrbbecStreamer repository.
 
 1. Install the client’s dependencies. Run this in the repository’s top folder:
 
@@ -16,8 +16,6 @@ You need Node.js 24 with npm, and a copy of the OrbbecStreamer repository. The c
    cd client
    npm ci
    ```
-
-   `npm ci` installs the exact versions listed in `client/package-lock.json`.
 
 2. Start the development server. Run this in the `client` folder:
 
@@ -31,18 +29,11 @@ Leave the terminal open while you use the client. To stop the server, press **Ct
 
 ## What you should see [#what-you-should-see]
 
-The terminal shows a line like `VITE v6.4.3  ready in 300 ms`, then `➜  Local:   http://localhost:5173/`. The version and time may differ. In the browser, the page shows a dark 3D view on the left and a side panel on the right. On a narrow window, the panel moves below the 3D view.
+The terminal shows `VITE v6.4.3  ready in 300 ms`, then `➜  Local:   http://localhost:5173/`. The version and time may differ. The browser shows a dark 3D view on the left and the side panel on the right:
 
-<img alt="The client right after it opens: an empty dark 3D view on the left, and the side panel on the right with the renderer and decoder lines, the Add server and Open recording forms, the Dev: mock server section, an empty Servers list and an empty World anchors section" src="__img0" />
+<img alt="The client right after it opens: an empty dark 3D view on the left, and the side panel on the right with the header, the View section, the Add server and Open recording forms, the Dev: mock server section, an empty Servers list and an empty World anchors section" src="__img0" />
 
-From the top, the side panel shows:
-
-* **Header**: `OrbbecStreamer client`, the protocol version, and the `renderer:` and `decoders:` lines. [Check your browser](/docs/client/browser-requirements) explains them.
-* **Add server**: connect to a capture server. See [Add a server](/docs/client/add-a-server).
-* **Open recording**: play recorded files. See [Play a recording](/docs/client/playback).
-* **Dev: mock server**: add a simulated server. This section exists only in the development server.
-* **Servers (0)**: one card per server you add.
-* **World anchors (0)**: see [Move an anchor in your view](/docs/client/world-anchors).
+[Tour of the client](/docs/client/tour) explains each part of the screen.
 
 ## Build a static copy [#build-a-static-copy]
 

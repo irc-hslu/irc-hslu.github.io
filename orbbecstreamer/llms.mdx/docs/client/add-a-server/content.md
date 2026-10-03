@@ -6,7 +6,7 @@
 
 
 
-Each server you add gets its own card in the side panel, and all servers draw their point clouds in the same 3D view. You can add several servers.
+Each server you add gets its own card in the side panel, and all servers draw their point clouds in the same 3D view.
 
 The capture server doesn’t accept browser connections yet. See [Serve to browsers](/docs/server/serving). Until it does, use the mock server below to try the client, or [play a recording](/docs/client/playback).
 
@@ -31,19 +31,19 @@ The development server has a simulated capture server, the mock server. It behav
 1. Start the client with `npm run dev`. See [Run the client](/docs/client/dev-build).
 2. In **Dev: mock server**, select **Add mock server**.
 
-The line under the button says `Added a mock server (snapshot only, no media).` The mock server sends status but no video, so you can try every card and setup screen, but no point cloud appears. The built copy of the client (`npm run build`) has no mock server.
+The line under the button says `Added a mock server (snapshot only, no media).`: the mock server sends status but no video. Where your checkout has a local copy of the team’s sample recordings, it says `Added a mock server (reference recording).` and also streams that video. See [Sample recordings](/docs/client/developer/test-the-client#sample-recordings). Either way, you can try every card and setup screen. The built copy of the client (`npm run build`) has no mock server.
 
 ## What you should see [#what-you-should-see]
 
 A new card appears under **Servers** at once, with the status `connecting`. After a moment, the card shows the server’s name, its ID and a live status such as `ready` or `streaming`. The client then asks the server for all its video streams.
 
-No point cloud appears yet. The mock server sends no video, a real server can’t be connected yet, and HEVC decoding hasn’t worked in any browser tested so far. See [Check your browser](/docs/client/browser-requirements).
+No point cloud appears yet: HEVC decoding hasn’t worked in any browser tested so far, and a real server can’t be connected yet. See [Check your browser](/docs/client/browser-requirements).
 
 <img alt="The Servers list with one card for the Dev mock server: status streaming, its server ID and mock address, and a Setup and control only line because the capture browser can’t decode HEVC" src="__img1" />
 
 [Read a server card](/docs/client/server-card) explains every line of the card.
 
-If the connection drops, the client reconnects by itself. It waits 1 second before the first try, then doubles the wait each time, up to 30 seconds, and keeps trying. It doesn’t retry after you select **Remove**, after a protocol version mismatch, or after a conflict.
+If the connection drops, the client reconnects by itself and keeps trying. The wait starts at 1 second and doubles with each failed try, up to 30 seconds; each wait is cut by a random 0 to 50 %, so clients don’t all retry at once. The wait starts over at 1 second only after a connection has stayed up for 10 seconds. The client doesn’t retry after you select **Remove**, after a protocol version mismatch, or after a conflict.
 
 ## Fix connection problems [#fix-connection-problems]
 
@@ -55,6 +55,7 @@ These messages appear on the server card:
   * A browser without WebTransport fails this way on every try. See [Check your browser](/docs/client/browser-requirements).
 * **`connect timeout`**: the server didn’t finish connecting within 10 seconds. It may be unreachable, or it may not answer. Check the server’s logs.
 * **`Protocol version mismatch; cannot connect.`**: the server uses another major version of the protocol. Update the client or the server. The client doesn’t retry.
+* **`last close: protocol error invalid-transform: …`**, or `invalid-quantization-profile`, `invalid-bundle-descriptor` or `invalid-message`: the server sent data that breaks the protocol, for example a placement that isn’t rigid. The client closes the connection and retries. Check the server’s calibration and placement, and report the text after the code.
 * **`conflict: server … is already rendered by …`**: two cards reach the same server, for example once by IP address and once by host name. Select **Remove** on one of them.
 * **Status `streaming`, but the counts stay at `uploaded 0`**: a `Setup and control only` line means your browser can’t decode the video. See [Check your browser](/docs/client/browser-requirements). Otherwise, look at the bundle lines in the card’s **layout** for an error.
 

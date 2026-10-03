@@ -4,9 +4,7 @@
 
 
 
-The setup view is where you change one server’s setup: its depth calibration and its placement. You open it from the server’s card, one server at a time. It takes the server’s setup lock, so no other client can change the server while you work.
-
-The setup view never commits anything by itself. A calibration result or a placement change reaches the server only when you select its **Commit** button.
+The setup view changes one server’s setup: its depth calibration and its placement. It holds the server’s setup lock, so no other client can change the server while you work. It never commits anything by itself: a result or a placement change reaches the server only when you select its **Commit** button.
 
 ## Open the setup view [#open-the-setup-view]
 
@@ -14,7 +12,7 @@ The setup view never commits anything by itself. A calibration result or a place
 2. Wait until its card shows a live status, such as `ready` or `streaming`.
 3. On the card, select **Set up**.
 
-The setup view replaces everything in the side panel below the header: the forms, the server cards and the World anchors section. It asks the server for the setup lock at once. The 3D view stays usable.
+The setup view replaces the forms, the server cards and the World anchors section. The header, the **View** section and the 3D view stay. The setup view asks the server for the setup lock at once.
 
 ## What you should see [#what-you-should-see]
 

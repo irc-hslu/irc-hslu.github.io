@@ -4,13 +4,13 @@
 
 
 
-The client needs three browser features to show point clouds. If one is missing, the client still opens: you can connect to servers, read their status and set them up, but no point clouds are drawn.
+The client needs three browser features to show point clouds. Without one of them, the client still connects to servers, shows their status and sets them up, but draws no point clouds.
 
-| Feature                                                                  | What the client uses it for         | Without it                                               |
-| ------------------------------------------------------------------------ | ----------------------------------- | -------------------------------------------------------- |
-| WebTransport                                                             | Connecting to a live server         | Adding a server fails to connect. Recordings still play. |
-| WebCodecs video decoding with HEVC Main (8-bit) and HEVC Main10 (10-bit) | Decoding the colour and depth video | No point clouds. Setup and control still work.           |
-| WebGPU, or WebGL2 as a fallback                                          | Drawing the point clouds            | No point clouds. Setup and control still work.           |
+| Feature                                                                  | What the client uses it for                                          | Without it                                                                                    |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| WebTransport                                                             | Connecting to a live server                                          | Adding a server fails to connect. Recordings still play.                                      |
+| WebCodecs video decoding with HEVC Main (8-bit) and HEVC Main10 (10-bit) | Decoding the colour and depth video                                  | No point clouds. Setup and control still work.                                                |
+| WebGPU, or WebGL2 as a fallback                                          | Drawing the point clouds. Blending overlapping cameras needs WebGPU. | Without either: no point clouds; setup and control still work. With WebGL2 only: no blending. |
 
 HEVC is the video format the servers send. The browser only turns these features on for secure pages: pages served over `https://`, or from `http://localhost`. The development server at `http://localhost:5173` counts as secure.
 
@@ -20,14 +20,16 @@ HEVC is the video format the servers send. The browser only turns these features
 2. Read the lines at the top of the side panel:
    * `renderer: webgpu` or `renderer: webgl2` names the 3D backend the client started.
    * `decoders: WebCodecs` means the browser has WebCodecs. It doesn’t yet say whether it can decode HEVC.
-3. Select **renderer notes** under those lines to see why the client picked its backend, for example `WebGPU not supported`.
+3. If a **renderer notes** line appears under them, select it to see why the client picked its backend, for example `WebGPU not supported`.
 4. Add a server or play a recording. The client checks HEVC support when the connection opens. If the browser can’t decode the server’s video, the server card shows a line that starts with `Setup and control only`.
 
 ## What you should see [#what-you-should-see]
 
 On a browser that can do everything, the panel shows `renderer: webgpu` or `renderer: webgl2`, then `decoders: WebCodecs`, and server cards show no `Setup and control only` line.
 
-<img alt="The top of the side panel: renderer webgl2, decoders WebCodecs, and the opened renderer notes, which say WebGPU not supported and desynchronized (low-latency) canvas granted" src="__img0" />
+<img alt="The top of the side panel: OrbbecStreamer client, protocol v1.0, renderer webgpu and decoders WebCodecs" src="__img0" />
+
+With WebGL2, a **renderer notes** line follows, for example with `WebGPU not supported` and `desynchronized (low-latency) canvas granted`, and the **View** section reads `Blending needs WebGPU; with WebGL2 the nearest point is drawn.`
 
 When something is missing, you see one of these messages:
 

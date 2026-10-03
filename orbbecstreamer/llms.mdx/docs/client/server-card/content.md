@@ -31,7 +31,7 @@ The lines under the title appear only when they apply:
 * **`Setup and control only: this browser lacks …`**: this browser can’t decode or draw this server’s video. The card and the setup lock still work. See [Check your browser](/docs/client/browser-requirements).
 * **`Protocol version mismatch; cannot connect.`**: the server uses another major protocol version. The client closes the connection and doesn’t retry.
 * **`conflict: server … is already rendered by …; this entry is disconnected`**: another card already shows this server.
-* **`last close: …`**: why the last connection ended.
+* **`last close: …`**: why the last connection ended, for example `closed locally: …`, `closed by server (code 0): …`, `server ended the control stream`, `protocol error <code>: …`, `transport error: …`, `connect timeout: …`, `server error <code>: …`, `internal error: …`, `snapshot resync failed: …` or `media header timeout: …`. [Add a server](/docs/client/add-a-server#fix-connection-problems) explains the common ones.
 
 The fields show `not known (not connected)` while there is no connection:
 
@@ -69,9 +69,11 @@ The last part is the drawing status:
 
 The row is highlighted when the bundle is unavailable or paused, or when its drawing status is a problem.
 
+The client stops receiving a bundle it can’t show, to save network and decoding: one that is `rendering incompatible`, or whose video this browser can’t decode. Its row stays on the card. A bundle that becomes drawable again, for example after a server update, is received again by itself; one whose decoder failed comes back after **Reconnect**.
+
 ### Counts [#counts]
 
-The counts start at zero with each new connection:
+The counts start at zero with each new connection. **streams** doesn’t count bundles the client stopped receiving:
 
 * **decoded pairs**: colour and depth frames the client decoded and matched
 * **uploaded**: pairs sent to the graphics card

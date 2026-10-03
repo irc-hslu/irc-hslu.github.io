@@ -271,8 +271,12 @@ Expected result: the last line is
 [info] live stop requested; pipeline stopped cleanly
 ```
 
-If a worker thread fails, the server stops the same way, then logs
-`orbbec-streamer failed: <reason>` and exits with code 1.
+If a worker thread or a camera fails, the server stops the same way, then
+logs `orbbec-streamer failed: <reason>` and exits with code 1, even when the
+failure comes in the last second before a requested stop.
+
+`Ctrl+C` while the server is still waiting for its cameras ends it at once
+with `live stop requested while waiting for cameras; nothing started`.
 
 ## Troubleshooting [#troubleshooting]
 
