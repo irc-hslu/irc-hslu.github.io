@@ -112,7 +112,7 @@ CUDA smoke test OK
 `check_unit` ends with:
 
 ```text
-100% tests passed, 0 tests failed out of 33
+100% tests passed, 0 tests failed out of 32
 ```
 
 The CTest command without cameras or the RVM engine ends with:
@@ -194,15 +194,18 @@ BUILD_DIR=build/local-debug`.
 
 ## Presets [#presets]
 
-`CMakePresets.json` defines two configure presets and one build preset for
-each:
+`CMakePresets.json` defines five configure presets, with one build preset and
+(for the test builds) one test preset each:
 
-| Configure preset     | Build preset     | Build type     | Build directory            | Use                            |
-| -------------------- | ---------------- | -------------- | -------------------------- | ------------------------------ |
-| `dev-debug`          | `debug`          | Debug          | `build/dev-debug`          | Everyday development and tests |
-| `dev-relwithdebinfo` | `relwithdebinfo` | RelWithDebInfo | `build/dev-relwithdebinfo` | Latency measurements           |
+| Configure preset     | Build preset     | Build type                                                       | Build directory            | Use                                           |
+| -------------------- | ---------------- | ---------------------------------------------------------------- | -------------------------- | --------------------------------------------- |
+| `dev-debug`          | `debug`          | Debug                                                            | `build/dev-debug`          | Everyday development and tests                |
+| `dev-relwithdebinfo` | `relwithdebinfo` | RelWithDebInfo                                                   | `build/dev-relwithdebinfo` | Latency measurements                          |
+| `dev-asan`           | `asan`           | RelWithDebInfo + AddressSanitizer and UndefinedBehaviorSanitizer | `build/dev-asan`           | Finding memory errors and undefined behaviour |
+| `dev-tsan`           | `tsan`           | RelWithDebInfo + ThreadSanitizer                                 | `build/dev-tsan`           | Finding data races                            |
+| `dev-coverage`       | `coverage`       | Debug + gcov                                                     | `build/dev-coverage`       | Measuring test coverage                       |
 
-Both presets:
+All presets:
 
 * use the vcpkg toolchain in `external/vcpkg`
 * use `/usr/bin/gcc-15` and `/usr/bin/g++-15`, also as the CUDA host compiler
@@ -239,20 +242,56 @@ Each `check_*` build target runs one group of tests. Run it with
 `cmake --build --preset debug --target <target>`, with `<target>` replaced by
 a name from this table.
 
-| Target                   | CTest selection                              | Needs                                                                                                     |
-| ------------------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `check_unit`             | label `unit` (33 tests)                      | A CUDA GPU with NVENC (`smoke_nvenc_hevc_encoder` has the `unit` label)                                   |
-| `check_integration`      | label `integration` (11 tests)               | A CUDA GPU with NVENC. Build everything first: this target builds only some of the test programs it runs. |
-| `check_cuda`             | label `cuda`                                 | A CUDA GPU with NVENC, and the RVM engines                                                                |
-| `check_smoke`            | label `smoke`                                | Cameras and the RVM engines                                                                               |
-| `check_hardware`         | label `hardware` (4 tests)                   | The cameras in `config/dev/live.yaml`, and a GPU with NVENC                                               |
-| `check_orbbec_live_sync` | the test `orbbec_live_sync_integration_test` | The cameras in `config/dev/live.yaml`, wired for hardware sync                                            |
-| `check`                  | all 50 tests                                 | Everything above                                                                                          |
+| Target                   | CTest selection                              | Needs                                                          |
+| ------------------------ | -------------------------------------------- | -------------------------------------------------------------- |
+| `check_unit`             | label `unit` (32 tests)                      | A CUDA GPU                                                     |
+| `check_integration`      | label `integration` (11 tests)               | A CUDA GPU with NVENC                                          |
+| `check_cuda`             | label `cuda`                                 | A CUDA GPU with NVENC, and the RVM engines                     |
+| `check_smoke`            | label `smoke`                                | Cameras and the RVM engines                                    |
+| `check_hardware`         | label `hardware` (4 tests)                   | The cameras in `config/dev/live.yaml`, and a GPU with NVENC    |
+| `check_orbbec_live_sync` | the test `orbbec_live_sync_integration_test` | The cameras in `config/dev/live.yaml`, wired for hardware sync |
+| `check`                  | all 50 tests                                 | Everything above                                               |
+
+Every `check_*` target builds all test programs before it runs CTest.
 
 You can also run CTest directly and pick labels yourself: `-L <label>` runs
 one label and `-LE <label>` excludes one. Other useful labels are `protocol`,
 `conformance`, `calibration`, `setup`, `nvenc`, `gpu` and `telemetry`. List
 all tests with `ctest --test-dir build/dev-debug -N`.
+
+### Sanitizer and coverage builds [#sanitizer-and-coverage-builds]
+
+The sanitizers instrument the server's own C++ code, not the CUDA kernels.
+Each build has its own directory and takes as long as a first build.
+
+1. From `server/`, configure and build the variant, for example AddressSanitizer:
+
+   ```bash
+   cmake --preset dev-asan
+   cmake --build --preset asan
+   ```
+
+2. Run its tests with the matching test preset. It sets the sanitizer
+   options and skips the tests that need cameras:
+
+   ```bash
+   ctest --preset asan -j6
+   ```
+
+   Use `tsan` and `coverage` the same way. The `tsan` preset also skips the
+   NVENC tests, because the NVIDIA encoder driver crashes under
+   ThreadSanitizer, and runs OpenCV single-threaded, because ThreadSanitizer
+   cannot see OpenCV's own thread pool.
+
+3. A sanitizer report fails the test and prints the stack. Suppressions for
+   third-party code are in `tests/sanitizers/`.
+
+For a coverage report after `ctest --preset coverage`, with
+[gcovr](https://gcovr.com) installed:
+
+```bash
+gcovr -r . --filter src/ build/dev-coverage --html-details build/dev-coverage/coverage.html
+```
 
 ### Tests with special needs [#tests-with-special-needs]
 
