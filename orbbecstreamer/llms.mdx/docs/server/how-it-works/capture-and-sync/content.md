@@ -74,8 +74,13 @@ visible to the server.
   clock, so timestamps of different cameras are comparable. A camera
   without global-timestamp support stops start-up with
   `Orbbec global timestamps are required ...`.
-* After all cameras stream, the server enables the SDK's **device clock
-  sync** once for all cameras, every 60 s (`interval_ms=60000` in the log).
+* After all cameras stream, the server runs the SDK's **device clock
+  sync** once for all cameras (`interval_ms=0` in the log). It does not
+  repeat it: the global timestamp already follows each clock's drift, and a
+  repeated sync steps the device clocks, which pushed the time difference
+  between two cameras up to 15 ms for a few seconds after each sync.
+  Synced once, two hardware-synced Femto Bolts stayed within 0.11 ms of
+  each other over a 10-minute run, once the first minutes had settled.
 * Frame sets whose timestamp is 0 (global timestamps not ready yet) are
   dropped.
 
@@ -192,7 +197,12 @@ Femto Bolts, 15 fps, `rgb8`):
   without batches. Fix the camera and restart the server.
 * **Unmatched frame sets are reported.** When a frame set finds no partner
   from every camera within `sync.timestamp_tolerance_us`, or a camera's
-  pending limit overflows, the batcher drops it. After the first 5 s (start-up
+  pending limit overflows, the batcher drops it. Some drops are expected:
+  each Femto Bolt's colour sensor runs about 0.25 % slower than its depth
+  sensor, so about every 300–400 frames (20–30 s at 15 fps) a camera has no
+  colour frame for one depth frame. The SDK drops that depth frame, and the
+  other cameras' frame sets for that moment have no partner. With two
+  cameras that is one lost batch about every 13 s. After the first 5 s (start-up
   settling is not reported) the server logs at most every 10 s: `frame batcher
   dropped N frame set(s) without a match from every camera (M in total)`. The
   session summary ends with the totals (`frame batcher: ... stale ...

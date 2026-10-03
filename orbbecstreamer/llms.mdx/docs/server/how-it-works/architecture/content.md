@@ -122,12 +122,12 @@ cannot block capture, GPU processing or NVENC.
 
 ## Clock domains [#clock-domains]
 
-| Where                                                        | Clock                                                                                                                                  | Unit                  |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| Camera                                                       | The camera's device clock                                                                                                              | -                     |
-| Capture timestamp (`capture_timestamp_ns` inside the server) | The SDK's global timestamp: the device clock mapped to the host clock. Every camera's clock is re-synchronised to the host every 60 s. | ns (the SDK gives µs) |
-| Stage stamps, latency telemetry, lease timers                | `std::chrono::steady_clock`                                                                                                            | ns                    |
-| Wire (`protocol/wire-format.md`)                             | Server monotonic time (steady clock)                                                                                                   | µs, u64               |
+| Where                                                        | Clock                                                                                                                                                   | Unit                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Camera                                                       | The camera's device clock                                                                                                                               | -                     |
+| Capture timestamp (`capture_timestamp_ns` inside the server) | The SDK's global timestamp: the device clock mapped to the host clock. Every camera's clock is synchronised to the host once, after all cameras stream. | ns (the SDK gives µs) |
+| Stage stamps, latency telemetry, lease timers                | `std::chrono::steady_clock`                                                                                                                             | ns                    |
+| Wire (`protocol/wire-format.md`)                             | Server monotonic time (steady clock)                                                                                                                    | µs, u64               |
 
 The frame set's capture timestamp is its depth frame's global timestamp; a
 batch's timestamp is the latest one of its cameras. The server converts
