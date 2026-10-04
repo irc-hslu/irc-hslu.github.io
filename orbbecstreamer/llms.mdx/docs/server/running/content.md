@@ -171,13 +171,14 @@ display:
 [info] orbbec-streamer starting
 [info] depth quantization profile not found at 'config/dev/depth-quantization.json'; using linear 10-bit mapping over [500,5000] mm
 [info] live config: cameras=2 wait_timeout_ms=5000 preview=true
-[info] live streams: depth=640x576@15 depth_u16 color=1280x720@15 rgb8
+[info] live streams: depth=640x576@30 depth_u16 color=1280x720@30 rgb8
 [info] live encoding: enabled=true mode=concatenated_batch gpu=0 queue=2 gop=60 depth_quantization=linear ...
 [info] waiting up to 5000 ms for configured Orbbec cameras
 [info] active camera: config_id=cam0 serial=CL8K0000000A name='Orbbec Femto Bolt' firmware='1.1.2'
 [info] active camera: config_id=cam1 serial=CL8K0000000B name='Orbbec Femto Bolt' firmware='1.1.2'
 [info] live selected 2 active camera(s), neglected 0 camera(s)
 [info] live queues: capacity=2 per GPU stage (drop oldest), encode=2, upload slots=41
+[info] frame rate: capture 30 fps, stream 15 fps (1 of every 2 captured batches goes on)
 Configured Orbbec sync: camera=orbbec:CL8K0000000A mode=4 depth_delay_us=0 ... global_timestamp=enabled
 Configured Orbbec sync: camera=orbbec:CL8K0000000B mode=8 depth_delay_us=160 ... global_timestamp=enabled
 Enabled Orbbec device clock synchronization after stream startup: interval_ms=0 (0: once)

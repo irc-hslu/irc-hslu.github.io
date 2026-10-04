@@ -221,17 +221,36 @@ Hardware (trigger cable) synchronisation of several cameras.
 
 The capture profile, the same for every camera.
 
-| Key                                        | Type                                                          | Default          | Description                                                                                                   |
-| ------------------------------------------ | ------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------- |
-| `alignment`                                | `color_to_depth`, `depth_to_color`, `disabled` (alias `none`) | `color_to_depth` | Orbbec SDK alignment. Client-facing setup, the RVM mask and camera-pose calibration require `color_to_depth`. |
-| `depth.width`, `depth.height`, `depth.fps` | integer                                                       | none             | Depth profile. All must be non-zero.                                                                          |
-| `depth.format`                             | `depth_u16` (alias `y16`)                                     | none             | Depth pixel format.                                                                                           |
-| `color.width`, `color.height`, `color.fps` | integer                                                       | none             | Colour profile. All must be non-zero.                                                                         |
-| `color.format`                             | `rgb8`, `bgr8`, `gray8` (alias `y8`)                          | none             | Colour pixel format. Encoding expects `rgb8`.                                                                 |
+| Key                           | Type                                                          | Default          | Description                                                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alignment`                   | `color_to_depth`, `depth_to_color`, `disabled` (alias `none`) | `color_to_depth` | Orbbec SDK alignment. Client-facing setup, the RVM mask and camera-pose calibration require `color_to_depth`.                                      |
+| `depth.width`, `depth.height` | integer                                                       | none             | Depth resolution. Both must be non-zero.                                                                                                           |
+| `depth.fps`, `color.fps`      | `15` or `30`                                                  | none             | The **capture rate**: how fast the cameras run. Colour and depth must be equal. See [Capture rate and stream rate](#capture-rate-and-stream-rate). |
+| `depth.format`                | `depth_u16` (alias `y16`)                                     | none             | Depth pixel format.                                                                                                                                |
+| `color.width`, `color.height` | integer                                                       | none             | Colour resolution. Both must be non-zero.                                                                                                          |
+| `color.format`                | `rgb8`, `bgr8`, `gray8` (alias `y8`)                          | none             | Colour pixel format. Encoding expects `rgb8`.                                                                                                      |
 
 With `color_to_depth`, colour is resampled into the depth image, so every
-encoded tile has the depth size (640 × 576 in the dev config). With encoding
-on, colour and depth `fps` must be equal.
+encoded tile has the depth size (640 × 576 in the dev config).
+
+#### Capture rate and stream rate [#capture-rate-and-stream-rate]
+
+The cameras' own delay grows with their frame interval: at 15 fps a frame
+reaches the server about 135 ms after capture, at 30 fps about 67 ms. So
+the server can capture faster than it streams. With a capture rate of 30
+(`streams.*.fps: 30`) and a stream rate of 15 (`encoding.stream_fps: 15`),
+it keeps every second batch right after batching, before any GPU work. The
+stream keeps its rate and bitrate, and end-to-end latency drops by about
+75 ms (measured on two Femto Bolts: capture to encoded frame 147 → 73 ms at
+p50).
+
+* Both rates are `15` or `30` and default to `15`. The stream rate cannot
+  exceed the capture rate.
+* Capturing at 30 doubles the USB traffic (about 53 MiB/s per camera) and
+  the colour decoding on the CPU.
+* When a camera skips a frame, the server passes on the next captured batch
+  instead, so the stream keeps its frame count.
+* The dev config captures at 30 and streams at 15.
 
 ### `mask` [#mask]
 
@@ -289,7 +308,8 @@ Video encoding with NVENC, the NVIDIA hardware video encoder, as HEVC
 | `session_mode`                    | `concatenated_batch` (aliases `concatenated`, `joint`), `per_camera` (alias `separate`) | `per_camera`                         | Stream layout. On the wire these are `concatenated` and `per-camera`.                                                                                                                                                                |
 | `gpu_ordinal`                     | integer                                                                                 | `0`                                  | CUDA device used by NVENC.                                                                                                                                                                                                           |
 | `queue_capacity`                  | integer                                                                                 | `2`                                  | Input queue of the encoder, in batches. When it is full the oldest queued batch is dropped, so the encoder always works on recent frames. Each extra slot can add one frame period of latency after a stall. Must be greater than 0. |
-| `gop_length`                      | integer (frames)                                                                        | `60`                                 | Distance between IDR frames (keyframes a decoder can start from), also called the GOP length. `0` means an infinite GOP (only the first frame and on-demand keyframes are IDR). At 15 fps, 60 frames is 4 s.                         |
+| `stream_fps`                      | `15` or `30`                                                                            | `15`                                 | The **stream rate**: frames per second that are processed, encoded and recorded. At most the capture rate. See [Capture rate and stream rate](#capture-rate-and-stream-rate). Applies with encoding off too.                         |
+| `gop_length`                      | integer (frames)                                                                        | `60`                                 | Distance between IDR frames (keyframes a decoder can start from), also called the GOP length. `0` means an infinite GOP (only the first frame and on-demand keyframes are IDR). At a stream rate of 15 fps, 60 frames is 4 s.        |
 | `color.bitrate_bps`               | integer (bit/s)                                                                         | `12000000`                           | Colour bitrate per camera. Must be greater than 0.                                                                                                                                                                                   |
 | `depth.bitrate_bps`               | integer (bit/s)                                                                         | `8000000`                            | Depth bitrate per camera. Must be greater than 0.                                                                                                                                                                                    |
 | `depth.minimum_depth_mm`          | integer (mm)                                                                            | `500`                                | Start of the quantized depth range. Must satisfy `0 < minimum < maximum <= 65535`.                                                                                                                                                   |
