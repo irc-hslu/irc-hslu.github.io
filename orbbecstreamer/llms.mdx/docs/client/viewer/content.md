@@ -15,7 +15,7 @@ Today the 3D view stays empty in the main client, because no browser tested so f
 ## Move the camera [#move-the-camera]
 
 1. Connect a server or play a recording. The clouds appear as soon as decoded frames arrive; there is nothing to switch on.
-2. Click the 3D view once, so that it receives your key presses.
+2. Click the 3D view once, or press **Tab** until it shows a focus ring, so that it receives your key presses. Screen readers call it the **3D view**.
 3. Move around with the controls in this table. To see the 3D view alone, select the panel button at its top right (**Hide panel**).
 
 | Action                        | Mouse                                                                 | Touch                 | Keyboard                    |

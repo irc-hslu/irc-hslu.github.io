@@ -17,7 +17,7 @@ HEVC is the video format the servers send. The browser only turns these features
 ## Check what your browser supports [#check-what-your-browser-supports]
 
 1. Start the client and open [http://localhost:5173/](http://localhost:5173/). See [Run the client](/docs/client/dev-build).
-2. Read the chips in the header. Hover over a chip for its full sentence:
+2. Read the chips in the header. Hover over a chip for its full sentence; a red or amber chip is also reached with **Tab**:
    * **WebGPU** or **WebGL2**: the 3D backend the client started
    * **WebCodecs**: the browser has WebCodecs. It doesn’t yet say whether it decodes HEVC.
 3. If an **i** button follows the chips, select it for the renderer notes, for example `WebGPU not supported`.

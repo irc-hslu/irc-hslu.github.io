@@ -16,7 +16,7 @@ Every server and recording gets a card under **Servers**. It shows that server�
 
 1. **Title and status chip**: the server’s name and one word for its state. See [Status chips](#status-chips).
 2. **Server ID and address**: `webtransport https://…`, `recording file://…` or `mock mock://…`.
-3. **Notice chips**, only when they apply. Hover over a chip for its full sentence:
+3. **Notice chips**, only when they apply. Hover over a chip, or press **Tab** to reach it, for its full sentence:
    * **Setup and control only**: this browser can’t decode or draw this server’s video. Setup and the lock still work. See [Check your browser](/docs/client/browser-requirements).
    * **N bundle(s) off · too many cameras** or **· decoder failed**: the client stopped receiving bundles it can’t show, to save network and decoding. A bundle that becomes drawable again comes back by itself; one whose decoder failed comes back after **Reconnect**.
    * **reconnect scheduled**, **resynchronising**, or **waiting for the camera-pose calibration**: the connection is retrying, the client is fetching the server’s full state, or the server needs a camera-pose calibration.
@@ -32,7 +32,7 @@ Every server and recording gets a card under **Servers**. It shows that server�
 
 ## What each button does [#what-each-button-does]
 
-The icon buttons show their name as a tip. An unavailable button stays visible, and its tip says why:
+The icon buttons show their name as a tip, on hover and on keyboard focus; **Escape** hides it. An unavailable button stays visible, and its tip says why:
 
 <img alt="The tip over the release-lock icon: Release lock, This client does not hold the lock" src="__img1" />
 
@@ -53,10 +53,11 @@ When **Shared** updates are off and another client changes something, a box read
 
 Select **Details** to unfold the full status:
 
-<img alt="The card with Details open: Lock unlocked; Calibration camera-pose valid revision 1, depth-quantization valid revision 1, network missing revision 0; Layout per-camera with bundle-cam0; Counts; Network min RTT and budget; Shared with the Receive updates switch" src="__img2" />
+<img alt="The card with Details open: Source mock mock://…; Lock unlocked; Calibration camera-pose valid revision 1, depth-quantization valid revision 1, network missing revision 0; Layout per-camera with bundle-cam0; Counts; Network min RTT and budget; Shared with the Receive updates switch" src="__img2" />
 
 | Row             | What it shows                                                                                                                                                                                       |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Source**      | The full address, for example `webtransport https://…` or `mock mock://…`. The card’s title and the line under it are cut when they are long.                                                       |
 | **Lock**        | `unlocked`, `held by this client, expires in 12 s`, or `held by <name> (…), last announced expiry in 9 s`                                                                                           |
 | **Calibration** | Each calibration’s state, revision and the server’s message                                                                                                                                         |
 | **Layout**      | `per-camera` or `concatenated`, then one row per bundle, for example `bundle-cam0: 1 camera, available; ready, drawing`                                                                             |

@@ -26,6 +26,28 @@ Without npm, run the same tools directly in the `client` folder:
 ./node_modules/.bin/vite build
 ```
 
+## Run the fuzz tests [#run-the-fuzz-tests]
+
+The fuzz tests feed the protocol parsers hostile input: mutated test vectors, truncated and re-chunked streams, inflated length fields, huge strings and arrays, deep nesting, duplicate keys and out-of-range numbers. Every input must give a valid value or a protocol error with a code from wire-format §3a, in bounded time and memory. They also check that valid generated messages round-trip unchanged. They use [fast-check](https://fast-check.dev/) and live in `client/src/tests/fuzzWire.test.ts` (framing and media records) and `client/src/tests/fuzzControl.test.ts` (control JSON, the descriptor and snapshot validators, and the recording manifest).
+
+`npm test` runs them with a fixed seed and a fixed number of runs, so they take a few seconds and give the same result every time. To run only the fuzz tests, in the `client` folder:
+
+```bash
+./node_modules/.bin/vitest run src/tests/fuzz
+```
+
+Long mode runs each property for a set time with a random seed. Use it after you change a parser:
+
+```bash
+FUZZ_LONG=1 FUZZ_LONG_MS=90000 ./node_modules/.bin/vitest run src/tests/fuzz
+```
+
+* `FUZZ_LONG=1` turns on long mode.
+* `FUZZ_LONG_MS` is the time per property in milliseconds (default 60000). With 90000 the run takes about 11 minutes.
+* `FUZZ_SEED` sets the seed, in either mode, for example `FUZZ_SEED=123456`.
+
+Each property prints a line such as `[fuzz long] control json mutations: 41210 runs, seed 123456, passed`. A failure prints the seed, the replay path and the shrunk counterexample. To replay it, run again with `FUZZ_SEED` set to that seed. When you fix the bug, add the counterexample as a regression test in the same file.
+
 ## Open the dev check pages [#open-the-dev-check-pages]
 
 The development server (`npm run dev` in `client`) also serves check pages from `client/dev/`. They’re never part of the production build. Each page runs a real part of the client and writes a report.
@@ -59,6 +81,26 @@ Page options beyond `autorun` and `engine`:
 The decode, wiring and latency checks load sample recordings from `client/reference/hevc-web/` (`gpu-output-color.hevc`, `gpu-output-depth.hevc` and, optionally, `public/hevcsetup.json`). These recordings aren’t published and aren’t in the repository, so these checks only run where a local copy exists. The mock server in the app and the cards, setup and placement checks work without them, as snapshot-only.
 
 Without the recordings, the decode check fails at once with a missing file. The wiring and latency checks fail only after about 30 seconds with “no pair uploaded”, because the dev server answers a missing `.hevc` path with its HTML page instead of a 404. The decode check also accepts files you choose.
+
+## Browser QA tooling [#browser-qa-tooling]
+
+`client/scripts/qa/` holds scripts that drive the real client in headless Chromium on the real GPU. Each script starts the checkout's own development server on the port you give and stops it at the end:
+
+| Script           | What it does                                                                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `perf/run.mjs`   | Frame times, main-thread load, GPU submits, uploads, timers, React renders and heap growth, on synthetic scenes and mock servers; compares two worktrees |
+| `a11y.mjs`       | axe-core audit of the app with a mock server, the setup view and every dev check page; exits non-zero on serious or critical violations                  |
+| `docs-shots.mjs` | Takes the screenshots on these client pages                                                                                                              |
+
+It’s a separate package. Install it once, after `npm ci` in `client`, then run a script with a free port:
+
+```bash
+cd client/scripts/qa
+npm ci
+node a11y.mjs 5213
+```
+
+Results go to `client/scripts/qa/.out/`, which git ignores. The perf media and the test recording are synthetic and made with ffmpeg on first use. Usage, outputs and limits are in `client/scripts/qa/README.md`.
 
 ## Browsers tested so far [#browsers-tested-so-far]
 

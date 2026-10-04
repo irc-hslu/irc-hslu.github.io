@@ -26,7 +26,7 @@ Other clients show **Locked by other**. Unavailable buttons show their reason as
 
 ## Use a keyboard or screen reader [#use-a-keyboard-or-screen-reader]
 
-When the setup view opens, keyboard focus moves to its title. Unavailable buttons stay reachable with the keyboard, so you can hear their reason.
+When the setup view opens, keyboard focus moves to its title. Unavailable buttons stay reachable with the keyboard, so you can hear their reason. A chip with more to say than its label, such as **Not available yet** or **Awaiting camera pose**, is a tab stop too and shows its full sentence. **Escape** hides a tip.
 
 Screen readers announce these without moving focus:
 
@@ -68,6 +68,7 @@ Select **Enter setup** to ask for the lock again, or **Back** to close the setup
 
 * **`Could not enter setup. The setup lock is held by <name>.`**: someone else is setting up this server. Ask them to leave setup, or wait: a lock whose holder disappeared runs out 15 seconds after its last renewal. Then select **Enter setup**.
 * **Forced out in the middle of a calibration run**: the client committed nothing. Check the card’s `last close` box, then select **Enter setup**. If the depth section still shows **running**, the run went on without you; otherwise start it again.
+* **Forced out of setup after the computer slept**: a lock runs out 15 seconds after its last renewal, and a sleeping computer sends none. The client ends setup as soon as it hears from the server again, and it re-measures the clock difference to the server at once, so the lock countdown is right again. Select **Enter setup** again.
 * **`Forced out of setup. The connection closed: …`**: select **Back**, wait until the card is live again, then select **Set up** again. The client reconnects by itself.
 * **A calibration result never came into force**: a result needs **Commit**. The client throws it away when you leave or lose the lock. Run the calibration again and commit it before you leave.
 * **`Could not release the setup lock (<reason>): <message>. The session stays active; try Leave again.`**: select **Leave** again. If the connection is gone, the lock runs out on the server 15 seconds after its last renewal.
