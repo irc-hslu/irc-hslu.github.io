@@ -6,21 +6,27 @@ Browsers will connect over WebTransport, a browser API for low-latency streams o
 
 ## Status [#status]
 
-**Not available.** The server opens no listening socket today. `--live` captures, processes and encodes, and hands each encoded bundle to the latency telemetry and the debug recorder only.
+**Control plane only, off by default.** With `serving.enabled: true` (see [Configuration](./configuration#serving)), `--live` starts the Go WebTransport gateway, supervises it and serves the control stream of every browser session: `client.hello`, snapshots, pings, the setup lease and calibration commands. **No media is sent yet.** When the server may open a bundle's colour and depth streams for a session is change request CR 0009, which is still proposed, so no session receives media.
 
-The building blocks exist as libraries with tests, but nothing in `LiveApp` uses them yet:
+| Part                      | Code                                                                                      | State                                                                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Transport choice          | `server/docs/architecture/adr/0002-webtransport-server.md`                                | Accepted: a Go gateway on `webtransport-go` (v0.13.0, quic-go v0.63.0) in front of the C++ server                              |
+| Gateway process           | `server/gateway/cmd/orbbec-gateway` (CMake target `orbbec_streamer_wt_gateway`)           | Built when Go is found. Spawned and supervised by the server: restarted with backoff, never left down for good                 |
+| HTTP/3 listener           | in the gateway                                                                            | Implemented: WebTransport at `https://<host>:<port>/orbbec`, TLS 1.3, origin allow-list, session caps; see [Gateway](#gateway) |
+| Core-to-gateway IPC v1    | C++ `server/src/network/GatewayIpc`, `GatewayTransport`; Go `server/gateway/internal/ipc` | In use                                                                                                                         |
+| Session and control plane | `server/src/session/SessionHub`, `server/src/serving/GatewayServing`                      | Connected to the gateway; see [Session control](#session-control)                                                              |
+| Media fan-out             | `server/src/network/MediaFanout`                                                          | Wired, keyframe requests go to the encoder; no session is added until CR 0009                                                  |
+| How a browser connects    | CR 0024 (proposed, PR #114)                                                               | The server's behaviour today is listed there; it is not yet part of the contract                                               |
+| WebTransport spike        | `server/spike/webtransport`                                                               | Throwaway experiment with synthetic media                                                                                      |
+| `--websocket-test`        |                                                                                           | Placeholder that prints `WebSocket smoke test OK`. WebSocket is not the production transport.                                  |
 
-| Part                                                                    | Code                                                                  | State                                                                                                                         |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Transport choice                                                        | `server/docs/architecture/adr/0002-webtransport-server.md`            | Accepted: a Go gateway on `webtransport-go` in front of the C++ server                                                        |
-| Session and control plane                                               | `server/src/session/SessionHub` (`orbbec_streamer_session`)           | Implemented and tested, not connected to a listener; see [Session control](#session-control)                                  |
-| Media fan-out                                                           | `server/src/network/MediaFanout` (`orbbec_streamer_network`)          | Implemented and tested, not wired; see [Media fan-out](#media-fan-out)                                                        |
-| Core-to-gateway IPC v1                                                  | C++ `server/src/network/GatewayIpc`, Go `server/gateway/internal/ipc` | Codecs on both sides, shared golden vectors, contract and fuzz tests; no gateway process yet; see [Gateway IPC](#gateway-ipc) |
-| `MediaTransport` over the IPC, the gateway process, the HTTP/3 listener |                                                                       | Not implemented                                                                                                               |
-| WebTransport spike                                                      | `server/spike/webtransport`                                           | Throwaway experiment with synthetic media; shows Chromium works with the chosen stack                                         |
-| `--websocket-test`                                                      |                                                                       | Placeholder that prints `WebSocket smoke test OK`. WebSocket is not the production transport.                                 |
+### Gateway [#gateway]
 
-What you can do today: check that your browser opens a WebTransport session with the [spike](#try-the-webtransport-spike), and prepare [TLS certificates](#tls-certificates).
+* **Endpoint.** `https://<listen_address>/orbbec` (`serving.path`). The client opens the control stream: the first bidirectional stream it opens. The server resets any further client stream. These are the server's current choices, listed in CR 0024 (proposed, PR #114).
+* **Admission.** At most `serving.max_sessions` sessions, and at most 4 per source IP address. Above either cap, and while shutting down, the request is answered with HTTP 503 before the session exists. A request from an origin that is not in `serving.allowed_origins` is refused.
+* **Limits.** QUIC idle timeout 4 s with a keep-alive every 1 s. HTTP/3 idle connections are closed after 5 s and headers are capped at 16 KiB. Inbound control bytes are rate-limited per session; over the rate the server stops reading, which slows only that client.
+* **Exposure.** `config/dev/live.yaml` listens on `0.0.0.0:4443`, so any host that can reach this machine can open a session, limited only by the origin check and the caps. A non-browser client can send any `Origin` header. Use a firewall, or listen on `127.0.0.1`, when the machine is on an untrusted network.
+* **Isolation.** The gateway runs as a child process with its own process group, only its IPC socket and standard streams open, and a minimal environment. If it dies, every session ends (wire-format §17) and the server starts a new one.
 
 ### Session control [#session-control]
 
@@ -34,7 +40,7 @@ What you can do today: check that your browser opens a WebTransport session with
 
 ### Media fan-out [#media-fan-out]
 
-`MediaFanout` delivers one bundle's frame sets to N sessions through the non-blocking `MediaTransport` interface (`server/src/network/MediaTransport.hpp`) that the gateway will implement:
+`MediaFanout` delivers one bundle's frame sets to N sessions through the non-blocking `MediaTransport` interface (`server/src/network/MediaTransport.hpp`), implemented over the gateway IPC by `GatewayTransport`:
 
 | Policy                        | Value                                                                                                                                                                                                                               |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -44,18 +50,34 @@ What you can do today: check that your browser opens a WebTransport session with
 | On overflow                   | Drops are keyframe-aware: after any drop on either channel, the session receives nothing until a frame set that is a keyframe with codec configuration on both channels (wire-format §4, change 0006A), and a keyframe is requested |
 | New session                   | Starts gated and requests a keyframe                                                                                                                                                                                                |
 | Slow session                  | `publish()` never waits for a session; it runs on the encode thread                                                                                                                                                                 |
-
-The keyframe request is a callback. Binding it to the encoder's `NvencEncodeStage::request_keyframe` is part of the wiring that is still missing.
+| Keyframe requests             | Go to `NvencEncodeStage::request_keyframe` for that bundle; at most one forced keyframe per browser session every 2 s, after that it waits for the next regular one                                                                 |
+| Shared memory                 | Each encoded access unit is copied once into shared memory for the gateway, and each session may hold only its share, so stalled clients cannot starve the others                                                                   |
 
 ### Gateway IPC [#gateway-ipc]
 
-The C++ core and the gateway will talk over one `SOCK_SEQPACKET` Unix socket. Encoded records travel through a shared-memory ring, passed once as a memfd. The byte layout is in `server/docs/architecture/gateway-ipc.md`. Hardening that already applies:
+The C++ core and the gateway talk over one `SOCK_SEQPACKET` Unix socket. Encoded records travel through a shared-memory ring, passed once as a memfd. The byte layout is in `server/docs/architecture/gateway-ipc.md`. Hardening that already applies:
 
 * The core seals the memfd (no shrink, grow or later writes) before sending it. The receiver checks size and seals, then maps it read-only; anything else is `bad-memfd`.
 * Open sessions, open streams, partial control frames and remembered session ids are bounded (`IpcLimits`, Go `Limits`).
 * No message is larger than 32 872 bytes; a larger datagram is rejected as `oversized`.
 
-Tests: `gateway_ipc_contract_tests`, `gateway_ipc_fuzz_tests` and `gateway_go_tests` (`go test -race`, skipped when Go is missing); see [Build and test](./build#test-targets-and-labels).
+Tests: `gateway_ipc_contract_tests`, `gateway_ipc_fuzz_tests`, `gateway_transport_tests`, `gateway_process_tests`, `gateway_serving_tests`, `gateway_go_tests` (`go test -race`) and `gateway_loopback_integration_tests` (the server, the real gateway and native WebTransport clients on 127.0.0.1). The Go tests are skipped when Go is missing; see [Build and test](./build#test-targets-and-labels).
+
+## Turn on serving [#turn-on-serving]
+
+1. Build the gateway. It needs Go 1.27.1 or newer, either on `PATH` or in `~/.local/go/bin`. From `server/`:
+
+   ```bash
+   cmake --build --preset relwithdebinfo --target orbbec_streamer_wt_gateway
+   ```
+
+   This writes `build/dev-relwithdebinfo/orbbec-gateway`.
+
+2. In your config, set `serving.enabled: true` and list the origin your page is served from under `serving.allowed_origins`. See the [`serving` keys](./configuration#serving).
+
+3. Start the server as usual. Expect `serving: WebTransport gateway ... (control plane only)` in the log, and a line from the gateway with the development certificate hash. The hash is also written to `serving.dev_certificate_hash_path`.
+
+4. Point the page at `https://<host>:4443/orbbec`, passing the hash in `serverCertificateHashes`.
 
 ## Try the WebTransport spike [#try-the-webtransport-spike]
 
@@ -141,16 +163,17 @@ The page passes the certificate's SHA-256 hash in the `serverCertificateHashes` 
 
 ### Production: a CA-issued certificate [#production-a-ca-issued-certificate]
 
-Use a certificate from a public CA (for example Let's Encrypt) or from a CA the client machines trust, issued for the host name the browsers use. The browser then connects without a hash, and the 14-day and ECDSA rules don't apply. How the gateway loads it will be documented when the gateway exists.
+Use a certificate from a public CA (for example Let's Encrypt) or from a CA the client machines trust, issued for the host name the browsers use. The browser then connects without a hash, and the 14-day and ECDSA rules don't apply. Set `serving.certificate` and `serving.private_key`. The gateway refuses a key file that group or others can read (`chmod 600`).
 
-## Planned model [#planned-model]
+The gateway makes its own development certificate when no CA certificate is set: ECDSA P-256, valid for 13 days, renewed one day before it expires. Each new hash is written to `serving.dev_certificate_hash_path`. You don't need the `openssl` steps above for the gateway.
 
-This is the accepted design (ADR 0002). It is not built, so details may change.
+## Design [#design]
 
-* The C++ server starts and supervises the Go gateway. The gateway owns the UDP port, TLS and the WebTransport sessions, and creates and renews its own development certificate (13 days), as the spike does.
+This is the accepted design (ADR 0002 §13–§15).
+
+* The C++ server starts and supervises the Go gateway. The gateway owns the UDP port, TLS and the WebTransport sessions, and makes and renews its own development certificate.
 * The C++ server keeps every media decision (queues, drops, keyframe recovery, revisions) in `MediaFanout`. The gateway only moves bytes.
-* A slow browser slows only its own session; it never blocks capture, GPU processing or encoding.
-* The UDP port and certificate settings will live in a gateway section of the server config. That section does not exist yet.
+* A slow browser slows only its own session. It never blocks capture, GPU processing or encoding. Control input is handed to the setup state on its own thread, so a slow setup commit never holds up media.
 
 ## Troubleshooting [#troubleshooting]
 
@@ -161,3 +184,6 @@ This is the accepted design (ADR 0002). It is not built, so details may change.
 | The hash is rejected although the certificate is fine            | The hash was computed over the PEM file. Hash the DER bytes.                                                                                                 |
 | `go: command not found`                                          | Install Go 1.27.1 or newer and add its `bin` folder to `PATH`.                                                                                               |
 | Safari does not connect with a hash                              | Expected: Safari needs a CA-issued certificate.                                                                                                              |
+| `serving.enabled needs ...` at start-up                          | See the [`serving` keys](./configuration#serving).                                                                                                           |
+| `serving: the WebTransport gateway could not be started`         | `serving.gateway_executable` is wrong (a relative path is resolved against the config file) or not built. The server keeps capturing and retries.            |
+| The browser gets HTTP 503                                        | The server is full (`max_sessions`, or 4 sessions from your address), or shutting down.                                                                      |

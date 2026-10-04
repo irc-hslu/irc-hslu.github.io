@@ -16,7 +16,7 @@ server/config/dev/
 
 When the JSON files are missing the server still starts: it uses a linear depth mapping and reports that camera-pose calibration is needed. Git ignores these files and the folder `config/local/`.
 
-Every relative path (`rvm_engine_path`, `quantization_profile_path`, `camera_pose_path`, `placement_path`, `debug_recording.directory`) resolves against the working directory, so run the server from `server/`.
+Every relative path (`rvm_engine_path`, `quantization_profile_path`, `camera_pose_path`, `placement_path`, `debug_recording.directory`, `serving.dev_certificate_hash_path`) resolves against the working directory, so run the server from `server/`. The exception is `serving.gateway_executable`, which resolves against the config file's directory.
 
 ## Point the server at a config [#point-the-server-at-a-config]
 
@@ -63,7 +63,7 @@ The loader is a line parser, not full YAML:
 * `#` starts a comment, except inside double quotes. Strings may be bare or quoted with `"` or `'`.
 * Booleans: `true`, `false`, `yes`, `no`, `1`, `0`.
 * Integers are unsigned 32-bit; a sign or trailing text is an error. Floats must be finite.
-* List items are allowed only under `cameras` and `debug_recording.camera_ids`. The only inline array is `mask.bbox_xywh`.
+* List items are allowed only under `cameras`, `debug_recording.camera_ids` and `serving.allowed_origins`. The only inline array is `mask.bbox_xywh`.
 * Omitted keys take the code defaults below, which sometimes differ from `config/dev/live.yaml`.
 
 ## Minimal example [#minimal-example]
@@ -228,7 +228,7 @@ NVENC HEVC encoding. See [Stream layout](./stream-layout) and [Encoding](./how-i
 
 | Key                                                | Type                                                                                    | Default                              | Description                                                                                                                       |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `enabled`                                          | bool                                                                                    | `false`                              | Turns encoding on. Required for GPU-output recording and, later, serving.                                                         |
+| `enabled`                                          | bool                                                                                    | `false`                              | Turns encoding on. Required for GPU-output recording and for serving.                                                             |
 | `session_mode`                                     | `concatenated_batch` (aliases `concatenated`, `joint`), `per_camera` (alias `separate`) | `per_camera`                         | Stream layout. Wire names: `concatenated`, `per-camera`.                                                                          |
 | `gpu_ordinal`                                      | integer                                                                                 | `0`                                  | CUDA device for NVENC.                                                                                                            |
 | `queue_capacity`                                   | integer                                                                                 | `2`                                  | Encode queue in batches; a full queue drops its oldest batch. Greater than 0.                                                     |
@@ -278,6 +278,31 @@ Local recordings for debugging, off by default. Output layout in [Debug recordin
 | `camera_ids`                 | list of `id`s | all cameras  | Cameras to record; each a configured `id`, listed once.                                     |
 
 `setup.json` is written into `directory` at every start, even with recording off. There is no telemetry section; see [Read the telemetry](./telemetry).
+
+### `serving` [#serving]
+
+Browser serving through the WebTransport gateway, off by default. See [Serve to browsers](./serving).
+
+| Key                          | Type                           | Default                          | Description                                                                                                                                      |
+| ---------------------------- | ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `enabled`                    | bool                           | `false`                          | Start the gateway. Requires `encoding.enabled: true` and `streams.alignment: color_to_depth`.                                                    |
+| `gateway_executable`         | path                           | none                             | The `orbbec-gateway` binary. Required when enabled. A relative path is resolved against the **config file's directory**, unlike the other paths. |
+| `listen_address`             | `host:port`                    | `127.0.0.1:4443`                 | UDP address of the HTTP/3 listener. `0.0.0.0` accepts every interface.                                                                           |
+| `path`                       | string                         | `/orbbec`                        | WebTransport endpoint path. Starts with `/`.                                                                                                     |
+| `allowed_origins`            | list of `scheme://host[:port]` | none                             | Browser origins allowed to connect. At least one when enabled, unless `allow_missing_origin`.                                                    |
+| `allow_missing_origin`       | bool                           | `false`                          | Accept requests without an `Origin` header (native tools, never needed by browsers).                                                             |
+| `max_sessions`               | integer                        | `16`                             | Sessions open at once, 1 to 1024. A full server answers HTTP 503.                                                                                |
+| `certificate`, `private_key` | path                           | empty                            | A CA-issued certificate and its key (mode 600). Both or neither. Empty: a self-signed development certificate.                                   |
+| `dev_certificate_hash_path`  | path                           | `debug/live/gateway-cert.sha256` | Where the development certificate's SHA-256 (hex) is written on every renewal.                                                                   |
+
+```yaml
+serving:
+  enabled: true
+  gateway_executable: "../../build/dev-relwithdebinfo/orbbec-gateway"
+  listen_address: "0.0.0.0:4443"
+  allowed_origins:
+    - "http://localhost:5173"
+```
 
 ## Environment variables [#environment-variables]
 
@@ -341,5 +366,8 @@ ORBBEC_STREAMER_STATUS_MODE=log ./build/dev-debug/orbbec_streamer --live config/
 | `Cannot open TensorRT engine: <path>`                                                                                                                                                        | The RVM engine is not built, or `rvm_engine_path` is relative to another directory.                                       |
 | `Depth quantization profile range does not match live config`                                                                                                                                | Recalibrate with `--force`, or delete the file to use the linear mapping.                                                 |
 | `No configured cameras are active; live mode cannot continue`                                                                                                                                | No serial matched. Check cables and `serial_number`; list devices with `./build/dev-debug/orbbec_streamer --orbbec-test`. |
+| `serving.enabled needs serving.gateway_executable` / `... needs encoding.enabled` / `... needs serving.allowed_origins`                                                                      | Set the missing key.                                                                                                      |
+| `serving.max_sessions must be 1..1024`, `serving.path must start with '/'`, `serving.listen_address must be host:port`                                                                       | Fix the value.                                                                                                            |
+| `serving.certificate and serving.private_key go together`                                                                                                                                    | Set both, or neither for a development certificate.                                                                       |
 | `GPU-output recording requires encoding.enabled=true`                                                                                                                                        | Enable encoding or set `record_gpu_outputs: false`.                                                                       |
 | `Debug recording references unknown camera id: <id>`                                                                                                                                         | `debug_recording.camera_ids` takes camera `id`s, not serials.                                                             |

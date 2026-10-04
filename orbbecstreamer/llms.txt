@@ -18,7 +18,7 @@
   - [Read the telemetry](https://irc-hslu.github.io/orbbecstreamer/docs/server/telemetry): What every periodic table and log line of the live server means, what healthy numbers look like, and how to act on drops, skew and queueing.
   - [Camera pose calibration](https://irc-hslu.github.io/orbbecstreamer/docs/server/camera-calibration): Print the ChArUco board, calibrate where each depth camera sits, and read the calibration state at startup.
   - [Depth quantization calibrator](https://irc-hslu.github.io/orbbecstreamer/docs/server/depth-quantization-calibrator): Fit the 10-bit depth code table to your scene with orbbec_streamer_depth_quantization_calibrator.
-  - [Serve to browsers](https://irc-hslu.github.io/orbbecstreamer/docs/server/serving): What exists of the WebTransport serving path, how to try the WebTransport spike, and the TLS certificates browsers need.
+  - [Serve to browsers](https://irc-hslu.github.io/orbbecstreamer/docs/server/serving): The WebTransport gateway, how to turn on serving, and the TLS certificates browsers need.
   - How it works
     - [How the server works](https://irc-hslu.github.io/orbbecstreamer/docs/server/how-it-works/architecture): The live pipeline from the cameras to the encoded bundles, which thread owns each stage, the bounded queues, the clock domains and what leaves the server today.
     - [Capture and synchronisation](https://irc-hslu.github.io/orbbecstreamer/docs/server/how-it-works/capture-and-sync): How the server opens the cameras, synchronises them in hardware and in time, aligns colour to depth and groups frames from all cameras into batches.
