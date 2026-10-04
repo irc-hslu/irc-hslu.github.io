@@ -54,6 +54,27 @@ Useful controls:
 * **Faults**: `dropSession`, `closeSession`, `delaySession`, `stallSession` / `resumeSession`, `sendMalformed`, `skipRevisions`, `sendStaleRevision`, `refuseSnapshots`, `expireLease`.
 * **Inspection**: `sessions()`, `sessionOf(clientId)`, `lockHolder()`, `snapshot()`, `metadataRevision`, `session.requestCounts`, `session.mediaStats(bundleId)`.
 
+## Test messages that are not in the protocol yet [#test-messages-that-are-not-in-the-protocol-yet]
+
+Two test seams let operator console tests (`client/src/operator/mock/`) add messages from change requests that are not in the protocol yet, without editing client files. Both skip the schema, so use them only in tests.
+
+**Client messages in**: pass `onUnhandledClientMessage(message, context)` to `createMockServer`.
+
+* It receives the decoded JSON object of a client message whose `type` the client schema does not know, after that session’s hello.
+* Answer with `context.reply(json)`, which sends to that session only. A `server.ack` or `server.error` reply must match the protocol schema; other protocol message types are refused. Check a lease with `context.holdsLease(message.leaseId)`. `context.session` and `context.server` are also there.
+* Return `false` to decline. The session then closes as malformed input, as it does without the hook.
+* A message of a known type that fails its schema never reaches the hook: it closes the session as malformed input.
+* A hook that throws closes that session.
+
+**Server messages out**: `mock.broadcast(json, filter?)` sends one control frame to every session past its hello, or only to the sessions `filter` selects.
+
+* It returns `{ ok: true, sessions }`, or `{ ok: false, issue }` and sends nothing when the message has no string `type`, cannot be serialised as JSON (for example a `bigint`), or exceeds the 1 MiB frame limit.
+* It refuses message types the protocol already defines (use the mock’s own controls, or `sendMalformed` for faults); it is only for types not in the protocol yet.
+* It does not apply shared-update filtering and does not advance the metadata revision. For a message that carries `metadataRevision`, stamp it with `mock.advanceMetadataRevision()`.
+* A normal client that receives a type it does not know fails that session with `unknown-message-type` and reconnects. So `broadcast` does not refuse operator message types; instead, operator tests always pass a filter that selects only operator sessions, and check that viewer sessions receive no operator messages.
+
+To start the mock in setup with autocalibration, pass a snapshot with `readiness: 'needs-setup'`, `autocalibrate: true` and camera-pose `missing`. Media is held until camera-pose is committed, and the mock never starts a calibration by itself.
+
 ## What you should see [#what-you-should-see]
 
 * A client connects and receives a snapshot. With a recording, it receives paired colour and depth frames after it subscribes.

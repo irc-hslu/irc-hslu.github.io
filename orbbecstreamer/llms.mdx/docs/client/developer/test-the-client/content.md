@@ -8,15 +8,15 @@ The client has three command-line checks (type check, unit tests and build) and 
 
 Run these in the `client` folder, after `npm ci` (see [Run the client](/docs/client/dev-build)):
 
-| Command                   | What it does                                                                               |
-| ------------------------- | ------------------------------------------------------------------------------------------ |
-| `npm run typecheck`       | TypeScript check, no output files                                                          |
-| `npm test`                | All unit tests (Vitest, in Node.js)                                                        |
-| `npm run test:watch`      | The unit tests in watch mode                                                               |
-| `npm run build`           | Type check, then production build into `client/dist/`                                      |
-| `npm run preview`         | Serve `client/dist/` at [http://localhost:4173/](http://localhost:4173/)                   |
-| `npm run bench:e2e`       | Media-path benchmark in Node.js; see [Latency measurement](/docs/client/developer/latency) |
-| `npm run protocol:export` | Export the protocol schema and test vectors to `../protocol`                               |
+| Command                   | What it does                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`       | TypeScript check, no output files                                                                                                           |
+| `npm test`                | All unit tests (Vitest): `client/src/tests/` in Node.js, and the Operator Console tests next to its code in `client/src/operator/` in jsdom |
+| `npm run test:watch`      | The unit tests in watch mode                                                                                                                |
+| `npm run build`           | Type check, then production build into `client/dist/`                                                                                       |
+| `npm run preview`         | Serve `client/dist/` at [http://localhost:4173/](http://localhost:4173/)                                                                    |
+| `npm run bench:e2e`       | Media-path benchmark in Node.js; see [Latency measurement](/docs/client/developer/latency)                                                  |
+| `npm run protocol:export` | Export the protocol schema and test vectors to `../protocol`                                                                                |
 
 Without npm, run the same tools directly in the `client` folder:
 
@@ -25,6 +25,10 @@ Without npm, run the same tools directly in the `client` folder:
 ./node_modules/.bin/vitest run
 ./node_modules/.bin/vite build
 ```
+
+To run only the Operator Console tests: `./node_modules/.bin/vitest run src/operator`.
+
+The build has one page, `index.html`. Once `client/src/operator/main.tsx` exists, it also builds the Operator Console page, `operator/index.html`. The dev server and `npm run preview` serve that page at `/operator` and every path under it, except paths whose last segment ends in a file extension such as `.js`, `.css` or `.png`; those are served as files.
 
 ## Run the fuzz tests [#run-the-fuzz-tests]
 
