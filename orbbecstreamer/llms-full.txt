@@ -43,7 +43,7 @@ No point cloud appears yet: HEVC decoding hasn’t worked in any browser tested 
 
 [Read a server card](/docs/client/server-card) explains every part of the card.
 
-If the connection drops, the client reconnects by itself and keeps trying. The wait starts at 1 second and doubles with each failed try, up to 30 seconds; each wait is cut by a random 0 to 50 %, so clients don’t all retry at once. The wait starts over at 1 second only after a connection has stayed up for 10 seconds. The client doesn’t retry after you select **Remove**, after a protocol version mismatch, or after a conflict.
+If the connection drops, the client reconnects by itself and keeps trying. The wait starts at 1 second and doubles with each failed try, up to 30 seconds; each wait is cut by a random 0 to 50 %, so clients don’t all retry at once. The wait starts over at 1 second only after a connection has stayed up for 10 seconds. The client doesn’t retry after you select **Remove**, after a protocol version mismatch, after a conflict, or, in Chrome and Edge, when the site’s security policy blocks the server.
 
 ## Fix connection problems [#fix-connection-problems]
 
@@ -53,6 +53,7 @@ These messages appear on the server card:
   * Check that the server is running and that you can reach its host and port over UDP. WebTransport runs over UDP, not TCP.
   * Check that your browser trusts the server’s certificate.
   * A browser without WebTransport fails this way on every try. See [Check your browser](/docs/client/browser-requirements).
+* **`last close: transport error: blocked by this page's Content Security Policy …`**: the site that serves the client doesn’t allow connections to this server’s address (its Content Security Policy `connect-src` doesn’t list it). The browser refuses before it sends anything. In Chrome and Edge the client recognises this and doesn’t retry; other browsers word the refusal differently, so there the card shows a plain `transport error` and the client keeps retrying with backoff. Check the address on the card first. If it’s right, ask whoever deploys the client to add the server’s `https://host:port` to `connect-src`. The policy only changes when the page loads, so reload the page and add the server again. **Reconnect** tries once more, but meets the same policy until you reload.
 * **`connect timeout`**: the server didn’t finish connecting within 10 seconds. It may be unreachable, or it may not answer. Check the server’s logs.
 * **`Protocol version mismatch; cannot connect.`**: the server uses another major version of the protocol. Update the client or the server. The client doesn’t retry.
 * **`last close: protocol error invalid-transform: …`**, or `invalid-quantization-profile`, `invalid-bundle-descriptor` or `invalid-message`: the server sent data that breaks the protocol, for example a placement that isn’t rigid. The client closes the connection and retries. Check the server’s calibration and placement, and report the text after the code.
@@ -1610,16 +1611,16 @@ The client commits nothing on the way out:
 
 A box explains why the session ended. When you were forced out, it adds `Nothing was committed.`
 
-| Message                                                               | What happened                                                            |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `Could not enter setup. The setup lock is held by <name>.`            | Another client holds the lock.                                           |
-| `Could not enter setup. Could not acquire the setup lock: <message>.` | The server refused the lock for another reason.                          |
-| `Could not enter setup. Not connected to the server.`                 | The server wasn’t connected when you opened setup.                       |
-| `Forced out of setup. The setup lease expired.`                       | Your lock ran out, for example because renewals didn’t reach the server. |
-| `Forced out of setup. The setup lease was lost: <message>.`           | The server refused a renewal.                                            |
-| `Forced out of setup. The server ended the setup lease.`              | The server freed the lock without a release from you.                    |
-| `Forced out of setup. The setup lock is held by <name>.`              | Another client took the lock.                                            |
-| `Forced out of setup. The connection closed: <reason>.`               | The connection to the server ended. A lock never survives a reconnect.   |
+| Message                                                               | What happened                                                                                                                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Could not enter setup. The setup lock is held by <name>.`            | Another client holds the lock.                                                                                                                                                                                      |
+| `Could not enter setup. Could not acquire the setup lock: <message>.` | The server refused the lock for another reason.                                                                                                                                                                     |
+| `Could not enter setup. Not connected to the server.`                 | The server wasn’t connected when you opened setup.                                                                                                                                                                  |
+| `Forced out of setup. The setup lease expired.`                       | Your lock ran out, for example because renewals didn’t reach the server, or the browser discarded or froze the tab. See [When the tab is in the background](/docs/client/viewer#when-the-tab-is-in-the-background). |
+| `Forced out of setup. The setup lease was lost: <message>.`           | The server refused a renewal.                                                                                                                                                                                       |
+| `Forced out of setup. The server ended the setup lease.`              | The server freed the lock without a release from you.                                                                                                                                                               |
+| `Forced out of setup. The setup lock is held by <name>.`              | Another client took the lock.                                                                                                                                                                                       |
+| `Forced out of setup. The connection closed: <reason>.`               | The connection to the server ended. A lock never survives a reconnect.                                                                                                                                              |
 
 If a calibration result was waiting for **Commit**, the box also says `The client discarded the uncommitted depth quantization result.`
 
@@ -1764,7 +1765,7 @@ The view has no switches for colour only, depth only or the foreground mask. The
 
 ### When the tab is in the background [#when-the-tab-is-in-the-background]
 
-After the client's tab has been hidden for 10 s, the client stops receiving and decoding streams, recordings included. Connections and a held setup lock stay up: the client renews the lock from a timer that the browser doesn't slow down in background tabs, as long as the browser keeps the tab running. A tab the browser freezes or discards (for example Chrome's Energy Saver or tab discarding) stops renewing, and the lock runs out 15 s later. While a headset (WebXR) session runs, streams never pause.
+After the client's tab has been hidden for 10 s, the client stops receiving and decoding streams, recordings included. Connections and a held setup lock stay up: the client renews the lock from a timer that the browser doesn't slow down in background tabs, as long as the browser keeps the tab running. While it holds a setup lock, the client also holds a Web Lock, which keeps Chrome from freezing the tab (for example with Energy Saver, or when a background tab uses a lot of CPU). Chrome can still discard the tab when the computer runs low on memory, and other browsers may freeze it anyway: a discarded or frozen tab stops renewing, and the lock runs out 15 s later. While a headset (WebXR) session runs, streams never pause.
 
 When you come back, the last picture stays on screen and streams restart at once. Each bundle's live picture returns at the server's next keyframe: usually well under a second, at most one keyframe interval. A recording continues from where it would be in real time, not from where it paused. Bundles you turned off, or that the client can't show, stay off.
 
@@ -2469,7 +2470,7 @@ For a longer run, pass the input folder, iterations and a seed, preferably in th
 | Flag                                     | Checks                                                                    | Needs cameras |
 | ---------------------------------------- | ------------------------------------------------------------------------- | ------------- |
 | `--cuda-test`                            | CUDA devices are visible and a kernel runs; exits 77 without a device     | No            |
-| `--nvenc-test`                           | NVENC has every HEVC feature the server needs                             | No            |
+| `--nvenc-test`                           | NVENC has every HEVC feature the server needs; exits 77 without a device  | No            |
 | `--compression-test`, `--websocket-test` | Nothing: placeholders that print `... smoke test OK`                      | No            |
 | `--orbbec-test`                          | The SDK finds the cameras; ends with `Orbbec provider smoke test OK`      | Yes           |
 | `--orbbec-capture-test`                  | Frame sets arrive and pass CUDA upload, GPU statistics and the packetizer | Yes           |

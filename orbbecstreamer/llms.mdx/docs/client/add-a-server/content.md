@@ -43,7 +43,7 @@ No point cloud appears yet: HEVC decoding hasn’t worked in any browser tested 
 
 [Read a server card](/docs/client/server-card) explains every part of the card.
 
-If the connection drops, the client reconnects by itself and keeps trying. The wait starts at 1 second and doubles with each failed try, up to 30 seconds; each wait is cut by a random 0 to 50 %, so clients don’t all retry at once. The wait starts over at 1 second only after a connection has stayed up for 10 seconds. The client doesn’t retry after you select **Remove**, after a protocol version mismatch, or after a conflict.
+If the connection drops, the client reconnects by itself and keeps trying. The wait starts at 1 second and doubles with each failed try, up to 30 seconds; each wait is cut by a random 0 to 50 %, so clients don’t all retry at once. The wait starts over at 1 second only after a connection has stayed up for 10 seconds. The client doesn’t retry after you select **Remove**, after a protocol version mismatch, after a conflict, or, in Chrome and Edge, when the site’s security policy blocks the server.
 
 ## Fix connection problems [#fix-connection-problems]
 
@@ -53,6 +53,7 @@ These messages appear on the server card:
   * Check that the server is running and that you can reach its host and port over UDP. WebTransport runs over UDP, not TCP.
   * Check that your browser trusts the server’s certificate.
   * A browser without WebTransport fails this way on every try. See [Check your browser](/docs/client/browser-requirements).
+* **`last close: transport error: blocked by this page's Content Security Policy …`**: the site that serves the client doesn’t allow connections to this server’s address (its Content Security Policy `connect-src` doesn’t list it). The browser refuses before it sends anything. In Chrome and Edge the client recognises this and doesn’t retry; other browsers word the refusal differently, so there the card shows a plain `transport error` and the client keeps retrying with backoff. Check the address on the card first. If it’s right, ask whoever deploys the client to add the server’s `https://host:port` to `connect-src`. The policy only changes when the page loads, so reload the page and add the server again. **Reconnect** tries once more, but meets the same policy until you reload.
 * **`connect timeout`**: the server didn’t finish connecting within 10 seconds. It may be unreachable, or it may not answer. Check the server’s logs.
 * **`Protocol version mismatch; cannot connect.`**: the server uses another major version of the protocol. Update the client or the server. The client doesn’t retry.
 * **`last close: protocol error invalid-transform: …`**, or `invalid-quantization-profile`, `invalid-bundle-descriptor` or `invalid-message`: the server sent data that breaks the protocol, for example a placement that isn’t rigid. The client closes the connection and retries. Check the server’s calibration and placement, and report the text after the code.

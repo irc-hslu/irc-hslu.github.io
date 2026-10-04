@@ -49,16 +49,16 @@ The client commits nothing on the way out:
 
 A box explains why the session ended. When you were forced out, it adds `Nothing was committed.`
 
-| Message                                                               | What happened                                                            |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `Could not enter setup. The setup lock is held by <name>.`            | Another client holds the lock.                                           |
-| `Could not enter setup. Could not acquire the setup lock: <message>.` | The server refused the lock for another reason.                          |
-| `Could not enter setup. Not connected to the server.`                 | The server wasn’t connected when you opened setup.                       |
-| `Forced out of setup. The setup lease expired.`                       | Your lock ran out, for example because renewals didn’t reach the server. |
-| `Forced out of setup. The setup lease was lost: <message>.`           | The server refused a renewal.                                            |
-| `Forced out of setup. The server ended the setup lease.`              | The server freed the lock without a release from you.                    |
-| `Forced out of setup. The setup lock is held by <name>.`              | Another client took the lock.                                            |
-| `Forced out of setup. The connection closed: <reason>.`               | The connection to the server ended. A lock never survives a reconnect.   |
+| Message                                                               | What happened                                                                                                                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Could not enter setup. The setup lock is held by <name>.`            | Another client holds the lock.                                                                                                                                                                                      |
+| `Could not enter setup. Could not acquire the setup lock: <message>.` | The server refused the lock for another reason.                                                                                                                                                                     |
+| `Could not enter setup. Not connected to the server.`                 | The server wasn’t connected when you opened setup.                                                                                                                                                                  |
+| `Forced out of setup. The setup lease expired.`                       | Your lock ran out, for example because renewals didn’t reach the server, or the browser discarded or froze the tab. See [When the tab is in the background](/docs/client/viewer#when-the-tab-is-in-the-background). |
+| `Forced out of setup. The setup lease was lost: <message>.`           | The server refused a renewal.                                                                                                                                                                                       |
+| `Forced out of setup. The server ended the setup lease.`              | The server freed the lock without a release from you.                                                                                                                                                               |
+| `Forced out of setup. The setup lock is held by <name>.`              | Another client took the lock.                                                                                                                                                                                       |
+| `Forced out of setup. The connection closed: <reason>.`               | The connection to the server ended. A lock never survives a reconnect.                                                                                                                                              |
 
 If a calibration result was waiting for **Commit**, the box also says `The client discarded the uncommitted depth quantization result.`
 

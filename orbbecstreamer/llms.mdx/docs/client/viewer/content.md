@@ -53,7 +53,7 @@ The view has no switches for colour only, depth only or the foreground mask. The
 
 ### When the tab is in the background [#when-the-tab-is-in-the-background]
 
-After the client's tab has been hidden for 10 s, the client stops receiving and decoding streams, recordings included. Connections and a held setup lock stay up: the client renews the lock from a timer that the browser doesn't slow down in background tabs, as long as the browser keeps the tab running. A tab the browser freezes or discards (for example Chrome's Energy Saver or tab discarding) stops renewing, and the lock runs out 15 s later. While a headset (WebXR) session runs, streams never pause.
+After the client's tab has been hidden for 10 s, the client stops receiving and decoding streams, recordings included. Connections and a held setup lock stay up: the client renews the lock from a timer that the browser doesn't slow down in background tabs, as long as the browser keeps the tab running. While it holds a setup lock, the client also holds a Web Lock, which keeps Chrome from freezing the tab (for example with Energy Saver, or when a background tab uses a lot of CPU). Chrome can still discard the tab when the computer runs low on memory, and other browsers may freeze it anyway: a discarded or frozen tab stops renewing, and the lock runs out 15 s later. While a headset (WebXR) session runs, streams never pause.
 
 When you come back, the last picture stays on screen and streams restart at once. Each bundle's live picture returns at the server's next keyframe: usually well under a second, at most one keyframe interval. A recording continues from where it would be in real time, not from where it paused. Bundles you turned off, or that the client can't show, stay off.
 

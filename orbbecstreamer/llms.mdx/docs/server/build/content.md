@@ -212,7 +212,7 @@ For a longer run, pass the input folder, iterations and a seed, preferably in th
 | Flag                                     | Checks                                                                    | Needs cameras |
 | ---------------------------------------- | ------------------------------------------------------------------------- | ------------- |
 | `--cuda-test`                            | CUDA devices are visible and a kernel runs; exits 77 without a device     | No            |
-| `--nvenc-test`                           | NVENC has every HEVC feature the server needs                             | No            |
+| `--nvenc-test`                           | NVENC has every HEVC feature the server needs; exits 77 without a device  | No            |
 | `--compression-test`, `--websocket-test` | Nothing: placeholders that print `... smoke test OK`                      | No            |
 | `--orbbec-test`                          | The SDK finds the cameras; ends with `Orbbec provider smoke test OK`      | Yes           |
 | `--orbbec-capture-test`                  | Frame sets arrive and pass CUDA upload, GPU statistics and the packetizer | Yes           |
