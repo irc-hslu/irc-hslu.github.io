@@ -60,15 +60,17 @@ Two test seams let operator console tests (`client/src/operator/mock/`) add mess
 
 **Client messages in**: pass `onUnhandledClientMessage(message, context)` to `createMockServer`.
 
-* It receives the decoded JSON object of a client message whose `type` the client schema does not know, after that session’s hello.
-* Answer with `context.reply(json)`, which sends to that session only. A `server.ack` or `server.error` reply must match the protocol schema; other protocol message types are refused. Check a lease with `context.holdsLease(message.leaseId)`. `context.session` and `context.server` are also there.
+* It receives the decoded JSON object of a client message whose `type` is not a protocol client message type, after that session’s hello. Only the type name decides this.
+* Answer with `context.reply(json)`, which sends to that session only. A `server.ack` or `server.error` reply must match the protocol schema, and its `replyTo` must be the incoming message’s `requestId`; other protocol message types are refused. Check a lease with `context.holdsLease(message.leaseId)`. `context.session` and `context.server` are also there.
 * Return `false` to decline. The session then closes as malformed input, as it does without the hook.
 * A message of a known type that fails its schema never reaches the hook: it closes the session as malformed input.
 * A hook that throws closes that session.
+* The hook may call `context.reply` and `mock.broadcast` while it runs; frames keep their order.
 
 **Server messages out**: `mock.broadcast(json, filter?)` sends one control frame to every session past its hello, or only to the sessions `filter` selects.
 
-* It returns `{ ok: true, sessions }`, or `{ ok: false, issue }` and sends nothing when the message has no string `type`, cannot be serialised as JSON (for example a `bigint`), or exceeds the 1 MiB frame limit.
+* It returns `{ ok: true, sessions }`, or `{ ok: false, issue }` and sends nothing when the message has no string `type`, cannot be serialised as JSON (for example a `bigint`), exceeds the 1 MiB frame limit, or the filter throws.
+* To select sessions by fields the client schema drops, read `session.helloJson`, a frozen copy of that session’s raw `client.hello` (null before the hello). For example, `(s) => s.helloJson?.role === 'operator'`.
 * It refuses message types the protocol already defines (use the mock’s own controls, or `sendMalformed` for faults); it is only for types not in the protocol yet.
 * It does not apply shared-update filtering and does not advance the metadata revision. For a message that carries `metadataRevision`, stamp it with `mock.advanceMetadataRevision()`.
 * A normal client that receives a type it does not know fails that session with `unknown-message-type` and reconnects. So `broadcast` does not refuse operator message types; instead, operator tests always pass a filter that selects only operator sessions, and check that viewer sessions receive no operator messages.

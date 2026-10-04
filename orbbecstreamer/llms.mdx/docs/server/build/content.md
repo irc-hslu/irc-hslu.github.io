@@ -177,7 +177,7 @@ cmake --build --preset asan
 ctest --preset asan -j6
 ```
 
-Use `tsan` and `coverage` the same way. The test presets set the sanitizer options and skip the `hardware` label; `tsan` also skips `nvenc` (the NVENC driver crashes under ThreadSanitizer) and runs OpenCV single-threaded. A sanitizer report fails the test; suppressions for third-party code are in `tests/sanitizers/`. For an HTML coverage report after `ctest --preset coverage`, with [gcovr](https://gcovr.com):
+Use `tsan` and `coverage` the same way. The test presets set the sanitizer options and skip the `hardware` label; `tsan` also skips `nvenc` (the NVENC driver crashes under ThreadSanitizer) and runs OpenCV single-threaded. The encode stage's own threading (queue, keyframe requests, stop, errors) still runs under `tsan`: `nvenc_encode_stage_threading_unit_tests` replaces CUDA and NVENC with a fake encoder and has no `nvenc` label. A sanitizer report fails the test; suppressions for third-party code are in `tests/sanitizers/`. For an HTML coverage report after `ctest --preset coverage`, with [gcovr](https://gcovr.com):
 
 ```bash
 gcovr -r . --filter src/ build/dev-coverage --html-details build/dev-coverage/coverage.html
@@ -203,6 +203,7 @@ For a longer run, pass the input folder, iterations and a seed, preferably in th
 
 * **Hardware** (label `hardware`): `orbbec_live_sync_integration_test`, `smoke_orbbec_provider` and `smoke_orbbec_capture` open the cameras in `config/dev/live.yaml`; edit the serials to match. `nvenc_hevc_round_trip_integration_test` has the label but needs only a GPU with NVENC.
 * **RVM** (`smoke_rvm_engine_b1`, `smoke_rvm_engine_b2`, label `rvm`) need the engines in `models/rvm/generated/` ([Install](./install#rvm-segmentation-engine-optional)). Without them CTest reports `Not Run` and the run fails; the code is not broken.
+* **No device**: the CUDA and NVENC tests, `smoke_cuda`, `smoke_orbbec_provider` and `smoke_orbbec_capture` exit with code 77 when there is no CUDA device or no camera, and CTest lists them as `Skipped`, never as `Passed`. A skip is not a pass: run them on a machine with the device before you rely on them. To see the skip path, run with `CUDA_VISIBLE_DEVICES=""`. A failure on present hardware (an SDK error, no frames) fails the test. A new test with a skip path uses `tests/support/Skip.hpp` and needs `SKIP_RETURN_CODE 77` in `CMakeLists.txt`.
 * **Go** (`gateway_go_tests`) runs `go test -race` on `server/gateway/` when `go` is on `PATH` or in `~/.local/go/bin`, and is skipped otherwise.
 * **Protocol conformance** (`protocol_conformance_tests`) checks the server against `../protocol`. For a contract elsewhere, configure with `-DORBBEC_STREAMER_PROTOCOL_CONTRACT_DIR=/path/to/protocol` (the folder with `wire-format.md`, `schema/` and `vectors/`).
 
@@ -210,7 +211,7 @@ For a longer run, pass the input folder, iterations and a seed, preferably in th
 
 | Flag                                     | Checks                                                                    | Needs cameras |
 | ---------------------------------------- | ------------------------------------------------------------------------- | ------------- |
-| `--cuda-test`                            | CUDA devices are visible                                                  | No            |
+| `--cuda-test`                            | CUDA devices are visible and a kernel runs; exits 77 without a device     | No            |
 | `--nvenc-test`                           | NVENC has every HEVC feature the server needs                             | No            |
 | `--compression-test`, `--websocket-test` | Nothing: placeholders that print `... smoke test OK`                      | No            |
 | `--orbbec-test`                          | The SDK finds the cameras; ends with `Orbbec provider smoke test OK`      | Yes           |

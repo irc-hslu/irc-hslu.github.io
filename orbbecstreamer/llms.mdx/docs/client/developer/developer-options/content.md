@@ -73,10 +73,10 @@ A session that ends sooner than `stableSessionUs` after its hello counts as anot
 
 These are constants, not options:
 
-| Constant                        | Value | File                                  | Meaning                                                     |
-| ------------------------------- | ----- | ------------------------------------- | ----------------------------------------------------------- |
-| `LOCK_HEARTBEAT_INTERVAL_US`    | 5 s   | `client/src/state/setupLock.ts`       | The lock holder renews the setup lock this often            |
-| `LOCK_EXPIRY_US`                | 15 s  | `client/src/state/setupLock.ts`       | A lock runs out this long after its last renewal            |
-| `PING_INTERVAL_US`              | 10 s  | `client/src/connections/clockSync.ts` | Clock-sync ping interval, for the card’s `min RTT`          |
-| `PING_TIMEOUT_US`               | 5 s   | `client/src/connections/clockSync.ts` | A pong later than this is ignored                           |
-| `PROGRESS_ANNOUNCE_INTERVAL_MS` | 5 s   | `client/src/ui/setupFormat.ts`        | Screen readers hear calibration progress at most this often |
+| Constant                        | Value | File                                     | Meaning                                                     |
+| ------------------------------- | ----- | ---------------------------------------- | ----------------------------------------------------------- |
+| `LOCK_HEARTBEAT_INTERVAL_US`    | 5 s   | `client/src/state/setupLock.ts`          | The lock holder renews the setup lock this often            |
+| `LOCK_EXPIRY_US`                | 15 s  | `client/src/state/setupLock.ts`          | A lock runs out this long after its last renewal            |
+| `PING_INTERVAL_US`              | 10 s  | `client/src/connections/clockSync.ts`    | Clock-sync ping interval, for the card’s `min RTT`          |
+| `PING_TIMEOUT_US`               | 5 s   | `client/src/connections/clockSync.ts`    | A pong later than this is ignored                           |
+| `PROGRESS_ANNOUNCE_INTERVAL_MS` | 5 s   | `client/src/calibration/announcement.ts` | Screen readers hear calibration progress at most this often |

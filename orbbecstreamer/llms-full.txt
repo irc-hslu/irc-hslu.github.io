@@ -388,13 +388,13 @@ A session that ends sooner than `stableSessionUs` after its hello counts as anot
 
 These are constants, not options:
 
-| Constant                        | Value | File                                  | Meaning                                                     |
-| ------------------------------- | ----- | ------------------------------------- | ----------------------------------------------------------- |
-| `LOCK_HEARTBEAT_INTERVAL_US`    | 5 s   | `client/src/state/setupLock.ts`       | The lock holder renews the setup lock this often            |
-| `LOCK_EXPIRY_US`                | 15 s  | `client/src/state/setupLock.ts`       | A lock runs out this long after its last renewal            |
-| `PING_INTERVAL_US`              | 10 s  | `client/src/connections/clockSync.ts` | Clock-sync ping interval, for the card’s `min RTT`          |
-| `PING_TIMEOUT_US`               | 5 s   | `client/src/connections/clockSync.ts` | A pong later than this is ignored                           |
-| `PROGRESS_ANNOUNCE_INTERVAL_MS` | 5 s   | `client/src/ui/setupFormat.ts`        | Screen readers hear calibration progress at most this often |
+| Constant                        | Value | File                                     | Meaning                                                     |
+| ------------------------------- | ----- | ---------------------------------------- | ----------------------------------------------------------- |
+| `LOCK_HEARTBEAT_INTERVAL_US`    | 5 s   | `client/src/state/setupLock.ts`          | The lock holder renews the setup lock this often            |
+| `LOCK_EXPIRY_US`                | 15 s  | `client/src/state/setupLock.ts`          | A lock runs out this long after its last renewal            |
+| `PING_INTERVAL_US`              | 10 s  | `client/src/connections/clockSync.ts`    | Clock-sync ping interval, for the card’s `min RTT`          |
+| `PING_TIMEOUT_US`               | 5 s   | `client/src/connections/clockSync.ts`    | A pong later than this is ignored                           |
+| `PROGRESS_ANNOUNCE_INTERVAL_MS` | 5 s   | `client/src/calibration/announcement.ts` | Screen readers hear calibration progress at most this often |
 
 
 # Contract gaps and interim behaviour (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/interim-behaviour)
@@ -411,7 +411,7 @@ Some behaviour on the user pages depends on questions the protocol contract (`pr
 | Order of the cancel ack and the last result    | 0008, proposed                                               | Accepts either order. The “The last run produced no result to commit” line appears after a cancel only if the server sends the result before the ack; the mock server sends the result first.                                                                                                                                           | [Calibrate depth](/docs/client/calibration) lists the line without promising when it appears.                                                                                   |
 | Another client’s lock expiry                   | 0008, proposed                                               | Shows the expiry the server last announced. The holder renews every 5 seconds, but other clients learn the new expiry only if the server announces the lock state after each renewal; that re-announcement is the client’s proposal. Hence `expiry passed as last announced; the server may have renewed it`.                           | [Read a server card](/docs/client/server-card#details).                                                                                                                         |
 | Network calibration                            | 0018, proposed                                               | No network calibration stream; the setup view’s Network section shows `Network calibration is not available yet.` The card’s budget line shows whatever budget the server sends.                                                                                                                                                        | “Network calibration isn’t available yet.”                                                                                                                                      |
-| Camera-pose calibration screen                 | Not defined by the contract yet                              | The Camera pose section is exactly a red, bold, italic `TODO`, with no controls.                                                                                                                                                                                                                                                        | “Camera-pose calibration isn’t available in the client yet.”                                                                                                                    |
+| Camera-pose calibration screen                 | Not defined by the contract yet                              | The Camera pose section is exactly a red, bold, italic `TODO`, with no controls: darker red on the light theme, lighter red on the dark one, so it meets WCAG AA contrast on both.                                                                                                                                                      | “Camera-pose calibration isn’t available in the client yet.”                                                                                                                    |
 | Placement commit with an expected revision     | Contract names `expectedRevision` but not the server’s check | Sends the draft’s base revision and blocks a stale commit locally. The mock server accepts only while its placement is still at that revision, and otherwise rejects with `stale-revision`.                                                                                                                                             | [Place a server in the scene](/docs/client/placement-editing): “A server should accept the commit only while its placement is still at that revision, as the mock server does.” |
 | Coordinate handedness and pixel centre         | 0011, proposed                                               | The renderer follows the explicit axes of §9 (+X right, +Y up, +Z forward). If a server uses the other reading, every point cloud is mirrored.                                                                                                                                                                                          | [Move around the 3D view](/docs/client/viewer): “The cloud looks mirrored … report it.”                                                                                         |
 | Revision increments                            | 0007, proposed                                               | A revision that goes backwards, or an update that breaks a rule (for example a placement that isn’t rigid), isn’t shown: it triggers one snapshot resync. +1 steps aren’t enforced, so a forward gap isn’t an error.                                                                                                                    | The card’s `resynchronising` line.                                                                                                                                              |
@@ -725,15 +725,17 @@ Two test seams let operator console tests (`client/src/operator/mock/`) add mess
 
 **Client messages in**: pass `onUnhandledClientMessage(message, context)` to `createMockServer`.
 
-* It receives the decoded JSON object of a client message whose `type` the client schema does not know, after that session’s hello.
-* Answer with `context.reply(json)`, which sends to that session only. A `server.ack` or `server.error` reply must match the protocol schema; other protocol message types are refused. Check a lease with `context.holdsLease(message.leaseId)`. `context.session` and `context.server` are also there.
+* It receives the decoded JSON object of a client message whose `type` is not a protocol client message type, after that session’s hello. Only the type name decides this.
+* Answer with `context.reply(json)`, which sends to that session only. A `server.ack` or `server.error` reply must match the protocol schema, and its `replyTo` must be the incoming message’s `requestId`; other protocol message types are refused. Check a lease with `context.holdsLease(message.leaseId)`. `context.session` and `context.server` are also there.
 * Return `false` to decline. The session then closes as malformed input, as it does without the hook.
 * A message of a known type that fails its schema never reaches the hook: it closes the session as malformed input.
 * A hook that throws closes that session.
+* The hook may call `context.reply` and `mock.broadcast` while it runs; frames keep their order.
 
 **Server messages out**: `mock.broadcast(json, filter?)` sends one control frame to every session past its hello, or only to the sessions `filter` selects.
 
-* It returns `{ ok: true, sessions }`, or `{ ok: false, issue }` and sends nothing when the message has no string `type`, cannot be serialised as JSON (for example a `bigint`), or exceeds the 1 MiB frame limit.
+* It returns `{ ok: true, sessions }`, or `{ ok: false, issue }` and sends nothing when the message has no string `type`, cannot be serialised as JSON (for example a `bigint`), exceeds the 1 MiB frame limit, or the filter throws.
+* To select sessions by fields the client schema drops, read `session.helloJson`, a frozen copy of that session’s raw `client.hello` (null before the hello). For example, `(s) => s.helloJson?.role === 'operator'`.
 * It refuses message types the protocol already defines (use the mock’s own controls, or `sendMalformed` for faults); it is only for types not in the protocol yet.
 * It does not apply shared-update filtering and does not advance the metadata revision. For a message that carries `metadataRevision`, stamp it with `mock.advanceMetadataRevision()`.
 * A normal client that receives a type it does not know fails that session with `unknown-message-type` and reconnects. So `broadcast` does not refuse operator message types; instead, operator tests always pass a filter that selects only operator sessions, and check that viewer sessions receive no operator messages.
@@ -943,7 +945,9 @@ Without npm, run the same tools directly in the `client` folder:
 
 To run only the Operator Console tests: `./node_modules/.bin/vitest run src/operator`.
 
-The build has one page, `index.html`. Once `client/src/operator/main.tsx` exists, it also builds the Operator Console page, `operator/index.html`. The dev server and `npm run preview` serve that page at `/operator` and every path under it, except paths whose last segment ends in a file extension such as `.js`, `.css` or `.png`; those are served as files.
+The build has one page, `index.html`. Once `client/src/operator/main.tsx` exists, it also builds the Operator Console page, `operator/index.html`. The dev server and `npm run preview` serve that page at `/operator` and every path under it, except paths whose last segment ends in a file extension such as `.js`, `.css` or `.png`; those are served as files. This applies to GET and HEAD requests whose `Accept` header is missing, empty, or includes `text/html` or `*/*` (so `curl` gets the page too). The rule is in `client/scripts/operatorRoute.ts`.
+
+If `client/src/operator/testing/setup.ts` exists, Vitest loads it before every test file.
 
 ## Run the fuzz tests [#run-the-fuzz-tests]
 
@@ -1760,7 +1764,7 @@ The view has no switches for colour only, depth only or the foreground mask. The
 
 ### When the tab is in the background [#when-the-tab-is-in-the-background]
 
-After the client's tab has been hidden for 10 s, the client stops receiving and decoding streams, recordings included. Connections and a held setup lock stay up. While a headset (WebXR) session runs, streams never pause.
+After the client's tab has been hidden for 10 s, the client stops receiving and decoding streams, recordings included. Connections and a held setup lock stay up: the client renews the lock from a timer that the browser doesn't slow down in background tabs, as long as the browser keeps the tab running. A tab the browser freezes or discards (for example Chrome's Energy Saver or tab discarding) stops renewing, and the lock runs out 15 s later. While a headset (WebXR) session runs, streams never pause.
 
 When you come back, the last picture stays on screen and streams restart at once. Each bundle's live picture returns at the server's next keyframe: usually well under a second, at most one keyframe interval. A recording continues from where it would be in real time, not from where it paused. Bundles you turned off, or that the client can't show, stay off.
 
@@ -2430,7 +2434,7 @@ cmake --build --preset asan
 ctest --preset asan -j6
 ```
 
-Use `tsan` and `coverage` the same way. The test presets set the sanitizer options and skip the `hardware` label; `tsan` also skips `nvenc` (the NVENC driver crashes under ThreadSanitizer) and runs OpenCV single-threaded. A sanitizer report fails the test; suppressions for third-party code are in `tests/sanitizers/`. For an HTML coverage report after `ctest --preset coverage`, with [gcovr](https://gcovr.com):
+Use `tsan` and `coverage` the same way. The test presets set the sanitizer options and skip the `hardware` label; `tsan` also skips `nvenc` (the NVENC driver crashes under ThreadSanitizer) and runs OpenCV single-threaded. The encode stage's own threading (queue, keyframe requests, stop, errors) still runs under `tsan`: `nvenc_encode_stage_threading_unit_tests` replaces CUDA and NVENC with a fake encoder and has no `nvenc` label. A sanitizer report fails the test; suppressions for third-party code are in `tests/sanitizers/`. For an HTML coverage report after `ctest --preset coverage`, with [gcovr](https://gcovr.com):
 
 ```bash
 gcovr -r . --filter src/ build/dev-coverage --html-details build/dev-coverage/coverage.html
@@ -2456,6 +2460,7 @@ For a longer run, pass the input folder, iterations and a seed, preferably in th
 
 * **Hardware** (label `hardware`): `orbbec_live_sync_integration_test`, `smoke_orbbec_provider` and `smoke_orbbec_capture` open the cameras in `config/dev/live.yaml`; edit the serials to match. `nvenc_hevc_round_trip_integration_test` has the label but needs only a GPU with NVENC.
 * **RVM** (`smoke_rvm_engine_b1`, `smoke_rvm_engine_b2`, label `rvm`) need the engines in `models/rvm/generated/` ([Install](./install#rvm-segmentation-engine-optional)). Without them CTest reports `Not Run` and the run fails; the code is not broken.
+* **No device**: the CUDA and NVENC tests, `smoke_cuda`, `smoke_orbbec_provider` and `smoke_orbbec_capture` exit with code 77 when there is no CUDA device or no camera, and CTest lists them as `Skipped`, never as `Passed`. A skip is not a pass: run them on a machine with the device before you rely on them. To see the skip path, run with `CUDA_VISIBLE_DEVICES=""`. A failure on present hardware (an SDK error, no frames) fails the test. A new test with a skip path uses `tests/support/Skip.hpp` and needs `SKIP_RETURN_CODE 77` in `CMakeLists.txt`.
 * **Go** (`gateway_go_tests`) runs `go test -race` on `server/gateway/` when `go` is on `PATH` or in `~/.local/go/bin`, and is skipped otherwise.
 * **Protocol conformance** (`protocol_conformance_tests`) checks the server against `../protocol`. For a contract elsewhere, configure with `-DORBBEC_STREAMER_PROTOCOL_CONTRACT_DIR=/path/to/protocol` (the folder with `wire-format.md`, `schema/` and `vectors/`).
 
@@ -2463,7 +2468,7 @@ For a longer run, pass the input folder, iterations and a seed, preferably in th
 
 | Flag                                     | Checks                                                                    | Needs cameras |
 | ---------------------------------------- | ------------------------------------------------------------------------- | ------------- |
-| `--cuda-test`                            | CUDA devices are visible                                                  | No            |
+| `--cuda-test`                            | CUDA devices are visible and a kernel runs; exits 77 without a device     | No            |
 | `--nvenc-test`                           | NVENC has every HEVC feature the server needs                             | No            |
 | `--compression-test`, `--websocket-test` | Nothing: placeholders that print `... smoke test OK`                      | No            |
 | `--orbbec-test`                          | The SDK finds the cameras; ends with `Orbbec provider smoke test OK`      | Yes           |

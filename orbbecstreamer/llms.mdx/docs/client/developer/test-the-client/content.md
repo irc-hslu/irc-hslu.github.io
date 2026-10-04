@@ -28,7 +28,9 @@ Without npm, run the same tools directly in the `client` folder:
 
 To run only the Operator Console tests: `./node_modules/.bin/vitest run src/operator`.
 
-The build has one page, `index.html`. Once `client/src/operator/main.tsx` exists, it also builds the Operator Console page, `operator/index.html`. The dev server and `npm run preview` serve that page at `/operator` and every path under it, except paths whose last segment ends in a file extension such as `.js`, `.css` or `.png`; those are served as files.
+The build has one page, `index.html`. Once `client/src/operator/main.tsx` exists, it also builds the Operator Console page, `operator/index.html`. The dev server and `npm run preview` serve that page at `/operator` and every path under it, except paths whose last segment ends in a file extension such as `.js`, `.css` or `.png`; those are served as files. This applies to GET and HEAD requests whose `Accept` header is missing, empty, or includes `text/html` or `*/*` (so `curl` gets the page too). The rule is in `client/scripts/operatorRoute.ts`.
+
+If `client/src/operator/testing/setup.ts` exists, Vitest loads it before every test file.
 
 ## Run the fuzz tests [#run-the-fuzz-tests]
 
