@@ -113,13 +113,13 @@ You need FFmpeg with the libx265 encoder, and Node.js. The team tested these com
 ## Open the recording [#open-the-recording]
 
 1. Start the client and open it. See [Run the client](/docs/client/dev-build).
-2. Under **Open recording**, choose the three files:
+2. Under **Servers**, unfold **Open recording** and choose the three files:
    * **Colour .hevc**: `colour.hevc`
    * **Depth .hevc (Main10)**: `depth.hevc`
    * **Manifest .json**: `manifest.json`
 3. Select **Play recording**.
 
-<img alt="The Open recording form with colour.hevc, depth.hevc and manifest.json chosen, and the Play recording button" src="__img0" />
+<img alt="Open recording unfolded, with colour.hevc, depth.hevc and manifest.json chosen, and Play recording" src="__img0" />
 
 The form checks the manifest first, then reads the videos. A problem with the manifest appears under the form; a problem with the videos appears on the new card.
 
@@ -127,12 +127,11 @@ The form checks the manifest first, then reads the videos. A problem with the ma
 
 A new card appears under **Servers**, titled with the manifest’s `serverName`:
 
-* The status reads `streaming`.
-* The next line reads `serverId: recorded-rig · recording file://recorded-rig`.
-* The bundle row reads `bundle-cam0: 1 camera, available; ready, drawing` once frames reach the 3D view, and `ready, no frame yet` before that.
-* **decoded pairs** and **uploaded** keep going up while the recording plays.
+* The status chip reads **Streaming**, and the line under the title `recorded-rig · recording file://recorded-rig`.
+* **Pairs** goes up while the recording plays.
+* **Set up** and the lock buttons are unavailable: `a recording has no setup or lock`.
 
-<img alt="The card for the test recording: status streaming, titled Recorded rig, the recording address, and the Setup and control only line, because the capture browser couldn’t decode HEVC, so decoded pairs stays at 0" src="__img1" />
+<img alt="The card for the test recording: Recorded rig, Streaming, the recording address, a Setup and control only chip because the capture browser couldn’t decode HEVC, Pairs 0, and Set up unavailable" src="__img1" />
 
 The point cloud appears in the 3D view when your browser can decode HEVC. Nobody has confirmed this in any browser yet; see [Check your browser](/docs/client/browser-requirements).
 
@@ -180,9 +179,9 @@ The `file` values are names for the files, not paths. The colour file you choose
 
 ## Fix recording problems [#fix-recording-problems]
 
-### Nothing decodes and `decoded pairs` stays at 0 [#nothing-decodes-and-decoded-pairs-stays-at-0]
+### Nothing decodes and Pairs stays at 0 [#nothing-decodes-and-pairs-stays-at-0]
 
-Your browser can’t decode HEVC. The card shows `Setup and control only: this browser lacks HEVC colour decoding and HEVC Main10 depth decoding.`, or the top of the panel shows a line that starts with `decoders: WebCodecs VideoDecoder is unavailable`. Use a browser that can decode HEVC Main and Main10, usually through GPU video decoding. See [Check your browser](/docs/client/browser-requirements).
+Your browser can’t decode HEVC. The card shows a **Setup and control only** chip, or the header’s decoder chip is amber instead of **WebCodecs**. Use a browser that can decode HEVC Main and Main10, usually through GPU video decoding. See [Check your browser](/docs/client/browser-requirements).
 
 ### Messages under the Open recording form [#messages-under-the-open-recording-form]
 
@@ -198,7 +197,7 @@ Your browser can’t decode HEVC. The card shows `Setup and control only: this b
 
 ### Messages on the card [#messages-on-the-card]
 
-When the videos fail the checks, the card shows the status `error`, the title `file://invalid-recording`, and a list of problems. Nothing plays.
+When the videos fail the checks, the card shows **Error**, the title `file://invalid-recording`, and a list of problems. Nothing plays.
 
 | Message                                                                                                                               | Fix                                                                                                                                                     |
 | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |

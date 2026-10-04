@@ -8,30 +8,21 @@ The setup view changes one server’s setup: its depth calibration and its place
 
 ## Open the setup view [#open-the-setup-view]
 
-1. Connect the server. See [Add a server](/docs/client/add-a-server).
-2. Wait until its card shows a live status, such as `ready` or `streaming`.
-3. On the card, select **Set up**.
+1. Wait until the server’s card shows **Ready** or **Streaming**.
+2. On the card, select **Set up**.
 
-The setup view replaces the forms, the server cards and the World anchors section. The header, the **View** section and the 3D view stay. The setup view asks the server for the setup lock at once.
+The setup view replaces **Servers** and **World anchors**, and asks for the setup lock at once. The header, **View** and the 3D view stay.
 
-## What you should see [#what-you-should-see]
+<img alt="The setup view for the Dev mock server: SET UP and the name with Leave; the Locked by you, Active and 15 s lock chips; Camera pose with its red TODO; Depth quantization with Start, Cancel and Commit; Network, Not available yet" src="__img0" />
 
-<img alt="The setup view for the Dev mock server: the locked-by-me label, the Leave setup (release lock) button, the session line saying this client holds the setup lock, the lock countdown, the Camera pose section with its red TODO placeholder, the Depth quantization section with its three buttons, and the Network section, which is not available yet" src="__img0" />
+* **Title**: **SET UP** and the server’s name, with **Leave**. After the session ends: **Back**, and **Enter setup** if the server is still connected.
+* **Chips**: the status (**Locked by you**), the session (**Acquiring…**, **Active**, **Leaving…** or **Ended**) and the lock countdown, which restarts at 15 s with each renewal every 5 s. Hover over a chip for its full sentence.
+* **Camera pose**: a red `TODO`; not in the client yet.
+* **Depth quantization**: see [Calibrate depth](/docs/client/calibration).
+* **Network**: **Not available yet**.
+* **Placement**: see [Place a server in the scene](/docs/client/placement-editing).
 
-From the top, the setup view shows:
-
-* **Title**: `Set up: <server name>`, with the status label. It reads `locked-by-me` while you hold the lock.
-* **Buttons**: **Leave setup (release lock)** while you’re in setup. After the session ends: **Back to servers**, and **Enter setup again** if the server is still connected.
-* **session**: `acquiring the setup lock…`, then `active: this client holds the setup lock`. When you leave: `leaving: cancelling runs and releasing the lock…`, then `ended`.
-* **lock**: for example `held by this client, expires in 14 s`. The client renews the lock every 5 seconds, so the countdown starts again from 15 seconds.
-* **Camera pose**: the section’s state, then a red `TODO`. Camera-pose calibration isn’t available in the client yet.
-* **Depth quantization**: run and commit a depth calibration. See [Calibrate depth](/docs/client/calibration).
-* **Network**: network calibration isn’t available yet.
-* **Placement**: move the server in the scene. See [Place a server in the scene](/docs/client/placement-editing).
-
-Other clients show the server as `locked-by-other`, with your client’s name. While the setup view is open, the 3D view keeps drawing every server. It doesn’t move the camera to the server you’re setting up.
-
-When a button is unavailable, the reason is written under it. While a request waits for the server’s answer, its button shows `in progress`.
+Other clients show **Locked by other**. Unavailable buttons show their reason as a tip; a waiting request shows a spinner.
 
 ## Use a keyboard or screen reader [#use-a-keyboard-or-screen-reader]
 
@@ -47,7 +38,7 @@ When a message no longer applies, for example progress after the run ended, it i
 
 ## Leave the setup view [#leave-the-setup-view]
 
-Select **Leave setup (release lock)**. The client cancels any calibration that’s still running, then releases the lock. The setup view closes at once and the server cards come back, with no message on screen. Screen readers announce `Left setup: the setup lock was released. Setup workspace closed.` Every client then shows the server `unlocked`.
+Select **Leave**. The client cancels any calibration that’s still running, then releases the lock. The setup view closes at once and the server cards come back, with no message on screen. Screen readers announce `Left setup: the setup lock was released. Setup workspace closed.` Every client then shows the lock as free.
 
 The client commits nothing on the way out:
 
@@ -71,17 +62,15 @@ A box explains why the session ended. When you were forced out, it adds `Nothing
 
 If a calibration result was waiting for **Commit**, the box also says `The client discarded the uncommitted depth quantization result.`
 
-Select **Enter setup again** to ask for the lock again, or **Back to servers** to close the setup view.
+Select **Enter setup** to ask for the lock again, or **Back** to close the setup view.
 
 ## Fix setup problems [#fix-setup-problems]
 
-These are the common setup problems and their fixes:
-
-* **`Could not enter setup. The setup lock is held by <name>.`**: someone else is setting up this server. Ask them to leave setup, or wait: a lock whose holder disappeared runs out 15 seconds after its last renewal. Then select **Enter setup again**.
-* **Forced out in the middle of a calibration run**: the client committed nothing. Check the card’s **network** and **last close** lines, then select **Enter setup again**. If the depth section still shows `running`, the run went on without you; otherwise start it again.
-* **`Forced out of setup. The connection closed: …`**: select **Back to servers**, wait until the card is live again, then select **Set up** again. The client reconnects by itself.
+* **`Could not enter setup. The setup lock is held by <name>.`**: someone else is setting up this server. Ask them to leave setup, or wait: a lock whose holder disappeared runs out 15 seconds after its last renewal. Then select **Enter setup**.
+* **Forced out in the middle of a calibration run**: the client committed nothing. Check the card’s `last close` box, then select **Enter setup**. If the depth section still shows **running**, the run went on without you; otherwise start it again.
+* **`Forced out of setup. The connection closed: …`**: select **Back**, wait until the card is live again, then select **Set up** again. The client reconnects by itself.
 * **A calibration result never came into force**: a result needs **Commit**. The client throws it away when you leave or lose the lock. Run the calibration again and commit it before you leave.
-* **`Could not release the setup lock (<reason>): <message>. The session stays active; try Leave again.`**: select **Leave setup (release lock)** again. If the connection is gone, the lock runs out on the server 15 seconds after its last renewal.
+* **`Could not release the setup lock (<reason>): <message>. The session stays active; try Leave again.`**: select **Leave** again. If the connection is gone, the lock runs out on the server 15 seconds after its last renewal.
 * **Set up says `the setup workspace is open for <name>; leave it first`**: only one setup view can be open at a time. Leave the other one first.
-* **Set up is unavailable with `not connected`**: wait until the card shows a live status.
-* **You can’t set up a recording**: recordings refuse the setup lock. Edit the recording’s files instead. See [Play a recording](/docs/client/playback).
+* **Set up is unavailable with `not connected`**: wait until the card shows **Ready** or **Streaming**.
+* **Set up is unavailable on a recording** (`a recording has no setup or lock`): edit the recording’s files instead. See [Play a recording](/docs/client/playback).

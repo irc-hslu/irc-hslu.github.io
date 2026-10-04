@@ -55,7 +55,7 @@ The card buttons work as in the app.
   * first run: `done`, 7 of 7 steps;
   * two reruns after the per-session counts fix: `done`, 7 of 7 steps, no errors. The last step reported B at `decoded 1, uploaded 1, dropped 0 this session`. A screenshot a moment later showed both columns `ready, drawing`, with decoded pairs equal to uploaded on each card (A 35 / 35, B 12 / 12).
 
-Counts on this page work like this. Both clients are wired the same way: a GPU-free renderer that accepts every upload and draws nothing. The counts are per session, so after B’s Reconnect they start again from zero, while A’s keep growing. A card that shows `decoded pairs 0 · uploaded 0` and `ready, no frame yet` right after the reconnect has not received its new session’s first frames yet.
+Counts on this page work like this. Both clients are wired the same way: a GPU-free renderer that accepts every upload and draws nothing. The counts are per session, so after B’s Reconnect they start again from zero, while A’s keep growing. A card that shows **Pairs** 0 and `ready, no frame yet` under **Details** right after the reconnect has not received its new session’s first frames yet.
 
 The same scenario runs in Node on a simulated clock as part of `npm test` (`client/src/tests/serverCards.test.ts`).
 

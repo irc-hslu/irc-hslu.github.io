@@ -32,12 +32,12 @@ Without `autorun=1`, press **Run scenario** once the columns appear.
 The scenario, in order:
 
 1. Both clients connect at the same placement revision.
-2. A enters setup. The Placement section shows the server placement, and **Edit placement** is available.
+2. A enters setup. The Placement section shows the server placement, and **Edit** is available.
 3. A starts a draft and types a pose (x 0.5 m, z 1 m, yaw 30°). The draft is dirty, A draws the server at the draft, B does not move, and the mock still has the old revision after a wait.
 4. A selects **Commit placement (expected revision 1)**. A and B get revision 2 and both draw the committed placement; A’s draft is cleared.
 5. B starts its own draft without the lock. A commits another edit (revision 3) and leaves setup. B enters setup: its draft is kept, marked stale, and **Commit placement** is unavailable with the stale reason. Pressing it anyway sends nothing.
 6. B selects **Rebase on server placement (revision 3)**, which keeps its pose, and commits. A and B get revision 4 and draw B’s pose.
-7. A moves the world anchor (x 2 m, yaw 90°). Only A’s drawing moves; B and every revision stay the same. A scaled anchor pose is refused. **Reset to identity** restores A’s drawing.
+7. A moves the world anchor (x 2 m, yaw 90°). Only A’s drawing moves; B and every revision stay the same. A scaled anchor pose is refused. **Reset** restores A’s drawing.
 8. B leaves setup, and the lock is free.
 
 ## What you should see [#what-you-should-see]
@@ -86,4 +86,4 @@ To check that the GPU is in use, read the renderer string from a WebGL2 context 
 Troubleshooting:
 
 * **A DevTools screenshot of the canvas is black or blank**: headless page screenshots do not capture a GPU-composited canvas. For WebGL2, add `--disable-gpu-compositing`. For WebGPU, read the canvas back in the page instead of taking a page screenshot.
-* **The panel shows `renderer: webgpu` although you wanted WebGL2**: WebGPU is available on the GPU even without `--enable-unsafe-webgpu`. Turn it off with `--disable-features=WebGPU,WebGPUService`.
+* **The header chip shows WebGPU although you wanted WebGL2**: WebGPU is available on the GPU even without `--enable-unsafe-webgpu`. Turn it off with `--disable-features=WebGPU,WebGPUService`.

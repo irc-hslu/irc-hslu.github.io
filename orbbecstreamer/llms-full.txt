@@ -15,10 +15,10 @@ The capture server doesn’t accept browser connections yet. See [Serve to brows
 The client connects over WebTransport, a browser connection type for fast, two-way streaming. You need the server’s WebTransport address, for example `https://capture-01.local:4433/orbbec`.
 
 1. Start the client and open it. See [Run the client](/docs/client/dev-build).
-2. In **Add server**, type the server’s address into **WebTransport URL**. Replace the host name, port and path in the example with your server’s.
-3. Select **Connect to server**.
+2. Under **Servers**, type the server’s address into the URL field, which shows `https://host:4433/orbbec` when empty. Replace the host name, port and path with your server’s.
+3. Select **Connect**.
 
-<img alt="The Add server form: the WebTransport URL field with the placeholder https://host:4433/orbbec, and the Connect to server button" src="__img0" />
+<img alt="The top of Servers: the URL field with the placeholder https://host:4433/orbbec and Connect, the folded Open recording, and Add mock server" src="__img0" />
 
 The form checks the address before it connects. The address must start with `https://` and must not contain a `#`.
 
@@ -29,19 +29,19 @@ Your browser must also trust the server’s security certificate. The client can
 The development server has a simulated capture server, the mock server. It behaves like a real server, so you can try every screen without hardware.
 
 1. Start the client with `npm run dev`. See [Run the client](/docs/client/dev-build).
-2. In **Dev: mock server**, select **Add mock server**.
+2. Under **Servers**, select **Add mock server**.
 
 The line under the button says `Added a mock server (snapshot only, no media).`: the mock server sends status but no video. Where your checkout has a local copy of the team’s sample recordings, it says `Added a mock server (reference recording).` and also streams that video. See [Sample recordings](/docs/client/developer/test-the-client#sample-recordings). Either way, you can try every card and setup screen. The built copy of the client (`npm run build`) has no mock server.
 
 ## What you should see [#what-you-should-see]
 
-A new card appears under **Servers** at once, with the status `connecting`. After a moment, the card shows the server’s name, its ID and a live status such as `ready` or `streaming`. The client then asks the server for all its video streams.
+A new card appears under **Servers** at once, with the status chip **Connecting**. After a moment, it shows the server’s name, its ID and **Ready** or **Streaming**. The client then asks the server for all its video streams.
 
 No point cloud appears yet: HEVC decoding hasn’t worked in any browser tested so far, and a real server can’t be connected yet. See [Check your browser](/docs/client/browser-requirements).
 
-<img alt="The Servers list with one card for the Dev mock server: status streaming, its server ID and mock address, and a Setup and control only line because the capture browser can’t decode HEVC" src="__img1" />
+<img alt="Servers with one card for the Dev mock server: Ready, its server ID and mock address, and a Setup and control only chip because the capture browser can’t decode HEVC" src="__img1" />
 
-[Read a server card](/docs/client/server-card) explains every line of the card.
+[Read a server card](/docs/client/server-card) explains every part of the card.
 
 If the connection drops, the client reconnects by itself and keeps trying. The wait starts at 1 second and doubles with each failed try, up to 30 seconds; each wait is cut by a random 0 to 50 %, so clients don’t all retry at once. The wait starts over at 1 second only after a connection has stayed up for 10 seconds. The client doesn’t retry after you select **Remove**, after a protocol version mismatch, or after a conflict.
 
@@ -49,7 +49,7 @@ If the connection drops, the client reconnects by itself and keeps trying. The w
 
 These messages appear on the server card:
 
-* **Status `error` and `last close: transport error: …`**: the client couldn’t open the connection.
+* **Error status and `last close: transport error: …`**: the client couldn’t open the connection.
   * Check that the server is running and that you can reach its host and port over UDP. WebTransport runs over UDP, not TCP.
   * Check that your browser trusts the server’s certificate.
   * A browser without WebTransport fails this way on every try. See [Check your browser](/docs/client/browser-requirements).
@@ -57,9 +57,9 @@ These messages appear on the server card:
 * **`Protocol version mismatch; cannot connect.`**: the server uses another major version of the protocol. Update the client or the server. The client doesn’t retry.
 * **`last close: protocol error invalid-transform: …`**, or `invalid-quantization-profile`, `invalid-bundle-descriptor` or `invalid-message`: the server sent data that breaks the protocol, for example a placement that isn’t rigid. The client closes the connection and retries. Check the server’s calibration and placement, and report the text after the code.
 * **`conflict: server … is already rendered by …`**: two cards reach the same server, for example once by IP address and once by host name. Select **Remove** on one of them.
-* **Status `streaming`, but the counts stay at `uploaded 0`**: a `Setup and control only` line means your browser can’t decode the video. See [Check your browser](/docs/client/browser-requirements). Otherwise, look at the bundle lines in the card’s **layout** for an error.
+* **Streaming, but Pairs stays at 0**: a **Setup and control only** chip means your browser can’t decode the video. See [Check your browser](/docs/client/browser-requirements). Otherwise, open **Details** and look at the bundle rows under **Layout**.
 
-These messages appear under the **Add server** form:
+These messages appear under the URL field:
 
 | Message                                             | Fix                                        |
 | --------------------------------------------------- | ------------------------------------------ |
@@ -88,25 +88,19 @@ HEVC is the video format the servers send. The browser only turns these features
 ## Check what your browser supports [#check-what-your-browser-supports]
 
 1. Start the client and open [http://localhost:5173/](http://localhost:5173/). See [Run the client](/docs/client/dev-build).
-2. Read the lines at the top of the side panel:
-   * `renderer: webgpu` or `renderer: webgl2` names the 3D backend the client started.
-   * `decoders: WebCodecs` means the browser has WebCodecs. It doesn’t yet say whether it can decode HEVC.
-3. If a **renderer notes** line appears under them, select it to see why the client picked its backend, for example `WebGPU not supported`.
-4. Add a server or play a recording. The client checks HEVC support when the connection opens. If the browser can’t decode the server’s video, the server card shows a line that starts with `Setup and control only`.
+2. Read the chips in the header. Hover over a chip for its full sentence:
+   * **WebGPU** or **WebGL2**: the 3D backend the client started
+   * **WebCodecs**: the browser has WebCodecs. It doesn’t yet say whether it decodes HEVC.
+3. If an **i** button follows the chips, select it for the renderer notes, for example `WebGPU not supported`.
+4. Add a server or play a recording. If the browser can’t decode that server’s video, its card shows a **Setup and control only** chip.
 
-## What you should see [#what-you-should-see]
+<img alt="The header: OrbbecStreamer, v1.0, the theme button, and the green WebGPU and WebCodecs chips" src="__img0" />
 
-On a browser that can do everything, the panel shows `renderer: webgpu` or `renderer: webgl2`, then `decoders: WebCodecs`, and server cards show no `Setup and control only` line.
+With WebGL2, the **View** section reads `Blending needs WebGPU; with WebGL2 the nearest point is drawn.` When something is missing:
 
-<img alt="The top of the side panel: OrbbecStreamer client, protocol v1.0, renderer webgpu and decoders WebCodecs" src="__img0" />
-
-With WebGL2, a **renderer notes** line follows, for example with `WebGPU not supported` and `desynchronized (low-latency) canvas granted`, and the **View** section reads `Blending needs WebGPU; with WebGL2 the nearest point is drawn.`
-
-When something is missing, you see one of these messages:
-
-* **No WebGPU and no WebGL2**: the panel shows `renderer: rendering-incompatible. Rendering incompatible: neither WebGPU nor WebGL2 is available. This browser can still connect as a control and setup client; no point clouds are drawn.` The next line starts with `decoders: Decoding is off: nothing could be drawn without a rendering backend.`
-* **No WebCodecs**: the panel shows `decoders: WebCodecs VideoDecoder is unavailable: control and setup only.`
-* **No HEVC decoding**: the server card shows, for example, `Setup and control only: this browser lacks HEVC colour decoding and HEVC Main10 depth decoding.`
+* **No WebGPU and no WebGL2**: a red **No 3D view** chip. Its tip reads `renderer: rendering-incompatible. Rendering incompatible: neither WebGPU nor WebGL2 is available. …`, and the decoder chip turns amber: `Decoding is off`.
+* **No WebCodecs**: an amber decoder chip; its tip reads `decoders: WebCodecs VideoDecoder is unavailable: control and setup only.`
+* **No HEVC decoding**: the card’s **Setup and control only** chip; its tip reads, for example, `Setup and control only: this browser lacks HEVC colour decoding and HEVC Main10 depth decoding.`
 
 ## Browsers tested so far [#browsers-tested-so-far]
 
@@ -116,7 +110,7 @@ Nobody has confirmed HEVC decoding in any browser yet. The only browser the team
 
 These are the common browser problems and their fixes:
 
-* **`rendering-incompatible` on a desktop browser**: hardware acceleration may be off. Turn on **Use graphics acceleration when available** in the browser settings. In Chrome or Edge, open `chrome://gpu` to check the WebGL2 and WebGPU status.
+* **No 3D view on a desktop browser**: hardware acceleration may be off. Turn on **Use graphics acceleration when available** in the browser settings. In Chrome or Edge, open `chrome://gpu` to check the WebGL2 and WebGPU status.
 * **Every server card says the browser lacks HEVC decoding**: this browser has no HEVC decoder on this machine. Try another browser, or a machine with GPU video decoding. You can still use the client to set up servers.
 * **Nothing works when you open the client from another computer**: plain `http://` pages are only secure on `localhost`. Open the client on the machine that runs it.
 
@@ -131,77 +125,55 @@ These are the common browser problems and their fixes:
 
 The server sends depth as a video in which each pixel is one of 1024 codes, and the client turns each code back into a distance. A depth-quantization calibration measures the depths your cameras see and produces a new code-to-distance mapping, called a **result**. The result comes into force only when you commit it, and then every client uses it.
 
-The setup view has three calibration sections. Only depth quantization works in the client today:
-
-| Section                                   | What you can do                                                            |
-| ----------------------------------------- | -------------------------------------------------------------------------- |
-| [Camera pose](#camera-pose)               | Read its state. Camera-pose calibration isn’t available in the client yet. |
-| [Depth quantization](#depth-quantization) | Start, watch, cancel and commit a run.                                     |
-| [Network](#network)                       | Read its state. Network calibration isn’t available yet.                   |
-
-Each section starts with its state line, for example `state: valid, revision 3`. It gives the state (`missing`, `valid`, `stale`, `running` or `failed`), the revision in force, and the server’s message if any. The line is highlighted when the state is `failed`, or when camera pose or depth quantization isn’t `valid` and isn’t `running`.
+Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today.
 
 ## Depth quantization [#depth-quantization]
 
-Open the setup view for the server first: select **Set up** on its card. See [Set up a server](/docs/client/setup-workspace). The session line must read `active: this client holds the setup lock`.
+Open the setup view first: select **Set up** on the card. The session chip must read **Active**.
 
-1. Select **Start depth quantization**. The line under the buttons reads `Start: accepted; the run is starting`, and the state becomes `running`.
-2. Watch the progress. It shows only on the client that holds the lock:
+1. Select **Start**. The state chip turns **running**.
 
-   * **elapsed**: the time since the run started, for example `1.0 s`
-   * **valid samples**: the number of depth readings measured, for example `4 000`
-   * **observed range**: the nearest and farthest depth seen, for example `500 to 5000 mm`
-   * **reconstruction error**: how far distances rebuilt from the codes are off, for example `1.50 mm`
-   * **histogram**: how many pixels had each depth code. The chart covers the valid codes 2 to 1022. The line under it counts the three special codes: `invalid (0)`, `below minimum (1)` and `above maximum (1023)`.
+2. Watch the progress, shown only on the client that holds the lock:
 
-   Switch the **scale** between `log`, the default, which keeps small counts visible, and `linear`. A number the server didn’t send reads `not reported`.
-3. Wait for the result. The section then shows `Result ready: revision 4, not in force until committed.` The state line still shows the old revision.
-4. Select **Commit depth quantization**. The line reads `Commit: accepted; the new revision comes into force with the server update`.
+   * **elapsed**, **valid samples**, **observed range** and **reconstruction error** (how far distances rebuilt from the codes are off)
+   * **Depth codes**: how many pixels had each code from 2 to 1022. **Log**, the default, keeps small counts visible; **Linear** compares the peaks. The chips under it count the special codes: invalid (`0`), below minimum (`<min`) and above maximum (`>max`).
 
-To stop a run, select **Cancel depth quantization**. The line reads `Cancel: accepted; the run is cancelled and nothing is committed`, and the revision in force doesn’t change.
+   <img alt="Depth quantization during a run: the running chip, Cancel available, the four numbers and the Depth codes histogram" src="__img0" />
 
-## What you should see [#what-you-should-see]
+3. Wait for `Result ready: revision 2, not in force until committed.` The state chip still shows the old revision.
 
-While the run goes on, the numbers and the histogram update with each progress message from the server.
+   <img alt="Depth quantization after a run: Commit highlighted, the Result ready box, elapsed (last run) 5.5 s, and the final histogram on the log scale" src="__img1" />
 
-<img alt="The Depth quantization section during a run: the state running, Cancel depth quantization available, and the elapsed time, valid samples, observed range, reconstruction error and depth-code histogram" src="__img0" />
+4. Select **Commit**. A moment later the chip shows the new revision, on every client.
 
-When the run ends, **Commit depth quantization** becomes available. The state line adds the server’s message after a colon, for example `valid, revision 1: result revision 2 awaits commit` from the mock server, and the elapsed time reads `(last run)`, for example `5.5 s (last run)`.
+To stop a run, select **Cancel**. Nothing is committed. The reasons an unavailable button shows as its tip:
 
-<img alt="The Depth quantization section after a run: the state line says result revision 2 awaits commit, the Result ready line says revision 2 is not in force until committed, and the final histogram with the log scale selected" src="__img1" />
-
-A moment after you commit, the state line reads `valid, revision 4`, followed by the server’s message if it sends one, and every client shows the new revision on its server card.
-
-When a button is unavailable, the reason is written under it:
-
-| Reason                                              | Meaning                                                                     |
-| --------------------------------------------------- | --------------------------------------------------------------------------- |
-| `the setup session is not active`                   | You don’t hold the lock: the setup view is acquiring, leaving or ended.     |
-| `the depth-quantization calibration is running`     | Start and Commit wait until the run ends.                                   |
-| `the depth-quantization calibration is not running` | There is nothing to cancel.                                                 |
-| `no accepted depth-quantization result to commit`   | Run the calibration first. A failed or cancelled run has nothing to commit. |
+| Reason                                              | Meaning                                          |
+| --------------------------------------------------- | ------------------------------------------------ |
+| `the setup session is not active`                   | You don’t hold the lock                          |
+| `the depth-quantization calibration is running`     | **Start** and **Commit** wait until the run ends |
+| `the depth-quantization calibration is not running` | Nothing to cancel                                |
+| `no accepted depth-quantization result to commit`   | Run the calibration first                        |
 
 ## Camera pose [#camera-pose]
 
-The Camera pose section shows its state line and a red `TODO`, nothing else. Camera-pose calibration isn’t available in the client yet. The server can run it from its own console; see [Camera calibration](/docs/server/camera-calibration).
+The section shows its state chip and a red `TODO`. Camera-pose calibration isn’t in the client yet; the server can run it from its own console. See [Camera calibration](/docs/server/camera-calibration).
 
 ## Network [#network]
 
-The Network section shows its state line and a note that network calibration isn’t available yet. There is nothing to run.
+The section shows its state chip and **Not available yet**.
 
 ## Fix calibration problems [#fix-calibration-problems]
 
-These are the common calibration problems and their fixes:
-
-* **The result never came into force**: a result needs **Commit**. If you left setup or lost the lock first, the client threw the result away. After **Leave setup**, the setup view closes with no message on screen, and the card’s calibration row still shows the old revision. After a forced exit, the box in the setup view says `The client discarded the uncommitted depth quantization result.` Run the calibration again and commit it.
-* **You were forced out in the middle of a run**: the client committed nothing. When you’re back in setup, check the state line: if it still shows `running`, the run went on without you. See [Set up a server](/docs/client/setup-workspace).
+* **The result never came into force**: a result needs **Commit**. If you left setup or lost the lock first, the client threw the result away. After **Leave**, the setup view closes with no message, and the card’s **Depth** chip keeps the old revision. After a forced exit, the box in the setup view says `The client discarded the uncommitted depth quantization result.` Run the calibration again and commit it.
+* **You were forced out in the middle of a run**: the client committed nothing. When you’re back in setup, check the state chip: if it still shows **running**, the run went on without you. See [Set up a server](/docs/client/setup-workspace).
 * **`Start rejected (<code>): <message>`**, or the same for Cancel or Commit: the server refused the request. The code and message come from the server.
-* **`Commit failed (timeout): …`**: the server didn’t answer in time. The state line tells you whether the new revision is in force. If it isn’t, and the result still shows, select **Commit depth quantization** again.
+* **`Commit failed (timeout): …`**: the server didn’t answer in time. The state chip tells you whether the new revision is in force. If it isn’t, and the result still shows, select **Commit** again.
 * **The state shows `failed`**: the run failed, and there is nothing to commit. Start a new run.
 * **`The last run produced no result to commit: <message>. Revision 3 stays in force.`**: the run was cancelled or failed. Start a new run.
 * **`histogram: not reported by the server`**: the server sent no histogram. The numbers above it still apply.
 * **`histogram: depth histogram has N bins, expected 1024`**: the server sent a histogram of the wrong size, so the client doesn’t draw it.
-* **Commit accepted, but the state line still shows the old revision**: the new revision comes into force with the server’s next update. If it doesn’t follow, check the card for `resynchronising` or a lost connection.
+* **Commit accepted, but the state chip still shows the old revision**: the new revision comes into force with the server’s next update. If it doesn’t follow, check the card for a **resynchronising** chip or a lost connection.
 
 
 # Run the client (https://irc-hslu.github.io/orbbecstreamer/docs/client/dev-build)
@@ -235,9 +207,9 @@ Leave the terminal open while you use the client. To stop the server, press **Ct
 
 ## What you should see [#what-you-should-see]
 
-The terminal shows `VITE v6.4.3  ready in 300 ms`, then `➜  Local:   http://localhost:5173/`. The version and time may differ. The browser shows a dark 3D view on the left and the side panel on the right:
+The terminal shows `VITE v6.4.3  ready in 300 ms`, then `➜  Local:   http://localhost:5173/`. The version and time may differ. The browser shows the empty 3D view, reading `No servers yet`, and the side panel on the right:
 
-<img alt="The client right after it opens: an empty dark 3D view on the left, and the side panel on the right with the header, the View section, the Add server and Open recording forms, the Dev: mock server section, an empty Servers list and an empty World anchors section" src="__img0" />
+<img alt="The client right after it opens: the empty 3D view reading No servers yet, Connect a server or open a recording, and the side panel with the header, View, Servers with the URL field, Open recording and Add mock server, and an empty World anchors" src="__img0" />
 
 [Tour of the client](/docs/client/tour) explains each part of the screen.
 
@@ -250,7 +222,7 @@ npm run build
 npm run preview
 ```
 
-`npm run build` checks the code and writes the files to `client/dist/`. `npm run preview` serves that folder at [http://localhost:4173/](http://localhost:4173/). The built copy has no **Dev: mock server** section.
+`npm run build` checks the code and writes the files to `client/dist/`. `npm run preview` serves that folder at [http://localhost:4173/](http://localhost:4173/). The built copy has no **Add mock server** button.
 
 ## Troubleshooting [#troubleshooting]
 
@@ -268,7 +240,7 @@ These are the problems people hit most when starting the client:
   ./node_modules/.bin/vite
   ```
 
-* **The panel says `renderer: rendering-incompatible`**: your browser can’t draw 3D. See [Check your browser](/docs/client/browser-requirements).
+* **The header shows a red No 3D view chip**: your browser can’t draw 3D. See [Check your browser](/docs/client/browser-requirements).
 
 * **Nothing works when you open the page from another computer**: the development server only answers on this computer (`localhost`). Browsers also turn off the features the client needs on plain `http://` pages that aren’t `localhost`. Open the client on the machine that runs it. The repository has no HTTPS setup for the development server yet.
 
@@ -330,7 +302,7 @@ The card buttons work as in the app.
   * first run: `done`, 7 of 7 steps;
   * two reruns after the per-session counts fix: `done`, 7 of 7 steps, no errors. The last step reported B at `decoded 1, uploaded 1, dropped 0 this session`. A screenshot a moment later showed both columns `ready, drawing`, with decoded pairs equal to uploaded on each card (A 35 / 35, B 12 / 12).
 
-Counts on this page work like this. Both clients are wired the same way: a GPU-free renderer that accepts every upload and draws nothing. The counts are per session, so after B’s Reconnect they start again from zero, while A’s keep growing. A card that shows `decoded pairs 0 · uploaded 0` and `ready, no frame yet` right after the reconnect has not received its new session’s first frames yet.
+Counts on this page work like this. Both clients are wired the same way: a GPU-free renderer that accepts every upload and draws nothing. The counts are per session, so after B’s Reconnect they start again from zero, while A’s keep growing. A card that shows **Pairs** 0 and `ready, no frame yet` under **Details** right after the reconnect has not received its new session’s first frames yet.
 
 The same scenario runs in Node on a simulated clock as part of `npm test` (`client/src/tests/serverCards.test.ts`).
 
@@ -366,14 +338,15 @@ The blend settings are in the same object; the app exposes them in its **View** 
 
 `PointCloudRendererOptions`, fixed when the renderer is created:
 
-| Option                  | Default     | Meaning                                                                                       |
-| ----------------------- | ----------- | --------------------------------------------------------------------------------------------- |
-| `engine`                | `auto`      | `auto` picks WebGPU when an adapter exists, else WebGL2. `webgpu` or `webgl2` forces one.     |
-| `renderMode`            | `on-demand` | `on-demand` draws only when something changed. `continuous` draws every animation frame.      |
-| `computePoints`         | `true`      | The WebGPU compute path, which blending needs. `false` keeps plain dots. Ignored with WebGL2. |
-| `antialias`             | `false`     | Multisample antialiasing                                                                      |
-| `desynchronized`        | `true`      | Low-latency WebGL2 canvas, which may tear                                                     |
-| `preserveDrawingBuffer` | `false`     | Keeps the drawing buffer for canvas readback, for dev pages and screenshots                   |
+| Option                  | Default     | Meaning                                                                                                                                                                                                                                                                                                          |
+| ----------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine`                | `auto`      | `auto` picks WebGPU when an adapter exists, else WebGL2. `webgpu` or `webgl2` forces one.                                                                                                                                                                                                                        |
+| `renderMode`            | `on-demand` | `on-demand` draws only when something changed. `continuous` draws every animation frame.                                                                                                                                                                                                                         |
+| `parkWhenIdle`          | `true`      | With `on-demand`, the render loop stops after one animation frame without a draw and restarts on the next change or camera input. An idle view then costs no animation frames and no GPU submissions. Never stops in WebXR or with `continuous`. A host that moves the camera from code calls `requestRender()`. |
+| `computePoints`         | `true`      | The WebGPU compute path, which blending needs. `false` keeps plain dots. Ignored with WebGL2.                                                                                                                                                                                                                    |
+| `antialias`             | `false`     | Multisample antialiasing                                                                                                                                                                                                                                                                                         |
+| `desynchronized`        | `true`      | Low-latency WebGL2 canvas, which may tear                                                                                                                                                                                                                                                                        |
+| `preserveDrawingBuffer` | `false`     | Keeps the drawing buffer for canvas readback, for dev pages and screenshots                                                                                                                                                                                                                                      |
 
 ## Connection timing [#connection-timing]
 
@@ -405,7 +378,7 @@ A session that ends sooner than `stableSessionUs` after its hello counts as anot
 | `requestTimeoutUs`          | 10 s    | A request answered by `server.ack` or `server.error`. The card shows `failed (timeout)`.                                                                                    |
 | `snapshotRequestTimeoutUs`  | 10 s    | A `client.snapshot.request`                                                                                                                                                 |
 | `mediaHeaderDeadlineUs`     | 5 s     | How long media stream headers may stay incomplete before the session closes                                                                                                 |
-| `mediaHeaderPollUs`         | 0.25 s  | How often that condition is checked                                                                                                                                         |
+| `mediaHeaderPollUs`         | 0.25 s  | How often that condition is checked. The check runs only while a header is pending or a channel is held, so an idle session sets no timer for it.                           |
 | `sessionCloseGraceUs`       | 0.25 s  | After a fatal transport error, how long to wait for the session’s own close                                                                                                 |
 | `ownPlacementResultGraceUs` | 5 s     | After an accepted placement commit, how long a placement update counts as this client’s own result (interim, see [Contract gaps](/docs/client/developer/interim-behaviour)) |
 
@@ -436,7 +409,7 @@ Some behaviour on the user pages depends on questions the protocol contract (`pr
 | ---------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Meaning of a calibration result and its commit | 0012, proposed                                               | Treats a `server.calibration.result` as a candidate that is not in force until the client commits it. On leave, lock loss or disconnect, it drops its own copy and commits nothing. What the server does with an uncommitted result, or with a run whose lock ends, is undefined; the mock server drops the result and cancels the run. | [Calibrate depth](/docs/client/calibration) and [Set up a server](/docs/client/setup-workspace): the client throws away an uncommitted result, and a run may go on without you. |
 | Order of the cancel ack and the last result    | 0008, proposed                                               | Accepts either order. The “The last run produced no result to commit” line appears after a cancel only if the server sends the result before the ack; the mock server sends the result first.                                                                                                                                           | [Calibrate depth](/docs/client/calibration) lists the line without promising when it appears.                                                                                   |
-| Another client’s lock expiry                   | 0008, proposed                                               | Shows the expiry the server last announced. The holder renews every 5 seconds, but other clients learn the new expiry only if the server announces the lock state after each renewal; that re-announcement is the client’s proposal. Hence `expiry passed as last announced; the server may have renewed it`.                           | [Read a server card](/docs/client/server-card#lock-countdown).                                                                                                                  |
+| Another client’s lock expiry                   | 0008, proposed                                               | Shows the expiry the server last announced. The holder renews every 5 seconds, but other clients learn the new expiry only if the server announces the lock state after each renewal; that re-announcement is the client’s proposal. Hence `expiry passed as last announced; the server may have renewed it`.                           | [Read a server card](/docs/client/server-card#details).                                                                                                                         |
 | Network calibration                            | 0018, proposed                                               | No network calibration stream; the setup view’s Network section shows `Network calibration is not available yet.` The card’s budget line shows whatever budget the server sends.                                                                                                                                                        | “Network calibration isn’t available yet.”                                                                                                                                      |
 | Camera-pose calibration screen                 | Not defined by the contract yet                              | The Camera pose section is exactly a red, bold, italic `TODO`, with no controls.                                                                                                                                                                                                                                                        | “Camera-pose calibration isn’t available in the client yet.”                                                                                                                    |
 | Placement commit with an expected revision     | Contract names `expectedRevision` but not the server’s check | Sends the draft’s base revision and blocks a stale commit locally. The mock server accepts only while its placement is still at that revision, and otherwise rejects with `stale-revision`.                                                                                                                                             | [Place a server in the scene](/docs/client/placement-editing): “A server should accept the commit only while its placement is still at that revision, as the mock server does.” |
@@ -755,7 +728,7 @@ Useful controls:
 
 In the browser, with the dev server running (`npm run dev` in `client/`):
 
-* **The app**: the side panel of [http://localhost:5173/](http://localhost:5173/) has a “Dev: mock server” section. **Add mock server** adds a mock as a new server card, with the source `mock mock://dev-mock-…`.
+* **The app**: in the side panel of [http://localhost:5173/](http://localhost:5173/), **Add mock server** under **Servers** adds a mock as a new server card, with the source `mock mock://dev-mock-…`.
   * It is snapshot-only (`snapshot only, no media`). Only where a local copy of the unpublished sample recordings exists in `client/reference/hevc-web/` does it serve them (`reference recording`); see [Sample recordings](/docs/client/developer/test-the-client#sample-recordings).
   * The section exists only in the dev server. A production build (`npm run build`) contains no mock code.
 * **Two clients of one mock**: the [cards check](/docs/client/developer/cards-check), [setup check](/docs/client/developer/setup-check) and [placement check](/docs/client/developer/placement-check) pages.
@@ -806,12 +779,12 @@ Without `autorun=1`, press **Run scenario** once the columns appear.
 The scenario, in order:
 
 1. Both clients connect at the same placement revision.
-2. A enters setup. The Placement section shows the server placement, and **Edit placement** is available.
+2. A enters setup. The Placement section shows the server placement, and **Edit** is available.
 3. A starts a draft and types a pose (x 0.5 m, z 1 m, yaw 30°). The draft is dirty, A draws the server at the draft, B does not move, and the mock still has the old revision after a wait.
 4. A selects **Commit placement (expected revision 1)**. A and B get revision 2 and both draw the committed placement; A’s draft is cleared.
 5. B starts its own draft without the lock. A commits another edit (revision 3) and leaves setup. B enters setup: its draft is kept, marked stale, and **Commit placement** is unavailable with the stale reason. Pressing it anyway sends nothing.
 6. B selects **Rebase on server placement (revision 3)**, which keeps its pose, and commits. A and B get revision 4 and draw B’s pose.
-7. A moves the world anchor (x 2 m, yaw 90°). Only A’s drawing moves; B and every revision stay the same. A scaled anchor pose is refused. **Reset to identity** restores A’s drawing.
+7. A moves the world anchor (x 2 m, yaw 90°). Only A’s drawing moves; B and every revision stay the same. A scaled anchor pose is refused. **Reset** restores A’s drawing.
 8. B leaves setup, and the lock is free.
 
 ## What you should see [#what-you-should-see]
@@ -860,7 +833,7 @@ To check that the GPU is in use, read the renderer string from a WebGL2 context 
 Troubleshooting:
 
 * **A DevTools screenshot of the canvas is black or blank**: headless page screenshots do not capture a GPU-composited canvas. For WebGL2, add `--disable-gpu-compositing`. For WebGPU, read the canvas back in the page instead of taking a page screenshot.
-* **The panel shows `renderer: webgpu` although you wanted WebGL2**: WebGPU is available on the GPU even without `--enable-unsafe-webgpu`. Turn it off with `--disable-features=WebGPU,WebGPUService`.
+* **The header chip shows WebGPU although you wanted WebGL2**: WebGPU is available on the GPU even without `--enable-unsafe-webgpu`. Turn it off with `--disable-features=WebGPU,WebGPUService`.
 
 
 # Setup check (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/setup-check)
@@ -1071,18 +1044,15 @@ A server’s **placement** is its position in metres and rotation relative to it
 You change a placement in two stages:
 
 1. **Draft**: you change the placement in your browser. Your 3D view shows the change at once, but nothing is sent.
-2. **Commit**: **Commit placement** sends the draft to the server. The server’s placement then gets a new revision, and every client draws the server there.
+2. **Commit**: **Commit** sends the draft to the server. The server’s placement then gets a new revision, and every client draws the server there.
 
 The client never commits a draft by itself. Leaving setup, losing the lock or reconnecting never sends it.
 
 ## Start a draft [#start-a-draft]
 
 1. On the server’s card, select **Set up**. See [Set up a server](/docs/client/setup-workspace).
-2. Scroll down to the **Placement** section, below the calibration sections. It shows the server’s placement now:
-   * **server placement**: the anchor and the revision, for example `anchor anchor-origin, revision 1`
-   * **translation**: for example `x 0.000 · y 0.000 · z 0.000 m`
-   * **rotation**: for example `yaw 0.0 · pitch 0.0 · roll 0.0°`
-3. Select **Edit placement**. The client makes a draft equal to the server’s placement. The line `draft based on revision 1 · anchor anchor-origin` names the revision your draft starts from.
+2. Scroll to **Placement**, below the calibration sections. Its anchor chip, for example **anchor-dev · r1**, names the anchor and revision; **translation** and **rotation** show the server’s placement now.
+3. Select **Edit**. A **Draft** chip appears; hover over it for the revision your draft starts from. **Unchanged** turns **Changed** once you edit.
 
 ## Edit the draft with numbers [#edit-the-draft-with-numbers]
 
@@ -1107,36 +1077,36 @@ When you leave a field, the fields show the draft rounded to 1 mm and 0.1°, wit
 
 ## Edit the draft in 3D [#edit-the-draft-in-3d]
 
-1. Tick **Move in 3D (drag the handle on the server’s cloud)**. A handle appears at the server’s position in the 3D view.
-2. Under **handle**, choose **translate** to show arrows that move along an axis, or **rotate** to show rings that turn about an axis.
+1. Turn on **Move in 3D**. A handle appears at the server’s position in the 3D view.
+2. Choose **Translate** for arrows that move along an axis, or **Rotate** for rings that turn about one.
 3. Drag an arrow or a ring. The draft and the fields follow the drag.
 
-Typing in the fields moves the handle too. The handle can’t scale the cloud. To remove it, untick **Move in 3D**. It also disappears when you discard the draft or commit it.
+Typing in the fields moves the handle too. The handle can’t scale the cloud. To remove it, turn **Move in 3D** off. It also disappears when you discard the draft or commit it.
 
 ## What you should see [#what-you-should-see]
 
-While you edit, the section shows `changed locally, not committed (the 3D view shows the draft)`, and only your 3D view moves the server’s cloud. Other clients and the server still have the old revision.
+While you edit, the **Changed** chip shows, and only your 3D view moves the server’s cloud. Other clients and the server still have the old revision.
 
-<img alt="The client with a placement draft open: in the 3D view, the translate handle with red, green and blue arrows at the server’s draft position; in the side panel, the Placement section with the server placement at revision 1, the draft changed locally to x 0.500, z 1.000 and yaw 30.0, Move in 3D ticked with translate selected, and the Commit placement (expected revision 1) and Discard draft buttons. No point cloud is drawn because the capture browser couldn’t decode HEVC" src="__img0" />
+<img alt="The client with a placement draft open: in the 3D view, the translate handle with red, green and blue arrows at the server’s draft position; in the side panel, Placement with the Draft and Changed chips, the draft at x 0.500, z 1.000 and yaw 30.0, Move in 3D on with Translate selected, and Commit and Discard. No point cloud is drawn because the capture browser couldn’t decode HEVC" src="__img0" />
 
-<img alt="Close-up of the Placement section with the draft: the server placement, the draft line based on revision 1, the changed locally note, the six draft fields, the Move in 3D checkbox, the handle choice, and the Commit placement and Discard draft buttons" src="__img1" />
+<img alt="Close-up of Placement with the draft: the anchor chip, the server placement, the Draft and Changed chips, the six draft fields, Move in 3D with Translate and Rotate, and Commit and Discard" src="__img1" />
 
 ## Commit or discard the draft [#commit-or-discard-the-draft]
 
-* **Commit placement (expected revision 1)** sends the draft. The number is the revision your draft started from. A server should accept the commit only while its placement is still at that revision, as the mock server does. You need the setup lock, which the setup view holds.
-* **Discard draft** throws the draft away. Your 3D view shows the server’s placement again. Nothing is sent.
-* **Rebase on server placement (revision 2)** appears when someone else committed a placement after you started your draft. It keeps your draft’s position and rotation, and makes the newer revision its starting point, so you can commit.
+* **Commit** sends the draft with the revision it started from; its tip reads **Commit placement (expected revision 1)**. A server should accept the commit only while its placement is still at that revision, as the mock server does. You need the setup lock, which the setup view holds.
+* **Discard** throws the draft away. Your 3D view shows the server’s placement again. Nothing is sent.
+* **Rebase** appears when someone else committed a placement after you started your draft. It keeps your draft’s position and rotation, and makes the newer revision its starting point, so you can commit.
 
-While a commit is on its way, the fields are read-only and the button shows `in progress`. The result appears under the section, and screen readers announce it:
+While a commit is on its way, the fields are read-only and **Commit** shows a spinner. The result appears under the section, and screen readers announce it:
 
-| Result                                                                                                                                                                           | Meaning                                                                                                                                        |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Commit placement: sent with expected revision 1; waiting for the server…`                                                                                                       | Sent, no answer yet.                                                                                                                           |
-| `Commit placement: accepted (expected revision 1); waiting for the new server placement.`                                                                                        | The server accepted it; the new placement is on its way.                                                                                       |
-| `Commit placement: accepted; the server placement is now revision 2.`                                                                                                            | Done. The draft is cleared, and every client draws the new placement.                                                                          |
-| `Commit placement rejected (<code>): <message>. …`                                                                                                                               | The server refused it. Your draft is kept.                                                                                                     |
-| `Commit placement failed (<reason>): <message>. The draft is kept.`                                                                                                              | The server didn’t answer, for example `timeout`, or the connection was lost.                                                                   |
-| `Commit placement failed (not-applied): The server accepted the commit, but after reconnecting its placement is still at revision 1; commit again if needed. The draft is kept.` | The connection dropped after the server accepted, and the new connection shows the old placement. The client never resends a commit by itself. |
+| Result                                                                                    | Meaning                                                                                                                                                            |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Commit placement: sent with expected revision 1; waiting for the server…`                | Sent, no answer yet.                                                                                                                                               |
+| `Commit placement: accepted (expected revision 1); waiting for the new server placement.` | The server accepted it; the new placement is on its way.                                                                                                           |
+| `Commit placement: accepted; the server placement is now revision 2.`                     | Done. The draft is cleared, and every client draws the new placement.                                                                                              |
+| `Commit placement rejected (<code>): <message>. …`                                        | The server refused it. Your draft is kept.                                                                                                                         |
+| `Commit placement failed (<reason>): <message>. The draft is kept.`                       | The server didn’t answer, for example `timeout`, or the connection was lost.                                                                                       |
+| `Commit placement not applied: the server may have restarted. Commit again.`              | The connection dropped after the server accepted, and the new connection shows the old placement. Your draft is kept; the client never resends a commit by itself. |
 
 After a commit, the cloud may freeze or disappear for a moment. The server restarts its video for the new placement, and the client never draws a frame with another revision’s placement.
 
@@ -1144,12 +1114,12 @@ After a commit, the cloud may freeze or disappear for a moment. The server resta
 
 When the button you selected disappears, keyboard focus moves to the next control that makes sense, so you don’t lose your place:
 
-| You select                                      | Focus moves to                   |
-| ----------------------------------------------- | -------------------------------- |
-| **Edit placement**                              | The first draft field, **x (m)** |
-| **Discard draft**                               | **Edit placement**               |
-| **Commit placement**, once the draft is cleared | **Edit placement**               |
-| **Rebase on server placement**                  | **Commit placement**             |
+| You select                            | Focus moves to                   |
+| ------------------------------------- | -------------------------------- |
+| **Edit**                              | The first draft field, **x (m)** |
+| **Discard**                           | **Edit**                         |
+| **Commit**, once the draft is cleared | **Edit**                         |
+| **Rebase**                            | **Commit**                       |
 
 If that control isn’t there, focus moves to the **Placement** heading. When you move focus elsewhere yourself, it stays where you put it.
 
@@ -1158,30 +1128,30 @@ If that control isn’t there, focus moves to the **Placement** heading. When yo
 The draft belongs to this browser tab and this server, and it’s held in memory only:
 
 * **Kept**: when you leave setup, when you’re forced out, and when the connection drops and comes back to the same server. It comes back the next time you select **Set up**.
-* **Lost**: when you select **Discard draft**, when you commit it, when you select **Remove** on the card, and when you reload or close the tab.
+* **Lost**: when you select **Discard**, when you commit it, when you select **Remove** on the card, and when you reload or close the tab.
 
 Your 3D view shows the draft only while the setup view for that server is open. Outside it, every server is drawn at its committed placement.
 
 ## Fix placement problems [#fix-placement-problems]
 
-| What you see                                                                                                                                                                                                 | Why                                                                                                                          | What to do                                                                                                                             |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `stale: the server placement changed to revision M since this draft was based on revision N. …`, and **Commit placement** says `the server placement changed (revision N -> M); discard or rebase the draft` | Someone committed a placement after you started your draft.                                                                  | Select **Rebase on server placement** to keep your pose on the new revision, then commit. Or select **Discard draft** and start again. |
-| `Commit placement rejected (…): …` about the revision                                                                                                                                                        | The server’s placement changed after the client’s last check and before your commit arrived.                                 | Rebase, then commit again.                                                                                                             |
-| **Commit placement** says `committing a placement needs the setup lock`                                                                                                                                      | You don’t hold the lock: you were forced out, or the lock ran out.                                                           | Select **Enter setup again**. Your draft is still there.                                                                               |
-| **Commit placement** says `waiting for the server state to refresh`                                                                                                                                          | The client is fetching a fresh copy of the server’s state.                                                                   | Wait a moment.                                                                                                                         |
-| **Commit placement** says `the draft equals the server placement`                                                                                                                                            | There is nothing to commit.                                                                                                  | Change a field, or select **Discard draft**.                                                                                           |
-| **Edit placement** says `no server placement known yet`                                                                                                                                                      | The client hasn’t received the server’s state yet.                                                                           | Wait until the card shows a live status.                                                                                               |
-| **Edit placement** says `the server placement is not rigid`                                                                                                                                                  | The server’s placement stretches or skews the cloud.                                                                         | Fix the placement on the server side.                                                                                                  |
-| `Not applied: The pose must be rigid: scale, shear, mirroring and perspective are not allowed.`                                                                                                              | The client refused a pose that would stretch or mirror the cloud. The fields and handle can’t produce one, so this is a bug. | Report it with the values you entered.                                                                                                 |
-| `Move in 3D is not available: no rendering backend`                                                                                                                                                          | The browser can’t draw 3D.                                                                                                   | Edit with the fields. See [Check your browser](/docs/client/browser-requirements).                                                     |
-| `Move in 3D is not available: the server is not drawn in this session`                                                                                                                                       | The server’s cloud isn’t in the 3D view yet, or the card shows a conflict.                                                   | Wait until the card is live, then tick **Move in 3D** again.                                                                           |
-| **Move in 3D** shows `a placement commit is in progress`                                                                                                                                                     | The draft can’t change until the commit is settled.                                                                          | Wait for the result.                                                                                                                   |
-| `Commit placement failed (not-applied): …` after a reconnect                                                                                                                                                 | The server accepted the commit, but its placement didn’t change.                                                             | Check the draft, then select **Commit placement** again.                                                                               |
-| The draft is gone after a reload                                                                                                                                                                             | Drafts are held in memory only.                                                                                              | Start again with **Edit placement**. Commit drafts you want to keep.                                                                   |
-| `The connection now reaches server <new>, not <old>: …`                                                                                                                                                      | After a reconnect, the card reaches a different server, so the client dropped the old draft. Nothing was sent.               | Check the card’s address, and start a new draft if needed.                                                                             |
-| Yaw, pitch or roll show other numbers than you typed                                                                                                                                                         | The fields show the same rotation in standard ranges once you leave them.                                                    | Nothing to do: the placement is unchanged. At pitch ±90°, the client shows the whole turn as yaw and roll as 0.                        |
-| You can’t commit a recording’s placement                                                                                                                                                                     | Recordings refuse the setup lock.                                                                                            | Edit `placement` in the recording’s manifest. See [Play a recording](/docs/client/playback).                                           |
+| What you see                                                                                                                                                                                                  | Why                                                                                                                          | What to do                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `stale: the server placement changed to revision M since this draft was based on revision N. …`, and the tip on **Commit** says `the server placement changed (revision N -> M); discard or rebase the draft` | Someone committed a placement after you started your draft.                                                                  | Select **Rebase** to keep your pose on the new revision, then commit. Or select **Discard** and start again.    |
+| `Commit placement rejected (…): …` about the revision                                                                                                                                                         | The server’s placement changed after the client’s last check and before your commit arrived.                                 | Rebase, then commit again.                                                                                      |
+| The tip on **Commit** says `committing a placement needs the setup lock`                                                                                                                                      | You don’t hold the lock: you were forced out, or the lock ran out.                                                           | Select **Enter setup**. Your draft is still there.                                                              |
+| The tip on **Commit** says `waiting for the server state to refresh`                                                                                                                                          | The client is fetching a fresh copy of the server’s state.                                                                   | Wait a moment.                                                                                                  |
+| The tip on **Commit** says `the draft equals the server placement`                                                                                                                                            | There is nothing to commit.                                                                                                  | Change a field, or select **Discard**.                                                                          |
+| The tip on **Edit** says `no server placement known yet`                                                                                                                                                      | The client hasn’t received the server’s state yet.                                                                           | Wait until the card shows **Ready** or **Streaming**.                                                           |
+| The tip on **Edit** says `the server placement is not rigid`                                                                                                                                                  | The server’s placement stretches or skews the cloud.                                                                         | Fix the placement on the server side.                                                                           |
+| `Not applied: The pose must be rigid: scale, shear, mirroring and perspective are not allowed.`                                                                                                               | The client refused a pose that would stretch or mirror the cloud. The fields and handle can’t produce one, so this is a bug. | Report it with the values you entered.                                                                          |
+| `Move in 3D is not available: no rendering backend`                                                                                                                                                           | The browser can’t draw 3D.                                                                                                   | Edit with the fields. See [Check your browser](/docs/client/browser-requirements).                              |
+| `Move in 3D is not available: the server is not drawn in this session`                                                                                                                                        | The server’s cloud isn’t in the 3D view yet, or the card shows a conflict.                                                   | Wait until the card is live, then turn **Move in 3D** on again.                                                 |
+| The tip on **Move in 3D** says `a placement commit is in progress`                                                                                                                                            | The draft can’t change until the commit is settled.                                                                          | Wait for the result.                                                                                            |
+| `Commit placement not applied: the server may have restarted. Commit again.`                                                                                                                                  | The server accepted the commit, but after a reconnect its placement didn’t change.                                           | Check the draft, then select **Commit** again.                                                                  |
+| The draft is gone after a reload                                                                                                                                                                              | Drafts are held in memory only.                                                                                              | Start again with **Edit**. Commit drafts you want to keep.                                                      |
+| `The connection now reaches server <new>, not <old>: …`                                                                                                                                                       | After a reconnect, the card reaches a different server, so the client dropped the old draft. Nothing was sent.               | Check the card’s address, and start a new draft if needed.                                                      |
+| Yaw, pitch or roll show other numbers than you typed                                                                                                                                                          | The fields show the same rotation in standard ranges once you leave them.                                                    | Nothing to do: the placement is unchanged. At pitch ±90°, the client shows the whole turn as yaw and roll as 0. |
+| **Set up** is unavailable on a recording                                                                                                                                                                      | A recording has no setup or lock.                                                                                            | Edit `placement` in the recording’s manifest. See [Play a recording](/docs/client/playback).                    |
 
 
 # Play a recording (https://irc-hslu.github.io/orbbecstreamer/docs/client/playback)
@@ -1299,13 +1269,13 @@ You need FFmpeg with the libx265 encoder, and Node.js. The team tested these com
 ## Open the recording [#open-the-recording]
 
 1. Start the client and open it. See [Run the client](/docs/client/dev-build).
-2. Under **Open recording**, choose the three files:
+2. Under **Servers**, unfold **Open recording** and choose the three files:
    * **Colour .hevc**: `colour.hevc`
    * **Depth .hevc (Main10)**: `depth.hevc`
    * **Manifest .json**: `manifest.json`
 3. Select **Play recording**.
 
-<img alt="The Open recording form with colour.hevc, depth.hevc and manifest.json chosen, and the Play recording button" src="__img0" />
+<img alt="Open recording unfolded, with colour.hevc, depth.hevc and manifest.json chosen, and Play recording" src="__img0" />
 
 The form checks the manifest first, then reads the videos. A problem with the manifest appears under the form; a problem with the videos appears on the new card.
 
@@ -1313,12 +1283,11 @@ The form checks the manifest first, then reads the videos. A problem with the ma
 
 A new card appears under **Servers**, titled with the manifest’s `serverName`:
 
-* The status reads `streaming`.
-* The next line reads `serverId: recorded-rig · recording file://recorded-rig`.
-* The bundle row reads `bundle-cam0: 1 camera, available; ready, drawing` once frames reach the 3D view, and `ready, no frame yet` before that.
-* **decoded pairs** and **uploaded** keep going up while the recording plays.
+* The status chip reads **Streaming**, and the line under the title `recorded-rig · recording file://recorded-rig`.
+* **Pairs** goes up while the recording plays.
+* **Set up** and the lock buttons are unavailable: `a recording has no setup or lock`.
 
-<img alt="The card for the test recording: status streaming, titled Recorded rig, the recording address, and the Setup and control only line, because the capture browser couldn’t decode HEVC, so decoded pairs stays at 0" src="__img1" />
+<img alt="The card for the test recording: Recorded rig, Streaming, the recording address, a Setup and control only chip because the capture browser couldn’t decode HEVC, Pairs 0, and Set up unavailable" src="__img1" />
 
 The point cloud appears in the 3D view when your browser can decode HEVC. Nobody has confirmed this in any browser yet; see [Check your browser](/docs/client/browser-requirements).
 
@@ -1366,9 +1335,9 @@ The `file` values are names for the files, not paths. The colour file you choose
 
 ## Fix recording problems [#fix-recording-problems]
 
-### Nothing decodes and `decoded pairs` stays at 0 [#nothing-decodes-and-decoded-pairs-stays-at-0]
+### Nothing decodes and Pairs stays at 0 [#nothing-decodes-and-pairs-stays-at-0]
 
-Your browser can’t decode HEVC. The card shows `Setup and control only: this browser lacks HEVC colour decoding and HEVC Main10 depth decoding.`, or the top of the panel shows a line that starts with `decoders: WebCodecs VideoDecoder is unavailable`. Use a browser that can decode HEVC Main and Main10, usually through GPU video decoding. See [Check your browser](/docs/client/browser-requirements).
+Your browser can’t decode HEVC. The card shows a **Setup and control only** chip, or the header’s decoder chip is amber instead of **WebCodecs**. Use a browser that can decode HEVC Main and Main10, usually through GPU video decoding. See [Check your browser](/docs/client/browser-requirements).
 
 ### Messages under the Open recording form [#messages-under-the-open-recording-form]
 
@@ -1384,7 +1353,7 @@ Your browser can’t decode HEVC. The card shows `Setup and control only: this b
 
 ### Messages on the card [#messages-on-the-card]
 
-When the videos fail the checks, the card shows the status `error`, the title `file://invalid-recording`, and a list of problems. Nothing plays.
+When the videos fail the checks, the card shows **Error**, the title `file://invalid-recording`, and a list of problems. Nothing plays.
 
 | Message                                                                                                                               | Fix                                                                                                                                                     |
 | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1421,163 +1390,98 @@ When the videos fail the checks, the card shows the status `error`, the title `f
 
 
 
-Every server you add, and every recording you open, gets a card under **Servers** in the side panel. The card shows that server’s state as your client sees it, and holds the buttons for that server. It refreshes on every change, and every half second for the countdowns and counters.
+
+
+
+
+Every server and recording gets a card under **Servers**. It shows that server’s state as your client sees it, and refreshes every half second.
+
+<img alt="A server card for the Dev mock server: the Ready chip, the server ID and address, a Setup and control only chip, the Pose, Depth and Network calibration chips, the Lock, RTT, Pairs and Dropped strip, Set up and five icon buttons, and the folded Details" src="__img0" />
 
 ## Read the card from top to bottom [#read-the-card-from-top-to-bottom]
 
-1. Read the **status label** in the top-left corner, for example `streaming`. It sums up the server’s state in one word. See [Status labels](#status-labels).
-2. Read the **title** next to it: the server’s name, or its address until the server answers.
-3. Check for an orange line under the title. It means something limits this client, for example a browser that can’t decode the video.
-4. Read the fields: **lock**, **calibration**, **layout**, **counts**, **network** and **shared updates**.
-5. Use the buttons at the bottom. When a button is unavailable, the reason is written under it.
-
-## What you should see [#what-you-should-see]
-
-<img alt="A server card for the Dev mock server: status streaming, the server ID and mock address, an orange Setup and control only line, the lock unlocked, three calibration rows, the layout with one bundle, the session counts, the round-trip time and budget, the Receive shared updates checkbox, and the Set up, Acquire lock, Refresh and Remove buttons, with Release lock and Reconnect unavailable" src="__img0" />
-
-The browser that took this screenshot can’t decode HEVC, so it shows the `Setup and control only` line and no frames.
-
-## What each line means [#what-each-line-means]
-
-The lines under the title appear only when they apply:
-
-* **`serverId: …`**: the server’s ID, then how the client reaches it: `webtransport https://…` for a server, `recording file://…` for a recording, `mock mock://…` for the mock server.
-* **`waiting for the camera-pose calibration; the server accepts it without other setup`**: the server needs a camera-pose calibration before it can stream.
-* **`resynchronising: waiting for a full snapshot`**: the client missed an update and is fetching the server’s full state. This clears by itself.
-* **`reconnect scheduled`**: the connection was lost and the client will try again by itself.
-* **`Setup and control only: this browser lacks …`**: this browser can’t decode or draw this server’s video. The card and the setup lock still work. See [Check your browser](/docs/client/browser-requirements).
-* **`Protocol version mismatch; cannot connect.`**: the server uses another major protocol version. The client closes the connection and doesn’t retry.
-* **`conflict: server … is already rendered by …; this entry is disconnected`**: another card already shows this server.
-* **`last close: …`**: why the last connection ended, for example `closed locally: …`, `closed by server (code 0): …`, `server ended the control stream`, `protocol error <code>: …`, `transport error: …`, `connect timeout: …`, `server error <code>: …`, `internal error: …`, `snapshot resync failed: …` or `media header timeout: …`. [Add a server](/docs/client/add-a-server#fix-connection-problems) explains the common ones.
-
-The fields show `not known (not connected)` while there is no connection:
-
-| Field              | What it shows                                                                                                                                                                      |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **lock**           | Who holds the setup lock: `unlocked`, `held by this client, expires in 12 s`, or `held by Client A (…), last announced expiry in 9 s`.                                             |
-| **calibration**    | One row each for `camera-pose`, `depth-quantization` and `network`: its state (`missing`, `valid`, `stale`, `running` or `failed`), its revision, and the server’s message if any. |
-| **layout**         | How the server packs its cameras into bundles (`per-camera` or `concatenated`), then one row per bundle.                                                                           |
-| **counts**         | For the current connection: `decoded pairs`, `uploaded`, `dropped` and `streams`.                                                                                                  |
-| **network**        | The shortest round-trip time to the server, `min RTT`, and the server’s network budget.                                                                                            |
-| **shared updates** | The **Receive shared updates** checkbox.                                                                                                                                           |
-
-### Lock countdown [#lock-countdown]
-
-While you hold the lock, the client renews it every 5 seconds, so the countdown starts again from 15 seconds. The server gives the expiry in its own clock. Until the client has measured the clock difference, the line shows the server’s time instead, for example `expires at server time 16.000 s (clock offset not known yet)`. If the countdown reaches zero before the server confirms the change, it shows `expiry time reached, waiting for the server`.
-
-For another client’s lock, the card shows the last expiry the server announced. When that time has passed, the card shows `expiry passed as last announced; the server may have renewed it`. The other client may still hold the lock.
-
-### Calibration rows [#calibration-rows]
-
-A row is highlighted when its state is `failed`, or when `camera-pose` or `depth-quantization` isn’t `valid` and isn’t `running`. The server can’t stream until those two are valid. The `network` row never stops streaming.
-
-### Bundle rows [#bundle-rows]
-
-A bundle row reads, for example, `bundle-cam0: 1 camera, available; ready, drawing`. After the camera count comes the availability: `available` or `unavailable`, `, paused` when the server paused the bundle, and the server’s reason. Before the server announces it, the row says `availability not announced`.
-
-The last part is the drawing status:
-
-* `ready, drawing`: frames are on screen
-* `ready, no frame yet`: waiting for the first frame
-* `rendering incompatible (…): …`: the 3D view can’t draw this bundle
-* `metadata invalid (…): …`: the server’s description of this bundle doesn’t add up
-* `upload error: …`: the graphics card rejected a frame
-* `no render status yet`: the 3D view hasn’t reported on this bundle yet
-
-The row is highlighted when the bundle is unavailable or paused, or when its drawing status is a problem.
-
-The client stops receiving a bundle it can’t show, to save network and decoding: one that is `rendering incompatible`, or whose video this browser can’t decode. Its row stays on the card. A bundle that becomes drawable again, for example after a server update, is received again by itself; one whose decoder failed comes back after **Reconnect**.
-
-### Counts [#counts]
-
-The counts start at zero with each new connection. **streams** doesn’t count bundles the client stopped receiving:
-
-* **decoded pairs**: colour and depth frames the client decoded and matched
-* **uploaded**: pairs sent to the graphics card
-* **dropped**: pairs decoded but not drawn
-* **streams**: video streams open now
-
-Decoded pairs equal uploaded plus dropped, apart from pairs still on their way to the graphics card. After a disconnect, the card keeps the last connection’s counts.
-
-### Network budget [#network-budget]
-
-The budget line reads `no budget yet` until the server sends one. Then it reads, for example, `active 40.0 Mbit/s, server maximum 100.0 Mbit/s, safe for this client 35.0 Mbit/s, network compatible`:
-
-* **active**: the budget the server applies now
-* **server maximum**: the server’s own limit
-* **safe for this client**: 70 % of the throughput measured for this client
-* **`not network compatible (below the useful budget)`**: shown highlighted when this client is too slow to count in the budget
-
-### Shared updates [#shared-updates]
-
-Shared updates are calibration results and placement changes that the server sends to every client that asked for them. The **Receive shared updates (calibration results, placement)** checkbox is on by default:
-
-* Turning it off stops them at once. Turning it on takes effect when the server accepts.
-* While disconnected, the client stores your choice and sends it when it next connects.
-* With it off, the server still tells your client that something changed. The card then shows `Metadata is stale: a shared update was withheld.` and a **Refresh stale metadata** button, which fetches the server’s full state.
-* When the change also restarts the server’s video, as a placement change or a committed calibration does, the client fetches the full state by itself.
-
-For a recording whose files were refused, the checkbox is unavailable, with the reason `the source is invalid` under it. It stays reachable with the keyboard so screen readers can read the reason, but ticking it changes nothing.
+1. **Title and status chip**: the server’s name and one word for its state. See [Status chips](#status-chips).
+2. **Server ID and address**: `webtransport https://…`, `recording file://…` or `mock mock://…`.
+3. **Notice chips**, only when they apply. Hover over a chip for its full sentence:
+   * **Setup and control only**: this browser can’t decode or draw this server’s video. Setup and the lock still work. See [Check your browser](/docs/client/browser-requirements).
+   * **N bundle(s) off · too many cameras** or **· decoder failed**: the client stopped receiving bundles it can’t show, to save network and decoding. A bundle that becomes drawable again comes back by itself; one whose decoder failed comes back after **Reconnect**.
+   * **reconnect scheduled**, **resynchronising**, or **waiting for the camera-pose calibration**: the connection is retrying, the client is fetching the server’s full state, or the server needs a camera-pose calibration.
+4. **Boxes**, only when they apply: `conflict: …` when another card already shows this server, and `last close: …` with why the last connection ended.
+5. **Calibration chips**: **Pose**, **Depth** and **Network**, each with its state (`missing`, `valid`, `stale`, `running` or `failed`) and revision, for example **Pose valid · r1**. Amber or red means the server can’t stream until it’s fixed; **Network** never stops streaming.
+6. **Strip**:
+   * **Lock**: **Free**, **Yours · 12 s**, another client’s name, or **Unknown** while disconnected
+   * **RTT**: the shortest round trip to the server
+   * **Pairs**: colour and depth frames decoded this connection
+   * **Dropped**: pairs decoded but not drawn
+7. **Buttons**: see [What each button does](#what-each-button-does).
+8. **Details**: folded. See [Details](#details).
 
 ## What each button does [#what-each-button-does]
 
-Every button stays in place when it’s unavailable, and the reason is written under it. The result of your last action appears at the bottom of the card, and screen readers announce it.
+The icon buttons show their name as a tip. An unavailable button stays visible, and its tip says why:
 
-| Button           | What it does                                                                                                        | Unavailable when                                                                                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Set up**       | Opens the setup view for this server and takes its setup lock. See [Set up a server](/docs/client/setup-workspace). | `not connected`; `no connection`; `the source is invalid`; `the setup workspace is open for this server`; `the setup workspace is open for <name>; leave it first` |
-| **Acquire lock** | Asks the server for its setup lock. The lock line changes once the server announces the new holder.                 | `not connected`; `this client already holds the lock`; `the lock is held by <name>`                                                                                |
-| **Release lock** | Gives the lock back.                                                                                                | `not connected`; `this client does not hold the lock`                                                                                                              |
-| **Refresh**      | Fetches the server’s full state.                                                                                    | `not connected`; `a snapshot is already being requested`                                                                                                           |
-| **Reconnect**    | Connects again at once, without waiting for the automatic retry.                                                    | `already connecting`; `already connected`                                                                                                                          |
-| **Remove**       | Disconnects, and removes the card and the server’s point clouds.                                                    | Always available                                                                                                                                                   |
+<img alt="The tip over the release-lock icon: Release lock, This client does not hold the lock" src="__img1" />
 
-**Acquire lock** only holds the lock. To calibrate or place the server, use **Set up**, which also takes over a lock you already hold. A browser that can’t decode video can still take the lock.
+| Button                       | What it does                                                                                  | Unavailable when                                                                                          |
+| ---------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Set up**                   | Opens the setup view and takes the lock. See [Set up a server](/docs/client/setup-workspace). | Not connected; a recording (`a recording has no setup or lock`); setup is open for this or another server |
+| Lock (**Acquire lock**)      | Takes the setup lock only                                                                     | Not connected; you hold it; another client holds it; a recording                                          |
+| Open lock (**Release lock**) | Gives the lock back                                                                           | Not connected; you don’t hold it; a recording                                                             |
+| Circular arrow (**Refresh**) | Fetches the server’s full state                                                               | Not connected; a refresh is running                                                                       |
+| Plug (**Reconnect**)         | Connects again at once                                                                        | Connecting or connected                                                                                   |
+| Bin (**Remove**)             | Disconnects and removes the card and its point clouds                                         | Never                                                                                                     |
 
-For a recording whose files were refused, every button except **Remove** is unavailable, with the reason `the source is invalid`.
+The result of your last action appears under the buttons, for example `Acquire lock: accepted; waiting for the server's lock state`, `Refresh: snapshot received`, or `<action> rejected (<code>): <message>` when the server refused.
 
-When you select **Remove**, the card disappears with its button. Keyboard focus moves to the list heading, for example `Servers (1)`, and screen readers announce `Removed <name>.`, with the card’s name.
+When **Shared** updates are off and another client changes something, a box reads `Metadata is stale: a shared update was withheld.` Select its **Refresh**.
 
-Results at the bottom of the card look like this:
+## Details [#details]
 
-* `Acquire lock: accepted; waiting for the server's lock state`
-* `Release lock: released`
-* `Refresh: snapshot received`
-* `Shared updates off: accepted by the server`, or `Shared updates off: stored; sent with the next hello` while disconnected
-* `Reconnect: connected (session 2)`
-* `<action> rejected (<code>): <message>`: the server refused. The code and message come from the server.
-* `<action> failed (<reason>): <message>`: for example `failed (timeout)` when the server didn’t answer in time
+Select **Details** to unfold the full status:
 
-## Status labels [#status-labels]
+<img alt="The card with Details open: Lock unlocked; Calibration camera-pose valid revision 1, depth-quantization valid revision 1, network missing revision 0; Layout per-camera with bundle-cam0; Counts; Network min RTT and budget; Shared with the Receive updates switch" src="__img2" />
 
-The label sums up the server’s state. The lock comes first: a server that streams while another client holds its lock shows `locked-by-other`.
+| Row             | What it shows                                                                                                                                                                                       |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lock**        | `unlocked`, `held by this client, expires in 12 s`, or `held by <name> (…), last announced expiry in 9 s`                                                                                           |
+| **Calibration** | Each calibration’s state, revision and the server’s message                                                                                                                                         |
+| **Layout**      | `per-camera` or `concatenated`, then one row per bundle, for example `bundle-cam0: 1 camera, available; ready, drawing`                                                                             |
+| **Counts**      | `decoded`, `uploaded`, `dropped` and `streams` for this connection. Bundles the client stopped receiving don’t count as streams.                                                                    |
+| **Network**     | `min RTT`, and the server’s budget, for example `active 40.0 Mbit/s, server maximum 100.0 Mbit/s, safe for this client 35.0 Mbit/s, network compatible`                                             |
+| **Shared**      | The **Receive updates** switch: on, the server sends you other clients’ calibration results and placement changes. Default on. While disconnected, the client sends your choice when it reconnects. |
 
-| Label              | Meaning                                                                                                                                                                |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connecting`       | Opening the connection, or waiting for the server’s first answer                                                                                                       |
-| `disconnected`     | No connection, for example after a conflict. After the server closes the connection, the client retries, so the label goes back to `connecting`.                       |
-| `error`            | The last connection failed, or the recording’s files were refused. The client retries a server unless the protocol versions don’t match. It never retries a recording. |
-| `needs-setup`      | Connected; the server needs setup before it can stream                                                                                                                 |
-| `locked-by-me`     | Connected; this client holds the setup lock                                                                                                                            |
-| `locked-by-other`  | Connected; another client holds the setup lock                                                                                                                         |
-| `paused-for-setup` | Connected; the server paused streaming for setup                                                                                                                       |
-| `ready`            | Connected and ready, not streaming                                                                                                                                     |
-| `streaming`        | Connected and streaming                                                                                                                                                |
+A bundle row ends with its drawing status:
+
+* `ready, drawing`: frames are on screen
+* `ready, no frame yet`: waiting for the first frame
+* `rendering incompatible (…)`: the 3D view can’t draw this bundle
+* `metadata invalid (…)`: the server’s description of the bundle doesn’t add up
+* `upload error: …`: the graphics card rejected a frame
+
+The lock’s expiry is in the server’s clock. Until the client has measured the clock difference, the row reads `expires at server time 16.000 s (clock offset not known yet)`. For another client’s lock, `expiry passed as last announced; the server may have renewed it` means the server hasn’t re-announced it yet.
+
+## Status chips [#status-chips]
+
+| Chip                 | Meaning                                                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Connecting**       | Opening the connection, or waiting for the first answer                                                                                        |
+| **Offline**          | No connection, for example after a conflict                                                                                                    |
+| **Error**            | The last connection failed, or the recording’s files were refused. A server is retried unless the protocol versions differ; a recording never. |
+| **Needs setup**      | The server needs setup before it can stream                                                                                                    |
+| **Locked by you**    | You hold the setup lock                                                                                                                        |
+| **Locked by other**  | Another client holds the setup lock                                                                                                            |
+| **Paused for setup** | The server paused streaming for setup                                                                                                          |
+| **Ready**            | Connected, not streaming                                                                                                                       |
+| **Streaming**        | Connected and streaming                                                                                                                        |
 
 ## Fix card problems [#fix-card-problems]
 
-These are the common card problems and their fixes:
-
-* **Acquire lock is refused**: `the lock is held by <name>` under the button means another client holds it. Ask that person to release it. A lock whose holder disappeared runs out 15 seconds after its last renewal.
+* **Acquire lock is refused**: its tip names the holder. Ask them to release it, or wait: a lock runs out 15 seconds after its last renewal.
 * **The lock is gone after a reconnect**: a lock never survives a reconnect. Acquire it again.
-* **`Release lock failed (no-lease)`**: your client doesn’t hold the lock any more, for example because it ran out. Nothing needs releasing.
-* **`Metadata is stale: a shared update was withheld.`**: shared updates are off, and another client changed something. Select **Refresh stale metadata**.
-* **`Refresh server error <code>: <message>`**: the server couldn’t answer. Try again.
-* **The lock shows `expires at server time …`**: the client is still measuring the clock difference. The countdown appears by itself after a few round trips.
-* **The card stays `error` with `reconnect scheduled`**: select **Reconnect** to try at once. If it keeps failing, read the **last close** line and see [Add a server](/docs/client/add-a-server).
-* **Counts at 0 and `ready, no frame yet` right after a reconnect**: the new connection is waiting for its first frames. If the counts stay at 0, check that the server is streaming and that the card shows no `Setup and control only` line.
-* **`Reconnect failed: closed locally: server <id> is already connected through <entry>`**: another card still shows that server. Remove one of the two.
-* **You want to replay a recording**: **Reconnect** is unavailable while connected. Select **Remove**, then open the recording again.
+* **`Metadata is stale`**: select **Refresh** in the box.
+* **`last close: …`**: see [Add a server](/docs/client/add-a-server#fix-connection-problems).
+* **Pairs stays at 0**: a **Setup and control only** chip means your browser can’t decode the video. Otherwise, open **Details** and read the bundle rows.
+* **You want to replay a recording**: select **Remove**, then open it again.
 
 
 # Set up a server (https://irc-hslu.github.io/orbbecstreamer/docs/client/setup-workspace)
@@ -1590,30 +1494,21 @@ The setup view changes one server’s setup: its depth calibration and its place
 
 ## Open the setup view [#open-the-setup-view]
 
-1. Connect the server. See [Add a server](/docs/client/add-a-server).
-2. Wait until its card shows a live status, such as `ready` or `streaming`.
-3. On the card, select **Set up**.
+1. Wait until the server’s card shows **Ready** or **Streaming**.
+2. On the card, select **Set up**.
 
-The setup view replaces the forms, the server cards and the World anchors section. The header, the **View** section and the 3D view stay. The setup view asks the server for the setup lock at once.
+The setup view replaces **Servers** and **World anchors**, and asks for the setup lock at once. The header, **View** and the 3D view stay.
 
-## What you should see [#what-you-should-see]
+<img alt="The setup view for the Dev mock server: SET UP and the name with Leave; the Locked by you, Active and 15 s lock chips; Camera pose with its red TODO; Depth quantization with Start, Cancel and Commit; Network, Not available yet" src="__img0" />
 
-<img alt="The setup view for the Dev mock server: the locked-by-me label, the Leave setup (release lock) button, the session line saying this client holds the setup lock, the lock countdown, the Camera pose section with its red TODO placeholder, the Depth quantization section with its three buttons, and the Network section, which is not available yet" src="__img0" />
+* **Title**: **SET UP** and the server’s name, with **Leave**. After the session ends: **Back**, and **Enter setup** if the server is still connected.
+* **Chips**: the status (**Locked by you**), the session (**Acquiring…**, **Active**, **Leaving…** or **Ended**) and the lock countdown, which restarts at 15 s with each renewal every 5 s. Hover over a chip for its full sentence.
+* **Camera pose**: a red `TODO`; not in the client yet.
+* **Depth quantization**: see [Calibrate depth](/docs/client/calibration).
+* **Network**: **Not available yet**.
+* **Placement**: see [Place a server in the scene](/docs/client/placement-editing).
 
-From the top, the setup view shows:
-
-* **Title**: `Set up: <server name>`, with the status label. It reads `locked-by-me` while you hold the lock.
-* **Buttons**: **Leave setup (release lock)** while you’re in setup. After the session ends: **Back to servers**, and **Enter setup again** if the server is still connected.
-* **session**: `acquiring the setup lock…`, then `active: this client holds the setup lock`. When you leave: `leaving: cancelling runs and releasing the lock…`, then `ended`.
-* **lock**: for example `held by this client, expires in 14 s`. The client renews the lock every 5 seconds, so the countdown starts again from 15 seconds.
-* **Camera pose**: the section’s state, then a red `TODO`. Camera-pose calibration isn’t available in the client yet.
-* **Depth quantization**: run and commit a depth calibration. See [Calibrate depth](/docs/client/calibration).
-* **Network**: network calibration isn’t available yet.
-* **Placement**: move the server in the scene. See [Place a server in the scene](/docs/client/placement-editing).
-
-Other clients show the server as `locked-by-other`, with your client’s name. While the setup view is open, the 3D view keeps drawing every server. It doesn’t move the camera to the server you’re setting up.
-
-When a button is unavailable, the reason is written under it. While a request waits for the server’s answer, its button shows `in progress`.
+Other clients show **Locked by other**. Unavailable buttons show their reason as a tip; a waiting request shows a spinner.
 
 ## Use a keyboard or screen reader [#use-a-keyboard-or-screen-reader]
 
@@ -1629,7 +1524,7 @@ When a message no longer applies, for example progress after the run ended, it i
 
 ## Leave the setup view [#leave-the-setup-view]
 
-Select **Leave setup (release lock)**. The client cancels any calibration that’s still running, then releases the lock. The setup view closes at once and the server cards come back, with no message on screen. Screen readers announce `Left setup: the setup lock was released. Setup workspace closed.` Every client then shows the server `unlocked`.
+Select **Leave**. The client cancels any calibration that’s still running, then releases the lock. The setup view closes at once and the server cards come back, with no message on screen. Screen readers announce `Left setup: the setup lock was released. Setup workspace closed.` Every client then shows the lock as free.
 
 The client commits nothing on the way out:
 
@@ -1653,20 +1548,18 @@ A box explains why the session ended. When you were forced out, it adds `Nothing
 
 If a calibration result was waiting for **Commit**, the box also says `The client discarded the uncommitted depth quantization result.`
 
-Select **Enter setup again** to ask for the lock again, or **Back to servers** to close the setup view.
+Select **Enter setup** to ask for the lock again, or **Back** to close the setup view.
 
 ## Fix setup problems [#fix-setup-problems]
 
-These are the common setup problems and their fixes:
-
-* **`Could not enter setup. The setup lock is held by <name>.`**: someone else is setting up this server. Ask them to leave setup, or wait: a lock whose holder disappeared runs out 15 seconds after its last renewal. Then select **Enter setup again**.
-* **Forced out in the middle of a calibration run**: the client committed nothing. Check the card’s **network** and **last close** lines, then select **Enter setup again**. If the depth section still shows `running`, the run went on without you; otherwise start it again.
-* **`Forced out of setup. The connection closed: …`**: select **Back to servers**, wait until the card is live again, then select **Set up** again. The client reconnects by itself.
+* **`Could not enter setup. The setup lock is held by <name>.`**: someone else is setting up this server. Ask them to leave setup, or wait: a lock whose holder disappeared runs out 15 seconds after its last renewal. Then select **Enter setup**.
+* **Forced out in the middle of a calibration run**: the client committed nothing. Check the card’s `last close` box, then select **Enter setup**. If the depth section still shows **running**, the run went on without you; otherwise start it again.
+* **`Forced out of setup. The connection closed: …`**: select **Back**, wait until the card is live again, then select **Set up** again. The client reconnects by itself.
 * **A calibration result never came into force**: a result needs **Commit**. The client throws it away when you leave or lose the lock. Run the calibration again and commit it before you leave.
-* **`Could not release the setup lock (<reason>): <message>. The session stays active; try Leave again.`**: select **Leave setup (release lock)** again. If the connection is gone, the lock runs out on the server 15 seconds after its last renewal.
+* **`Could not release the setup lock (<reason>): <message>. The session stays active; try Leave again.`**: select **Leave** again. If the connection is gone, the lock runs out on the server 15 seconds after its last renewal.
 * **Set up says `the setup workspace is open for <name>; leave it first`**: only one setup view can be open at a time. Leave the other one first.
-* **Set up is unavailable with `not connected`**: wait until the card shows a live status.
-* **You can’t set up a recording**: recordings refuse the setup lock. Edit the recording’s files instead. See [Play a recording](/docs/client/playback).
+* **Set up is unavailable with `not connected`**: wait until the card shows **Ready** or **Streaming**.
+* **Set up is unavailable on a recording** (`a recording has no setup or lock`): edit the recording’s files instead. See [Play a recording](/docs/client/playback).
 
 
 # Tour of the client (https://irc-hslu.github.io/orbbecstreamer/docs/client/tour)
@@ -1677,61 +1570,67 @@ These are the common setup problems and their fixes:
 
 
 
-The client is one browser page: a 3D view on the left and a side panel on the right. This page shows where everything is and takes you from an empty page to a connected server. Read it first.
+
+
+
+
+The client is one browser page: a 3D view that fills the window and a side panel on the right. Read this page first.
 
 ## Open the client [#open-the-client]
 
-1. In the repository’s `client` folder, run `npm ci` once, then `npm run dev`. [Run the client](/docs/client/dev-build) has the details.
-2. Open [http://localhost:5173/](http://localhost:5173/) in your browser.
-
-The page opens with a dark, empty 3D view and no servers. On a window narrower than 720 pixels, the side panel moves below the 3D view.
+1. In the repository’s `client` folder, run `npm ci` once, then `npm run dev`. See [Run the client](/docs/client/dev-build).
+2. Open [http://localhost:5173/](http://localhost:5173/). The 3D view reads `No servers yet · Connect a server or open a recording`.
 
 ## Find your way around the main screen [#find-your-way-around-the-main-screen]
 
-The side panel scrolls on its own, and the 3D view stays in place. This is the screen with one server added:
+<img alt="The client with the mock server added. Callouts: 1 the 3D view, showing the render check’s synthetic test scene composited in for this picture and labelled as such; 2 the panel toggle; 3 the header with the WebGPU and WebCodecs chips and the theme button; 4 the View section; 5 the Connect field, Open recording and Add mock server; 6 the server card; 7 World anchors" src="__img0" />
 
-<img alt="The client with the mock server added. Callouts: 1 the 3D view on the left; in the side panel, 2 the header with the renderer and decoders lines, 3 the View section, 4 Add server, 5 Open recording, 6 Dev: mock server, 7 the server card, 8 World anchors" src="__img0" />
+The point cloud in this picture is the client’s synthetic test scene from the render check, pasted into the 3D view. It isn’t a live capture: no browser tested so far decodes the servers’ video, so the real 3D view stays empty today.
 
-| # | Area                 | What you do there                                                                              | Read more                                                             |
-| - | -------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 1 | 3D view              | See every server’s point cloud in one scene. Drag to orbit, right-drag to pan, scroll to zoom. | [Move around the 3D view](/docs/client/viewer)                        |
-| 2 | Header               | Read what your browser can do: the `renderer:` and `decoders:` lines.                          | [Check your browser](/docs/client/browser-requirements)               |
-| 3 | **View**             | Switch **Blend overlapping cameras** and open **Blend tuning**.                                | [What you can tweak](/docs/client/what-you-can-tweak#view-section)    |
-| 4 | **Add server**       | Connect to a capture server by its address.                                                    | [Add a server](/docs/client/add-a-server)                             |
-| 5 | **Open recording**   | Play a recorded colour and depth video pair.                                                   | [Play a recording](/docs/client/playback)                             |
-| 6 | **Dev: mock server** | Add a simulated server. Only the development server has this section.                          | [Add a server](/docs/client/add-a-server#add-the-mock-server-instead) |
-| 7 | **Servers**          | One card per server or recording: its status, setup lock, calibration, counts and buttons.     | [Read a server card](/docs/client/server-card)                        |
-| 8 | **World anchors**    | Move where your browser draws each anchor, in your view only.                                  | [Move an anchor in your view](/docs/client/world-anchors)             |
+| # | Area              | What you do there                                                                                                             | Read more                                                          |
+| - | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1 | 3D view           | Drag to orbit, right-drag to pan, scroll to zoom.                                                                             | [Move around the 3D view](/docs/client/viewer)                     |
+| 2 | Panel toggle      | **Hide panel** gives the 3D view the whole window; **Show panel** brings the panel back.                                      |                                                                    |
+| 3 | Header            | The **WebGPU** or **WebGL2** and **WebCodecs** chips say what your browser can do. The sun or moon button switches the theme. | [Check your browser](/docs/client/browser-requirements)            |
+| 4 | **View**          | The **Blend** switch and **Blend tuning**.                                                                                    | [What you can tweak](/docs/client/what-you-can-tweak#view-section) |
+| 5 | **Servers**       | Type an address and select **Connect**, open a recording, or select **Add mock server**.                                      | [Add a server](/docs/client/add-a-server)                          |
+| 6 | Server card       | One per server: status, calibration, lock and buttons.                                                                        | [Read a server card](/docs/client/server-card)                     |
+| 7 | **World anchors** | Move where your browser draws each anchor.                                                                                    | [Move an anchor in your view](/docs/client/world-anchors)          |
 
 ## Find your way around the setup view [#find-your-way-around-the-setup-view]
 
-Select **Set up** on a card to open the setup view for that server. It takes the server’s setup lock and replaces areas 4 to 8. The header, the **View** section and the 3D view stay.
+Select **Set up** on a card. The setup view takes the server’s setup lock and replaces **Servers** and **World anchors**.
 
-<img alt="The setup view for the Dev mock server. Callouts: 1 the status label and title, 2 the Leave setup (release lock) button, 3 the session and lock lines, 4 Camera pose, 5 Depth quantization, 6 Network, 7 Placement" src="__img1" />
+<img alt="The setup view for the Dev mock server, with the synthetic test scene in the 3D view. Callouts: 1 the SET UP title with the Leave button; 2 the Locked by you, Active and lock countdown chips; 3 Camera pose; 4 Depth quantization; 5 Network; 6 Placement" src="__img1" />
 
-| # | Area                           | What you do there                                                | Read more                                                            |
-| - | ------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------- |
-| 1 | Title                          | Check the status label: `locked-by-me` while you hold the lock.  | [Set up a server](/docs/client/setup-workspace)                      |
-| 2 | **Leave setup (release lock)** | Leave and release the lock. Nothing is committed on the way out. | [Set up a server](/docs/client/setup-workspace#leave-the-setup-view) |
-| 3 | **session** and **lock**       | Check that you hold the lock, and when it runs out.              | [Set up a server](/docs/client/setup-workspace)                      |
-| 4 | **Camera pose**                | Read its state. Camera-pose calibration isn’t in the client yet. | [Calibrate depth](/docs/client/calibration#camera-pose)              |
-| 5 | **Depth quantization**         | Start, watch, cancel and commit a depth calibration.             | [Calibrate depth](/docs/client/calibration)                          |
-| 6 | **Network**                    | Read its state. Network calibration isn’t available yet.         | [Calibrate depth](/docs/client/calibration#network)                  |
-| 7 | **Placement**                  | Move the server in the scene, then commit it for everyone.       | [Place a server in the scene](/docs/client/placement-editing)        |
+| # | Area                   | What you do there                                                   | Read more                                                     |
+| - | ---------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1 | Title and **Leave**    | Leave and release the lock. Nothing is committed.                   | [Set up a server](/docs/client/setup-workspace)               |
+| 2 | Chips                  | **Locked by you**, the session (**Active**) and the lock countdown. | [Set up a server](/docs/client/setup-workspace)               |
+| 3 | **Camera pose**        | Not in the client yet.                                              | [Calibrate depth](/docs/client/calibration#camera-pose)       |
+| 4 | **Depth quantization** | **Start**, **Cancel** and **Commit** a depth calibration.           | [Calibrate depth](/docs/client/calibration)                   |
+| 5 | **Network**            | Not available yet.                                                  | [Calibrate depth](/docs/client/calibration#network)           |
+| 6 | **Placement**          | **Edit**, move the server, then **Commit**.                         | [Place a server in the scene](/docs/client/placement-editing) |
 
 ## Go from a server to the 3D view [#go-from-a-server-to-the-3d-view]
 
-1. Add a server. In **Dev: mock server**, select **Add mock server**. For a real server, type its address in **Add server** and select **Connect to server**.
-2. Watch the new card. Its status goes from `connecting` to a live one, such as `streaming`.
-3. Check the card for an orange `Setup and control only` line. Without it, your browser can decode the video, and **decoded pairs** and **uploaded** go up.
-4. Click the 3D view, then orbit, pan and zoom to find the point cloud.
-5. If the card shows `needs-setup`, select **Set up**, then [calibrate depth](/docs/client/calibration) and [place the server](/docs/client/placement-editing).
+1. Select **Add mock server**, or type a server’s address and select **Connect**.
+2. Wait for the card’s status chip to turn **Ready** or **Streaming**.
+3. Check the card for a **Setup and control only** chip. Without it, your browser decodes the video, and **Pairs** goes up.
+4. Click the 3D view, then orbit, pan and zoom.
+5. If the card shows **Needs setup**, select **Set up**, then [calibrate depth](/docs/client/calibration) and [place the server](/docs/client/placement-editing).
 
-Today, the 3D view stays empty in the main client. No browser tested so far decodes HEVC video, so every card shows `Setup and control only`, and the capture server doesn’t accept browser connections yet. Cards, setup, calibration and placement all work against the mock server. See [Use the browser client](/docs/client#what-works-today).
+## Switch the theme, or use a small screen [#switch-the-theme-or-use-a-small-screen]
 
-## Change settings [#change-settings]
+The sun button in the header switches to the light theme; the moon button switches back. This browser remembers your choice. The 3D view stays dark in both themes.
 
-[What you can tweak](/docs/client/what-you-can-tweak) lists every control in the client, with its range, default and when to change it.
+<img alt="The client in the light theme: a light side panel next to the 3D view, which shows the synthetic test scene" src="__img2" />
+
+On a window narrower than 720 pixels, the 3D view takes the top 42 % of the screen and the panel scrolls below it:
+
+<img alt="The client at phone width: the 3D view with the synthetic test scene on top, and the panel below it with the header, View and Servers" src="__img3" />
+
+[What you can tweak](/docs/client/what-you-can-tweak) lists every control.
 
 
 # Move around the 3D view (https://irc-hslu.github.io/orbbecstreamer/docs/client/viewer)
@@ -1744,7 +1643,7 @@ Today, the 3D view stays empty in the main client. No browser tested so far deco
 
 
 
-The 3D view, left of the side panel, draws one coloured point cloud per bundle for every connected server and open recording, in one shared scene. Each point is one depth pixel, coloured by the same pixel of the colour video, and each cloud sits where its server’s placement puts it.
+The 3D view fills the window behind the side panel and draws one coloured point cloud per bundle for every connected server and open recording, in one shared scene. Each point is one depth pixel, coloured by the same pixel of the colour video, and each cloud sits where its server’s placement puts it.
 
 Today the 3D view stays empty in the main client, because no browser tested so far decodes HEVC video. You can still move the camera, and the placement handle appears in the view. See [Check your browser](/docs/client/browser-requirements).
 
@@ -1752,7 +1651,7 @@ Today the 3D view stays empty in the main client, because no browser tested so f
 
 1. Connect a server or play a recording. The clouds appear as soon as decoded frames arrive; there is nothing to switch on.
 2. Click the 3D view once, so that it receives your key presses.
-3. Move around with the controls in this table.
+3. Move around with the controls in this table. To see the 3D view alone, select the panel button at its top right (**Hide panel**).
 
 | Action                        | Mouse                                                                 | Touch                 | Keyboard                    |
 | ----------------------------- | --------------------------------------------------------------------- | --------------------- | --------------------------- |
@@ -1772,9 +1671,11 @@ The following picture doesn’t come from the main client. It shows what the ren
 
 <img alt="A point cloud of a checkerboard wall with an orange sphere in front of it, and a gap in the wall behind the sphere. This is test data drawn by the client’s renderer on a test page, because the capture browser couldn’t decode HEVC video" src="__img0" />
 
-When frames are drawn, every bundle row on the server card reads `ready, drawing`, and **uploaded** keeps going up.
+When frames are drawn, the card’s **Pairs** keeps going up, and its bundle rows under **Details** read `ready, drawing`.
 
-Each point is a square dot 2 device pixels wide, with WebGPU and with WebGL2. On a display scaled to 200 %, a dot looks 1 pixel wide. The view stays sharp when you resize the panel or window, or move the window to a screen with another scaling. The `renderer:` line at the top of the side panel says which backend is in use. See [Check your browser](/docs/client/browser-requirements).
+The view redraws only when something changes: a new frame, a camera move, a setting or a window resize. While nothing changes, it draws nothing and leaves the GPU idle.
+
+Each point is a square dot 2 device pixels wide, with WebGPU and with WebGL2. On a display scaled to 200 %, a dot looks 1 pixel wide. The view stays sharp when you resize the panel or window, or move the window to a screen with another scaling. The **WebGPU** or **WebGL2** chip in the header says which backend is in use. See [Check your browser](/docs/client/browser-requirements).
 
 Where two cameras see the same surface, the view blends their colours instead of mixing their dots. See [Blend overlapping cameras](#blend-overlapping-cameras).
 
@@ -1784,6 +1685,12 @@ These viewer features are coming soon:
 * Headset (WebXR) viewing
 
 The view has no switches for colour only, depth only or the foreground mask. These are not planned yet.
+
+### When the tab is in the background [#when-the-tab-is-in-the-background]
+
+After the client's tab has been hidden for 10 s, the client stops receiving and decoding streams, recordings included. Connections and a held setup lock stay up. While a headset (WebXR) session runs, streams never pause.
+
+When you come back, the last picture stays on screen and streams restart at once. Each bundle's live picture returns at the server's next keyframe: usually well under a second, at most one keyframe interval. A recording continues from where it would be in real time, not from where it paused. Bundles you turned off, or that the client can't show, stay off.
 
 ## Blend overlapping cameras [#blend-overlapping-cameras]
 
@@ -1795,7 +1702,7 @@ When two or more cameras see the same surface, each of them contributes points t
 
 Only surfaces within a few centimetres of the nearest surface blend; a surface behind it stays hidden.
 
-Blending needs WebGPU. With WebGL2, the nearest dot always wins and the blend controls are switched off.
+Blending needs WebGPU. With WebGL2, the nearest dot always wins and the **Blend** switch is off and unavailable.
 
 The following pictures don’t come from the main client. They show the renderer on a developer test page, with test data from two cameras whose colours are tinted red and blue so that their overlap stands out. Without blending, the overlap is a noise of red and blue dots:
 
@@ -1810,7 +1717,7 @@ With blending, the colours mix smoothly, and each camera fades out towards its o
 Blending is on by default.
 
 1. Find the **View** section under the header of the side panel.
-2. Select or clear **Blend overlapping cameras**. The view changes at once.
+2. Turn the **Blend** switch on or off. The view changes at once.
 3. Read the line under the switch. It says how points are drawn now:
 
 | Status line                                                      | Meaning                                                                                                           |
@@ -1829,27 +1736,27 @@ Open **Blend tuning** in the **View** section to change how cameras are weighed.
 
 ## Fix drawing problems [#fix-drawing-problems]
 
-| What you see                                                                         | Why                                                                                                                                                     | What to do                                                                                                                                                                          |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The panel shows `renderer: rendering-incompatible`                                   | The browser has neither WebGPU nor WebGL2, or hardware acceleration is off.                                                                             | Turn on hardware acceleration, or try another browser. See [Check your browser](/docs/client/browser-requirements).                                                                 |
-| The card shows `Setup and control only: this browser lacks …`                        | The browser can’t decode the video, so there are no frames to draw.                                                                                     | Use a browser and machine with HEVC decoding.                                                                                                                                       |
-| A bundle row stays `ready, no frame yet`, and **decoded pairs** stays at 0           | No frames reach the client.                                                                                                                             | Check that the server is streaming. The card’s status and **last close** line say whether the connection is up.                                                                     |
-| **decoded pairs** goes up, **uploaded** doesn’t, and **dropped** does                | Frames arrive but belong to a newer server setup than the one the client holds.                                                                         | Wait: the client fetches the new setup and resumes by itself. If it doesn’t, select **Remove** on the card and add the server again.                                                |
-| The cloud freezes or disappears for a moment after a calibration or placement change | The client never draws a frame with the setup of another revision.                                                                                      | Wait. Drawing resumes once the new setup arrives.                                                                                                                                   |
-| A bundle row shows `upload error: …`                                                 | The graphics card rejected a frame. The bundle stays hidden until the next good frame.                                                                  | This usually clears by itself. If it keeps happening, reload the page.                                                                                                              |
-| The clouds disappear after the graphics driver or GPU resets                         | The browser lost its GPU device.                                                                                                                        | Wait: the clouds come back by themselves within a few frames. If they don’t, reload the page.                                                                                       |
-| One bundle isn’t blended with the others, while blending is on                       | Its points don’t fit the GPU’s buffer limit: about 5.6 million depth pixels per bundle on a GPU that allows no more. The bundle is drawn as plain dots. | Configure the server with fewer or smaller cameras per bundle, for example one bundle per camera.                                                                                   |
-| A bundle row shows `rendering incompatible (too-many-tiles): …`                      | The bundle packs more than 16 cameras into one stream.                                                                                                  | Configure the server with 16 cameras or fewer per bundle, for example one bundle per camera.                                                                                        |
-| A bundle row shows `metadata invalid (…)`                                            | The server’s description of this bundle doesn’t add up. The client keeps the last good frame.                                                           | Check the server’s calibration and placement.                                                                                                                                       |
-| The cloud looks mirrored, left to right or top to bottom                             | The coordinate convention between servers and the client isn’t final yet.                                                                               | Report it with the server’s calibration.                                                                                                                                            |
-| Two servers’ clouds overlap                                                          | Their placements put them in the same place.                                                                                                            | [Place a server in the scene](/docs/client/placement-editing), or [move an anchor in your view](/docs/client/world-anchors).                                                        |
-| A cloud moved in your view but not for other people                                  | You moved its anchor, or you have an uncommitted placement draft. Both stay in your browser.                                                            | Commit the placement, or select **Reset to identity** or **Discard draft**.                                                                                                         |
-| The picture tears with WebGL2, showing parts of two frames                           | The client asks WebGL2 for a low-latency canvas, which can tear.                                                                                        | This is expected: it trades tearing for lower delay.                                                                                                                                |
-| The view is slow or jerky                                                            | Each camera adds about one point per depth pixel.                                                                                                       | Close other graphics-heavy tabs, and connect only the servers you need. With WebGPU, clear **Blend overlapping cameras** in the **View** section: blending draws every point twice. |
-| The **View** status line says `Blending unavailable, plain points: …`                | The graphics card or driver couldn’t run blending. The view falls back to plain dots.                                                                   | Reload the page. If it stays, update the graphics driver, and report the text after the colon.                                                                                      |
-| A surface shows through another one in front of it                                   | The depth tolerance is larger than the gap between the two surfaces.                                                                                    | Lower **Depth tolerance (m)** or **Depth tolerance per metre** under **Blend tuning**.                                                                                              |
-| Where cameras overlap, the colours look smeared or doubled                           | The cameras’ placements or calibrations don’t quite agree, so blending mixes two slightly shifted images.                                               | Check the placements and calibrations. Meanwhile, raise **View-angle sharpness**, so that one camera dominates.                                                                     |
-| Where cameras overlap, the surface is speckled even with blending on                 | The two cameras see the surface more than the depth tolerance apart, so only the nearer one is drawn at each pixel.                                     | Raise **Depth tolerance (m)** a little, or check the cameras’ calibration.                                                                                                          |
+| What you see                                                                           | Why                                                                                                                                                     | What to do                                                                                                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The header shows a red **No 3D view** chip                                             | The browser has neither WebGPU nor WebGL2, or hardware acceleration is off.                                                                             | Turn on hardware acceleration, or try another browser. See [Check your browser](/docs/client/browser-requirements).                                                |
+| The card shows a **Setup and control only** chip                                       | The browser can’t decode the video, so there are no frames to draw.                                                                                     | Use a browser and machine with HEVC decoding.                                                                                                                      |
+| **Pairs** stays at 0, and the bundle row under **Details** stays `ready, no frame yet` | No frames reach the client.                                                                                                                             | Check that the server is streaming. The card’s status chip and `last close` box say whether the connection is up.                                                  |
+| **Pairs** and **Dropped** go up, but **uploaded** under **Details** doesn’t            | Frames arrive but belong to a newer server setup than the one the client holds.                                                                         | Wait: the client fetches the new setup and resumes by itself. If it doesn’t, select **Remove** on the card and add the server again.                               |
+| The cloud freezes or disappears for a moment after a calibration or placement change   | The client never draws a frame with the setup of another revision.                                                                                      | Wait. Drawing resumes once the new setup arrives.                                                                                                                  |
+| A bundle row under **Details** shows `upload error: …`                                 | The graphics card rejected a frame. The bundle stays hidden until the next good frame.                                                                  | This usually clears by itself. If it keeps happening, reload the page.                                                                                             |
+| The clouds disappear after the graphics driver or GPU resets                           | The browser lost its GPU device.                                                                                                                        | Wait: the clouds come back by themselves within a few frames. If they don’t, reload the page.                                                                      |
+| One bundle isn’t blended with the others, while blending is on                         | Its points don’t fit the GPU’s buffer limit: about 5.6 million depth pixels per bundle on a GPU that allows no more. The bundle is drawn as plain dots. | Configure the server with fewer or smaller cameras per bundle, for example one bundle per camera.                                                                  |
+| A bundle row under **Details** shows `rendering incompatible (too-many-tiles): …`      | The bundle packs more than 16 cameras into one stream.                                                                                                  | Configure the server with 16 cameras or fewer per bundle, for example one bundle per camera.                                                                       |
+| A bundle row under **Details** shows `metadata invalid (…)`                            | The server’s description of this bundle doesn’t add up. The client keeps the last good frame.                                                           | Check the server’s calibration and placement.                                                                                                                      |
+| The cloud looks mirrored, left to right or top to bottom                               | The coordinate convention between servers and the client isn’t final yet.                                                                               | Report it with the server’s calibration.                                                                                                                           |
+| Two servers’ clouds overlap                                                            | Their placements put them in the same place.                                                                                                            | [Place a server in the scene](/docs/client/placement-editing), or [move an anchor in your view](/docs/client/world-anchors).                                       |
+| A cloud moved in your view but not for other people                                    | You moved its anchor, or you have an uncommitted placement draft. Both stay in your browser.                                                            | Commit the placement, or select **Reset** on the anchor or **Discard** on the draft.                                                                               |
+| The picture tears with WebGL2, showing parts of two frames                             | The client asks WebGL2 for a low-latency canvas, which can tear.                                                                                        | This is expected: it trades tearing for lower delay.                                                                                                               |
+| The view is slow or jerky                                                              | Each camera adds about one point per depth pixel.                                                                                                       | Close other graphics-heavy tabs, and connect only the servers you need. With WebGPU, turn **Blend** off in the **View** section: blending draws every point twice. |
+| The **View** status line says `Blending unavailable, plain points: …`                  | The graphics card or driver couldn’t run blending. The view falls back to plain dots.                                                                   | Reload the page. If it stays, update the graphics driver, and report the text after the colon.                                                                     |
+| A surface shows through another one in front of it                                     | The depth tolerance is larger than the gap between the two surfaces.                                                                                    | Lower **Depth tolerance (m)** or **Depth tolerance per metre** under **Blend tuning**.                                                                             |
+| Where cameras overlap, the colours look smeared or doubled                             | The cameras’ placements or calibrations don’t quite agree, so blending mixes two slightly shifted images.                                               | Check the placements and calibrations. Meanwhile, raise **View-angle sharpness**, so that one camera dominates.                                                    |
+| Where cameras overlap, the surface is speckled even with blending on                   | The two cameras see the surface more than the depth tolerance apart, so only the nearer one is drawn at each pixel.                                     | Raise **Depth tolerance (m)** a little, or check the cameras’ calibration.                                                                                         |
 
 
 # What you can tweak (https://irc-hslu.github.io/orbbecstreamer/docs/client/what-you-can-tweak)
@@ -1862,111 +1769,109 @@ Open **Blend tuning** in the **View** section to change how cameras are weighed.
 
 
 
-This page lists every control you can change in the client. Each table covers one area of the screen; [Tour of the client](/docs/client/tour) shows where the areas are. Unless a row says otherwise, a change applies at once and stays in this browser tab only: nothing here is saved across a reload.
 
-When a button is unavailable, the client writes the reason under it. Those reasons are listed on the page for each area.
+
+
+
+Every control in the client, one table per area; [Tour of the client](/docs/client/tour) shows where the areas are. Unless a row says otherwise, a change applies at once and lasts until you reload the page.
+
+An unavailable button stays visible. Hover over it, or focus it with the keyboard, to see why:
+
+<img alt="A tip over the server card’s release-lock button: Release lock, This client does not hold the lock" src="__img0" />
+
+## Window and theme [#window-and-theme]
+
+| Control                                                                  | What it changes                                                                               | Default | When to change it             |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ------- | ----------------------------- |
+| Panel toggle, top right of the 3D view (**Hide panel** / **Show panel**) | Hides the side panel, so the 3D view fills the window                                         | Shown   | To look at the scene alone    |
+| Sun or moon button in the header (**Light theme** / **Dark theme**)      | The panel’s theme. This browser remembers it. The 3D view stays dark.                         | Dark    | In a bright room              |
+| **i** next to the header chips                                           | Shows the renderer notes, for example why WebGL2 was picked. Only shown when there are notes. |         | When the chip says **WebGL2** |
 
 ## View section [#view-section]
 
-The **View** section, under the header, sets how the 3D view draws overlapping cameras. Blending needs WebGPU. With WebGL2, the checkbox is unavailable, **Blend tuning** isn’t shown, and the line under the checkbox reads `Blending needs WebGPU; with WebGL2 the nearest point is drawn.`
+<img alt="The View section: the Blend switch on, the status line Blending overlapping cameras., and Blend tuning open with its eight fields at their defaults and Reset tuning" src="__img1" />
 
-<img alt="The View section with Blend overlapping cameras ticked, the status line Blending overlapping cameras., and Blend tuning open with its eight fields at their defaults and the Reset tuning button" src="__img0" />
-
-| Control                       | What it changes                                                                                      | Range and default | When to change it                                                    |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------- |
-| **Blend overlapping cameras** | Where cameras overlap: on, their colours mix smoothly; off, the dot nearest to you wins.             | On by default     | Turn it off when the view is slow: blending draws every point twice. |
-| **Reset tuning**              | Sets the eight tuning fields back to their defaults. It doesn’t touch **Blend overlapping cameras**. |                   | After experimenting.                                                 |
+| Control          | What it changes                                                                                                                                       | Default | When to change it                                                    |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
+| **Blend**        | On: where cameras overlap, their colours mix smoothly. Off: the dot nearest to you wins. Needs WebGPU; with WebGL2 the switch is off and unavailable. | On      | Turn it off when the view is slow: blending draws every point twice. |
+| **Reset tuning** | Sets the eight fields below back to their defaults. **Blend** stays as it is.                                                                         |         | After experimenting                                                  |
 
 ### Blend tuning [#blend-tuning]
 
-Open **Blend tuning** to see eight fields. Type a value, then press **Enter** or leave the field. A value outside the range is set to the nearest allowed value; text that isn’t a number is replaced by the value in force. The fields are unavailable while blending is off.
+Open **Blend tuning** for eight fields; hover over a field for its one-line hint. Type a value, then press **Enter** or leave the field. A value out of range is set to the nearest allowed one. The fields are unavailable while **Blend** is off.
 
-| Field                         | What it changes                                                                                                                                | Range          | Default | When to change it                                                                                                    |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------- | -------------------------------------------------------------------------------------------------------------------- |
-| **View-angle sharpness**      | How strongly the camera whose view is closest to yours wins. At 0, the viewing direction doesn’t matter.                                       | 0 to 64        | 4       | Raise it when overlaps look smeared or doubled.                                                                      |
-| **Depth tolerance (m)**       | Surfaces closer together in depth than this blend instead of hiding each other.                                                                | 0 or more      | 0.01    | Lower it when a surface shows through one in front of it. Raise it when the overlap stays speckled with blending on. |
-| **Depth tolerance per metre** | Extra tolerance per metre of distance from you, because depth gets noisier with distance.                                                      | 0 or more      | 0.01    | Raise it for scenes far from the cameras.                                                                            |
-| **Edge fade width (px)**      | Over how many depth pixels a camera fades out towards the edges of what it sees, such as a silhouette or the image border. Whole numbers only. | 1 to 16        | 8       | Raise it when seams show along object edges.                                                                         |
-| **Edge step (per m)**         | How big a depth jump between neighbouring pixels counts as an edge, times the distance: 2.5 cm at 1 m by default.                              | 0.0001 or more | 0.025   | Raise it when sloped surfaces fade as if they were edges.                                                            |
-| **Full-weight distance (m)**  | Points up to this distance from their camera count fully. Farther points count less, with the square of the distance.                          | 0.001 or more  | 1       | Raise it when your cameras sit farther than 1 m from the subject.                                                    |
-| **Grazing-angle floor**       | The lowest weight of a surface seen at a grazing angle.                                                                                        | 0 to 1         | 0.1     | Raise it when surfaces seen edge-on drop out of the blend.                                                           |
-| **Splat falloff**             | How much less each dot counts towards its rim. At 0, the whole dot counts the same.                                                            | 0 to 64        | 2       | Raise it for smoother mixing between neighbouring dots.                                                              |
+| Field                         | What raising it does                                                                         | Range          | Default | When to change it                                                                        |
+| ----------------------------- | -------------------------------------------------------------------------------------------- | -------------- | ------- | ---------------------------------------------------------------------------------------- |
+| **View-angle sharpness**      | Favours the camera whose view is closest to yours. At 0, the view angle doesn’t matter.      | 0 to 64        | 4       | Overlaps look smeared or doubled                                                         |
+| **Depth tolerance (m)**       | Blends surfaces farther apart in depth instead of hiding one                                 | 0 or more      | 0.01    | Lower it when a surface shows through one in front; raise it when overlaps stay speckled |
+| **Depth tolerance per metre** | Adds tolerance per metre of distance from you                                                | 0 or more      | 0.01    | Scenes far from the cameras                                                              |
+| **Edge fade width (px)**      | Fades a camera out over more depth pixels at the edges of what it sees. Whole numbers.       | 1 to 16        | 8       | Seams along object edges                                                                 |
+| **Edge step (per m)**         | Needs a bigger depth jump, times the distance, to count as an edge: 2.5 cm at 1 m by default | 0.0001 or more | 0.025   | Sloped surfaces fade as if they were edges                                               |
+| **Full-weight distance (m)**  | Points up to this distance from their camera count fully; farther ones count less            | 0.001 or more  | 1       | Cameras sit farther than 1 m from the subject                                            |
+| **Grazing-angle floor**       | Raises the lowest weight of surfaces seen edge-on                                            | 0 to 1         | 0.1     | Edge-on surfaces drop out of the blend                                                   |
+| **Splat falloff**             | Makes each dot count less towards its rim                                                    | 0 to 64        | 2       | Mixing between neighbouring dots looks rough                                             |
 
-[Move around the 3D view](/docs/client/viewer#blend-overlapping-cameras) shows the effect of blending.
+## Servers section [#servers-section]
 
-## Connection forms [#connection-forms]
+<img alt="The top of the Servers section: the URL field with Connect, the folded Open recording, and Add mock server" src="__img2" />
 
-These forms add servers and recordings. Each adds a card under **Servers**.
-
-| Control                                                                               | What it does                                             | Values                                                                                               | When to use it                                                           |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| **WebTransport URL** and **Connect to server**                                        | Connects to a capture server.                            | A URL that starts with `https://` and has no `#`, for example `https://capture-01.local:4433/orbbec` | For a real server. See [Add a server](/docs/client/add-a-server).        |
-| **Colour .hevc**, **Depth .hevc (Main10)**, **Manifest .json** and **Play recording** | Plays a recording.                                       | Raw HEVC files and a manifest. See [File requirements](/docs/client/playback#file-requirements).     | To test without a server. See [Play a recording](/docs/client/playback). |
-| **Add mock server**                                                                   | Adds a simulated server. Only in the development server. |                                                                                                      | To try cards and setup without hardware.                                 |
+| Control                                                                                                         | What it does                                                                 | When to use it                                                           |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| URL field and **Connect**                                                                                       | Connects to a capture server. The URL starts with `https://` and has no `#`. | For a real server. See [Add a server](/docs/client/add-a-server).        |
+| **Open recording** (folded): **Colour .hevc**, **Depth .hevc (Main10)**, **Manifest .json**, **Play recording** | Plays a recording                                                            | To test without a server. See [Play a recording](/docs/client/playback). |
+| **Add mock server**                                                                                             | Adds a simulated server. Development server only.                            | To try the client without hardware                                       |
 
 ## Server card [#server-card]
 
-Each card holds one checkbox and up to seven buttons. [Read a server card](/docs/client/server-card#what-each-button-does) lists when each button is unavailable.
+<img alt="A server card with Details open: Lock, Calibration, Layout, Counts, Network, and Shared with the Receive updates switch" src="__img3" />
 
-<img alt="A server card for the Dev mock server, with the Receive shared updates checkbox ticked and the Set up, Acquire lock, Release lock, Refresh, Reconnect and Remove buttons" src="__img1" />
-
-| Control                                                     | What it does                                                                                                                                                                   | Default | When to use it                                                             |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------- |
-| **Receive shared updates (calibration results, placement)** | On: the server sends this client every calibration result and placement change. Off: the card shows `Metadata is stale: a shared update was withheld.` when something changed. | On      | Turn it off if you don’t need other clients’ setup results as they happen. |
-| **Refresh stale metadata**                                  | Fetches the server’s full state. Shown only while the stale line is shown.                                                                                                     |         | When the stale line appears.                                               |
-| **Set up**                                                  | Opens the setup view and takes the setup lock.                                                                                                                                 |         | To calibrate or place the server.                                          |
-| **Acquire lock**                                            | Takes the setup lock without opening the setup view.                                                                                                                           |         | To keep others from changing the server.                                   |
-| **Release lock**                                            | Gives the lock back.                                                                                                                                                           |         | When you’re done holding it.                                               |
-| **Refresh**                                                 | Fetches the server’s full state.                                                                                                                                               |         | When the card looks out of date.                                           |
-| **Reconnect**                                               | Connects again at once, instead of waiting for the automatic retry.                                                                                                            |         | When the card shows `reconnect scheduled`.                                 |
-| **Remove**                                                  | Disconnects and removes the card and its point clouds.                                                                                                                         |         | To stop using a server, or to replay a recording.                          |
+| Control                                | What it does                                                                               | When to use it                                    |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| **Set up**                             | Opens the setup view and takes the setup lock. Unavailable for a recording.                | To calibrate or place the server                  |
+| Lock icon (**Acquire lock**)           | Takes the setup lock without opening setup                                                 | To keep others from changing the server           |
+| Open-lock icon (**Release lock**)      | Gives the lock back                                                                        | When you’re done holding it                       |
+| Circular arrow (**Refresh**)           | Fetches the server’s full state                                                            | The card looks out of date                        |
+| Plug (**Reconnect**)                   | Connects again at once                                                                     | The card waits for an automatic retry             |
+| Bin (**Remove**)                       | Disconnects and removes the card                                                           | To stop using a server, or to replay a recording  |
+| **Refresh** in the stale-metadata box  | Fetches the server’s full state. Shown only with `Metadata is stale`.                      | When the box appears                              |
+| **Details**                            | Folds the card’s full status out                                                           | To read lock, calibration and bundle details      |
+| **Receive updates**, under **Details** | On: the server sends other clients’ calibration results and placement changes. Default on. | Turn it off if you don’t need them as they happen |
 
 ## Setup view [#setup-view]
 
-The setup view holds the setup lock while it’s open. [Set up a server](/docs/client/setup-workspace) and [Calibrate depth](/docs/client/calibration) explain each control.
-
-| Control                          | What it does                                                                                    | When to use it                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **Leave setup (release lock)**   | Cancels a running calibration, releases the lock and closes the setup view. It commits nothing. | When you’re done. Commit first what you want to keep.                          |
-| **Enter setup again**            | Asks for the lock again after the session ended.                                                | After you were forced out.                                                     |
-| **Back to servers**              | Closes the setup view after the session ended.                                                  | After the session ended.                                                       |
-| **Start depth quantization**     | Starts a depth calibration run on the server.                                                   | To measure a new depth mapping.                                                |
-| **Cancel depth quantization**    | Stops the run. Nothing is committed.                                                            | When the scene isn’t ready.                                                    |
-| **Commit depth quantization**    | Puts the result in force for every client.                                                      | After `Result ready`. A result you don’t commit is thrown away when you leave. |
-| **scale**: **log** or **linear** | The histogram’s vertical scale. Default **log**, which keeps small counts visible.              | Choose **linear** to compare the big peaks.                                    |
-
-The **Camera pose** and **Network** sections have no controls yet.
+| Control                                                | What it does                                                                     | When to use it                                        |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Leave**                                              | Cancels a running calibration, releases the lock, closes setup. Commits nothing. | When you’re done. Commit first what you want to keep. |
+| **Enter setup**, **Back**                              | Ask for the lock again, or close setup, after the session ended                  | After you were forced out                             |
+| **Start**, **Cancel**, **Commit** (Depth quantization) | Run, stop, or put a depth calibration in force                                   | See [Calibrate depth](/docs/client/calibration)       |
+| **Log** / **Linear** (Depth codes)                     | The histogram’s scale. Default **Log**.                                          | **Linear** to compare the big peaks                   |
 
 ## Placement [#placement]
 
-The **Placement** section is at the bottom of the setup view. It edits a draft that only your 3D view shows until you commit it. See [Place a server in the scene](/docs/client/placement-editing).
+<img alt="The Placement section with a draft: Draft and Changed chips, the draft pose fields, Move in 3D on with Translate selected, and Commit and Discard" src="__img4" />
 
-<img alt="The Placement section with a draft: the server placement at revision 1, the draft changed to x 0.500, z 1.000 and yaw 30.0, Move in 3D ticked with translate selected, and the Commit placement and Discard draft buttons" src="__img2" />
-
-| Control                                                | What it changes                                                                                                              | Range and default                                                                       | When to change it                     |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------- |
-| **Edit placement**                                     | Starts a draft equal to the server’s placement.                                                                              |                                                                                         | To move the server.                   |
-| **x (m)**, **y (m)**, **z (m)**                        | The server’s position relative to its anchor. +X is right, +Y up, +Z forward.                                                | −1000 to 1000 m. Shown to 1 mm.                                                         | To set an exact position.             |
-| **yaw (°)**, **pitch (°)**, **roll (°)**               | The server’s rotation, applied roll first, then pitch, then yaw.                                                             | −360 to 360° typed. Shown to 0.1°, with pitch −90 to 90° and yaw and roll −180 to 180°. | To set an exact rotation.             |
-| **−** and **+**, or **Arrow Down** and **Arrow Up**    | Step a field by 0.01 m or 1°. With **Shift**, the arrow keys step ten times that.                                            |                                                                                         | To nudge a value.                     |
-| **Move in 3D (drag the handle on the server’s cloud)** | Shows a handle in the 3D view that moves the draft as you drag it.                                                           | Off                                                                                     | To place the server by eye.           |
-| **handle**: **translate** or **rotate**                | Arrows that move along an axis, or rings that turn about one.                                                                | **translate**                                                                           | Choose **rotate** to turn the server. |
-| **Commit placement (expected revision N)**             | Sends the draft. Every client then draws the server there.                                                                   |                                                                                         | When the draft is right.              |
-| **Discard draft**                                      | Drops the draft. Nothing is sent.                                                                                            |                                                                                         | To start over.                        |
-| **Rebase on server placement (revision M)**            | Keeps your draft’s pose, but bases it on a newer server placement. Shown only when someone else committed after you started. |                                                                                         | Before you commit a stale draft.      |
+| Control                                         | What it changes                                                                           | Range and default                                 | When to change it               |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------- |
+| **Edit**                                        | Starts a draft equal to the server’s placement                                            |                                                   | To move the server              |
+| **x (m)**, **y (m)**, **z (m)**                 | Position relative to the anchor. +X right, +Y up, +Z forward.                             | −1000 to 1000 m, shown to 1 mm                    | Exact position                  |
+| **yaw (°)**, **pitch (°)**, **roll (°)**        | Rotation, roll first, then pitch, then yaw                                                | −360 to 360°, shown to 0.1° with pitch −90 to 90° | Exact rotation                  |
+| **−** / **+**, or **Arrow Down** / **Arrow Up** | Steps a field by 0.01 m or 1°; **Shift** with the arrow keys steps ten times that         |                                                   | Nudging                         |
+| **Move in 3D**                                  | Shows a handle in the 3D view; dragging it moves the draft                                | Off                                               | Placing by eye                  |
+| **Translate** / **Rotate**                      | Handle arrows that move, or rings that turn                                               | **Translate**                                     | **Rotate** to turn the server   |
+| **Commit**                                      | Sends the draft; every client then draws the server there                                 |                                                   | The draft is right              |
+| **Rebase**                                      | Keeps your pose on a newer server placement. Shown when someone else committed meanwhile. |                                                   | Before committing a stale draft |
+| **Discard**                                     | Drops the draft                                                                           |                                                   | To start over                   |
 
 ## World anchors [#world-anchors]
 
-The **World anchors** section, under the server cards, moves where this browser draws an anchor, and every server placed relative to it. It needs no lock and never reaches a server. See [Move an anchor in your view](/docs/client/world-anchors).
-
-| Control                                                                   | What it changes                                                         | Range and default                                       | When to change it                    |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
-| **x (m)**, **y (m)**, **z (m)**, **yaw (°)**, **pitch (°)**, **roll (°)** | The anchor’s pose in your 3D view. They work like the placement fields. | Same as placement. Default: the scene origin, all zero. | To line servers up in your own view. |
-| **Reset to identity**                                                     | Puts the anchor back at the scene origin.                               |                                                         | To undo your changes.                |
+| Control                             | What it changes                                                                                        | Default              | When to change it                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------- | ----------------------------------- |
+| **x (m)** … **roll (°)** per anchor | Where this browser draws the anchor and its servers. Never sent to a server. Same fields as placement. | At the origin, all 0 | To line servers up in your own view |
+| **Reset**                           | Puts the anchor back at the origin                                                                     |                      | To undo your changes                |
 
 ## 3D view [#3d-view]
 
-The 3D view has camera controls but no settings. [Move around the 3D view](/docs/client/viewer#move-the-camera) lists them:
+No settings; [Move around the 3D view](/docs/client/viewer#move-the-camera) lists the camera controls:
 
 * **Orbit**: drag with the left button, or the arrow keys
 * **Pan**: drag with the right button, or **Ctrl** with the arrow keys
@@ -1974,11 +1879,10 @@ The 3D view has camera controls but no settings. [Move around the 3D view](/docs
 
 ## What you can’t change in the client [#what-you-cant-change-in-the-client]
 
-These have fixed values, or are set elsewhere:
-
-* **Point size and shape**: square dots 2 device pixels wide. The renderer supports other sizes, round dots and a debug view as developer options. See [Developer options](/docs/client/developer/developer-options#point-settings).
-* **Playback speed, looping and seeking**: a recording plays at its manifest’s `frameRate`, and loops when `loop` is `true`. To play it again, select **Remove** on its card and open it again. See [Manifest fields](/docs/client/playback#manifest-fields).
-* **Reconnect delays and timeouts**: developer options without a control. See [Developer options](/docs/client/developer/developer-options#connection-timing).
+* **Point size and shape**: square dots 2 device pixels wide. Other sizes, round dots and a debug view are [developer options](/docs/client/developer/developer-options#point-settings).
+* **Playback speed, looping and seeking**: set by the recording’s manifest. See [Manifest fields](/docs/client/playback#manifest-fields).
+* **Reconnect delays and timeouts**: [developer options](/docs/client/developer/developer-options#connection-timing).
+* **Background pause**: streams pause after the tab is hidden for 10 s. See [When the tab is in the background](/docs/client/viewer#when-the-tab-is-in-the-background).
 * **Colour-only, depth-only and mask views**: not planned yet
 
 
@@ -1994,31 +1898,18 @@ To change where a server sits for everyone, see [Place a server in the scene](/d
 
 ## Move an anchor [#move-an-anchor]
 
-1. Connect at least one server. The **World anchors** section, below the server cards, lists every anchor that a connected server’s placement names. You don’t need the setup lock.
-2. Find the anchor by its name, for example `Anchor anchor-origin`. The **used by** line lists the servers placed relative to it.
-3. Type in the fields:
+1. Connect a server. **World anchors**, below the server cards, lists every anchor a connected server names. No lock needed.
+2. Find the anchor by name, for example **anchor-dev**. The line under it lists its servers and reads `at origin`, or `custom pose` once you moved it.
+3. Type in **x (m)**, **y (m)**, **z (m)**, **yaw (°)**, **pitch (°)** or **roll (°)**. A valid value applies at once, and the anchor’s servers move with it in your 3D view. The fields work like the [placement fields](/docs/client/placement-editing#edit-the-draft-with-numbers).
+4. To put the anchor back at the origin, select **Reset**.
 
-   * **x (m)**, **y (m)** and **z (m)** move the anchor, in metres. +X is right, +Y is up and +Z is forward.
-   * **yaw (°)**, **pitch (°)** and **roll (°)** turn it, in degrees.
+<img alt="World anchors with one anchor, anchor-dev, used by the Dev mock server at origin: the Anchor pose (this browser only) fields, all zero, and Reset" src="__img0" />
 
-   A valid value applies at once, and every server that uses the anchor moves with it in your 3D view. **Arrow Up** and **Arrow Down** step by 0.01 m or 1°; hold **Shift** for ten times that. The **−** and **+** buttons do the same with the mouse.
-4. To put the anchor back at the scene origin, select **Reset to identity**.
-
-The fields work like the placement fields. See [Edit with numbers](/docs/client/placement-editing#edit-the-draft-with-numbers).
-
-## What you should see [#what-you-should-see]
-
-<img alt="The World anchors section with one anchor, anchor-origin, used by the Dev mock server: no pose set, at the scene origin, the Anchor pose (this browser only) fields for x, y, z, yaw, pitch and roll, all at zero, and the Reset to identity button" src="__img0" />
-
-Before you change anything, the anchor reads `no pose set: at the scene origin`. After a change, it reads `pose set in this browser:` followed by the pose. The servers that use the anchor then move in your 3D view only. Other people’s views don’t change.
-
-The section is hidden while the setup view is open.
+Other people’s views don’t change. The section is hidden while the setup view is open.
 
 ## Fix anchor problems [#fix-anchor-problems]
 
-These are the common anchor problems and their fixes:
-
-* **`No connected server names an anchor yet.`**: no server is connected, or the connected servers have no placement yet. Connect a server and wait until its card shows a live status.
+* **`No connected server names an anchor yet.`**: no server is connected, or the connected servers have no placement yet. Connect a server and wait until its card shows **Ready** or **Streaming**.
 * **`Not applied (not a rigid transform): …`**: the client refused a pose that would stretch or mirror the scene, and nothing changed. The fields can’t produce such a pose, so this is a bug. Report it with the values you typed.
 * **The anchors are back at the origin after a reload**: anchor positions aren’t saved. Set them again after each reload.
 * **A server moved for you but not for anyone else**: this is how anchors work. To move a server for everyone, [place it in the scene](/docs/client/placement-editing).
@@ -2395,7 +2286,7 @@ CUDA smoke test OK
 `check_unit` ends with:
 
 ```text
-100% tests passed, 0 tests failed out of 32
+100% tests passed, 0 tests failed out of 34
 ```
 
 The CTest command without cameras or the RVM engine ends with:
@@ -2527,13 +2418,13 @@ a name from this table.
 
 | Target                   | CTest selection                              | Needs                                                          |
 | ------------------------ | -------------------------------------------- | -------------------------------------------------------------- |
-| `check_unit`             | label `unit` (32 tests)                      | A CUDA GPU                                                     |
+| `check_unit`             | label `unit` (34 tests)                      | A CUDA GPU                                                     |
 | `check_integration`      | label `integration` (11 tests)               | A CUDA GPU with NVENC                                          |
 | `check_cuda`             | label `cuda`                                 | A CUDA GPU with NVENC, and the RVM engines                     |
 | `check_smoke`            | label `smoke`                                | Cameras and the RVM engines                                    |
 | `check_hardware`         | label `hardware` (4 tests)                   | The cameras in `config/dev/live.yaml`, and a GPU with NVENC    |
 | `check_orbbec_live_sync` | the test `orbbec_live_sync_integration_test` | The cameras in `config/dev/live.yaml`, wired for hardware sync |
-| `check`                  | all 50 tests                                 | Everything above                                               |
+| `check`                  | all 52 tests                                 | Everything above                                               |
 
 Every `check_*` target builds all test programs before it runs CTest.
 
@@ -2575,6 +2466,21 @@ For a coverage report after `ctest --preset coverage`, with
 ```bash
 gcovr -r . --filter src/ build/dev-coverage --html-details build/dev-coverage/coverage.html
 ```
+
+### Protocol fuzzing [#protocol-fuzzing]
+
+`protocol_fuzz_tests` (label `fuzz`) feeds 20 000 mutated control frames and
+media record headers, seeded from the contract's vectors, through the
+server's parsers. Only a protocol error may come out; anything else fails
+the test. It also sends a 1 MiB frame nested about 500 000 levels deep. For
+a longer run, from `server/`, give the iterations and a seed:
+
+```bash
+./build/dev-debug/orbbec_streamer_protocol_fuzz_tests ../protocol 1000000 42
+```
+
+A failure prints the seed and iteration, so it can be replayed. Run it with
+the `dev-asan` build to catch memory errors too.
 
 ### Tests with special needs [#tests-with-special-needs]
 
@@ -5587,6 +5493,7 @@ directory. Look there first for camera errors.
 | `neglecting missing camera: config_id=... serial='...'`                                                                                            | The server did not find a configured camera within `run.camera_wait_timeout_ms`. Check the USB connection, and check the serial with `--orbbec-test`. The server continues with the cameras it found, even for cameras with `required: true`.                                                                                                                                                                                                                                                                     |
 | `No configured cameras are active; live mode cannot continue`                                                                                      | The server found no configured camera. Do the same checks as above.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `orbbec-streamer failed: camera capture stopped: [<id>: Orbbec capture error: ...]` while running                                                  | A camera failed or was unplugged. The server stops instead of running with some cameras missing. Check the camera's USB and power, then restart.                                                                                                                                                                                                                                                                                                                                                                  |
+| `orbbec-streamer failed: camera capture stopped: [<id>: no frame set for N ms]`                                                                    | That camera delivered nothing for more than 5 s without reporting an error, for example after a firmware hang or a USB fault. The server stops instead of waiting for it forever. Check the camera's USB and power, then restart; if it keeps happening, power-cycle the camera.                                                                                                                                                                                                                                  |
 | `frame batcher dropped N frame set(s) without a match from every camera`                                                                           | About one drop per camera every 20–30 s is normal. Each Femto Bolt's colour sensor runs about 0.25 % slower than its depth sensor, so every few hundred frames the camera has no colour frame for one depth frame. The SDK drops that depth frame, and the other cameras' frame sets for that moment have no partner. Drops more often than that, or in bursts, mean the cameras deliver out of sync: check the sync cable and roles. Raise `sync.timestamp_tolerance_us` only if you expect the time difference. |
 | `orbbec-streamer failed: processing (bilateral filter at depth WxH): Resolved bilateral radius exceeds maximum_radius_pixels` at start-up          | Lower `processing.bilateral_radius_ratio` or raise `bilateral_maximum_radius_pixels`.                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `Orbbec global timestamps are required ... not supported by camera`                                                                                | The camera firmware does not support global timestamps. Update the camera firmware.                                                                                                                                                                                                                                                                                                                                                                                                                               |

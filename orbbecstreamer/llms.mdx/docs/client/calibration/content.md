@@ -8,74 +8,52 @@
 
 The server sends depth as a video in which each pixel is one of 1024 codes, and the client turns each code back into a distance. A depth-quantization calibration measures the depths your cameras see and produces a new code-to-distance mapping, called a **result**. The result comes into force only when you commit it, and then every client uses it.
 
-The setup view has three calibration sections. Only depth quantization works in the client today:
-
-| Section                                   | What you can do                                                            |
-| ----------------------------------------- | -------------------------------------------------------------------------- |
-| [Camera pose](#camera-pose)               | Read its state. Camera-pose calibration isn’t available in the client yet. |
-| [Depth quantization](#depth-quantization) | Start, watch, cancel and commit a run.                                     |
-| [Network](#network)                       | Read its state. Network calibration isn’t available yet.                   |
-
-Each section starts with its state line, for example `state: valid, revision 3`. It gives the state (`missing`, `valid`, `stale`, `running` or `failed`), the revision in force, and the server’s message if any. The line is highlighted when the state is `failed`, or when camera pose or depth quantization isn’t `valid` and isn’t `running`.
+Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today.
 
 ## Depth quantization [#depth-quantization]
 
-Open the setup view for the server first: select **Set up** on its card. See [Set up a server](/docs/client/setup-workspace). The session line must read `active: this client holds the setup lock`.
+Open the setup view first: select **Set up** on the card. The session chip must read **Active**.
 
-1. Select **Start depth quantization**. The line under the buttons reads `Start: accepted; the run is starting`, and the state becomes `running`.
-2. Watch the progress. It shows only on the client that holds the lock:
+1. Select **Start**. The state chip turns **running**.
 
-   * **elapsed**: the time since the run started, for example `1.0 s`
-   * **valid samples**: the number of depth readings measured, for example `4 000`
-   * **observed range**: the nearest and farthest depth seen, for example `500 to 5000 mm`
-   * **reconstruction error**: how far distances rebuilt from the codes are off, for example `1.50 mm`
-   * **histogram**: how many pixels had each depth code. The chart covers the valid codes 2 to 1022. The line under it counts the three special codes: `invalid (0)`, `below minimum (1)` and `above maximum (1023)`.
+2. Watch the progress, shown only on the client that holds the lock:
 
-   Switch the **scale** between `log`, the default, which keeps small counts visible, and `linear`. A number the server didn’t send reads `not reported`.
-3. Wait for the result. The section then shows `Result ready: revision 4, not in force until committed.` The state line still shows the old revision.
-4. Select **Commit depth quantization**. The line reads `Commit: accepted; the new revision comes into force with the server update`.
+   * **elapsed**, **valid samples**, **observed range** and **reconstruction error** (how far distances rebuilt from the codes are off)
+   * **Depth codes**: how many pixels had each code from 2 to 1022. **Log**, the default, keeps small counts visible; **Linear** compares the peaks. The chips under it count the special codes: invalid (`0`), below minimum (`<min`) and above maximum (`>max`).
 
-To stop a run, select **Cancel depth quantization**. The line reads `Cancel: accepted; the run is cancelled and nothing is committed`, and the revision in force doesn’t change.
+   <img alt="Depth quantization during a run: the running chip, Cancel available, the four numbers and the Depth codes histogram" src="__img0" />
 
-## What you should see [#what-you-should-see]
+3. Wait for `Result ready: revision 2, not in force until committed.` The state chip still shows the old revision.
 
-While the run goes on, the numbers and the histogram update with each progress message from the server.
+   <img alt="Depth quantization after a run: Commit highlighted, the Result ready box, elapsed (last run) 5.5 s, and the final histogram on the log scale" src="__img1" />
 
-<img alt="The Depth quantization section during a run: the state running, Cancel depth quantization available, and the elapsed time, valid samples, observed range, reconstruction error and depth-code histogram" src="__img0" />
+4. Select **Commit**. A moment later the chip shows the new revision, on every client.
 
-When the run ends, **Commit depth quantization** becomes available. The state line adds the server’s message after a colon, for example `valid, revision 1: result revision 2 awaits commit` from the mock server, and the elapsed time reads `(last run)`, for example `5.5 s (last run)`.
+To stop a run, select **Cancel**. Nothing is committed. The reasons an unavailable button shows as its tip:
 
-<img alt="The Depth quantization section after a run: the state line says result revision 2 awaits commit, the Result ready line says revision 2 is not in force until committed, and the final histogram with the log scale selected" src="__img1" />
-
-A moment after you commit, the state line reads `valid, revision 4`, followed by the server’s message if it sends one, and every client shows the new revision on its server card.
-
-When a button is unavailable, the reason is written under it:
-
-| Reason                                              | Meaning                                                                     |
-| --------------------------------------------------- | --------------------------------------------------------------------------- |
-| `the setup session is not active`                   | You don’t hold the lock: the setup view is acquiring, leaving or ended.     |
-| `the depth-quantization calibration is running`     | Start and Commit wait until the run ends.                                   |
-| `the depth-quantization calibration is not running` | There is nothing to cancel.                                                 |
-| `no accepted depth-quantization result to commit`   | Run the calibration first. A failed or cancelled run has nothing to commit. |
+| Reason                                              | Meaning                                          |
+| --------------------------------------------------- | ------------------------------------------------ |
+| `the setup session is not active`                   | You don’t hold the lock                          |
+| `the depth-quantization calibration is running`     | **Start** and **Commit** wait until the run ends |
+| `the depth-quantization calibration is not running` | Nothing to cancel                                |
+| `no accepted depth-quantization result to commit`   | Run the calibration first                        |
 
 ## Camera pose [#camera-pose]
 
-The Camera pose section shows its state line and a red `TODO`, nothing else. Camera-pose calibration isn’t available in the client yet. The server can run it from its own console; see [Camera calibration](/docs/server/camera-calibration).
+The section shows its state chip and a red `TODO`. Camera-pose calibration isn’t in the client yet; the server can run it from its own console. See [Camera calibration](/docs/server/camera-calibration).
 
 ## Network [#network]
 
-The Network section shows its state line and a note that network calibration isn’t available yet. There is nothing to run.
+The section shows its state chip and **Not available yet**.
 
 ## Fix calibration problems [#fix-calibration-problems]
 
-These are the common calibration problems and their fixes:
-
-* **The result never came into force**: a result needs **Commit**. If you left setup or lost the lock first, the client threw the result away. After **Leave setup**, the setup view closes with no message on screen, and the card’s calibration row still shows the old revision. After a forced exit, the box in the setup view says `The client discarded the uncommitted depth quantization result.` Run the calibration again and commit it.
-* **You were forced out in the middle of a run**: the client committed nothing. When you’re back in setup, check the state line: if it still shows `running`, the run went on without you. See [Set up a server](/docs/client/setup-workspace).
+* **The result never came into force**: a result needs **Commit**. If you left setup or lost the lock first, the client threw the result away. After **Leave**, the setup view closes with no message, and the card’s **Depth** chip keeps the old revision. After a forced exit, the box in the setup view says `The client discarded the uncommitted depth quantization result.` Run the calibration again and commit it.
+* **You were forced out in the middle of a run**: the client committed nothing. When you’re back in setup, check the state chip: if it still shows **running**, the run went on without you. See [Set up a server](/docs/client/setup-workspace).
 * **`Start rejected (<code>): <message>`**, or the same for Cancel or Commit: the server refused the request. The code and message come from the server.
-* **`Commit failed (timeout): …`**: the server didn’t answer in time. The state line tells you whether the new revision is in force. If it isn’t, and the result still shows, select **Commit depth quantization** again.
+* **`Commit failed (timeout): …`**: the server didn’t answer in time. The state chip tells you whether the new revision is in force. If it isn’t, and the result still shows, select **Commit** again.
 * **The state shows `failed`**: the run failed, and there is nothing to commit. Start a new run.
 * **`The last run produced no result to commit: <message>. Revision 3 stays in force.`**: the run was cancelled or failed. Start a new run.
 * **`histogram: not reported by the server`**: the server sent no histogram. The numbers above it still apply.
 * **`histogram: depth histogram has N bins, expected 1024`**: the server sent a histogram of the wrong size, so the client doesn’t draw it.
-* **Commit accepted, but the state line still shows the old revision**: the new revision comes into force with the server’s next update. If it doesn’t follow, check the card for `resynchronising` or a lost connection.
+* **Commit accepted, but the state chip still shows the old revision**: the new revision comes into force with the server’s next update. If it doesn’t follow, check the card for a **resynchronising** chip or a lost connection.

@@ -6,58 +6,64 @@
 
 
 
-The client is one browser page: a 3D view on the left and a side panel on the right. This page shows where everything is and takes you from an empty page to a connected server. Read it first.
+
+
+
+
+The client is one browser page: a 3D view that fills the window and a side panel on the right. Read this page first.
 
 ## Open the client [#open-the-client]
 
-1. In the repository’s `client` folder, run `npm ci` once, then `npm run dev`. [Run the client](/docs/client/dev-build) has the details.
-2. Open [http://localhost:5173/](http://localhost:5173/) in your browser.
-
-The page opens with a dark, empty 3D view and no servers. On a window narrower than 720 pixels, the side panel moves below the 3D view.
+1. In the repository’s `client` folder, run `npm ci` once, then `npm run dev`. See [Run the client](/docs/client/dev-build).
+2. Open [http://localhost:5173/](http://localhost:5173/). The 3D view reads `No servers yet · Connect a server or open a recording`.
 
 ## Find your way around the main screen [#find-your-way-around-the-main-screen]
 
-The side panel scrolls on its own, and the 3D view stays in place. This is the screen with one server added:
+<img alt="The client with the mock server added. Callouts: 1 the 3D view, showing the render check’s synthetic test scene composited in for this picture and labelled as such; 2 the panel toggle; 3 the header with the WebGPU and WebCodecs chips and the theme button; 4 the View section; 5 the Connect field, Open recording and Add mock server; 6 the server card; 7 World anchors" src="__img0" />
 
-<img alt="The client with the mock server added. Callouts: 1 the 3D view on the left; in the side panel, 2 the header with the renderer and decoders lines, 3 the View section, 4 Add server, 5 Open recording, 6 Dev: mock server, 7 the server card, 8 World anchors" src="__img0" />
+The point cloud in this picture is the client’s synthetic test scene from the render check, pasted into the 3D view. It isn’t a live capture: no browser tested so far decodes the servers’ video, so the real 3D view stays empty today.
 
-| # | Area                 | What you do there                                                                              | Read more                                                             |
-| - | -------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 1 | 3D view              | See every server’s point cloud in one scene. Drag to orbit, right-drag to pan, scroll to zoom. | [Move around the 3D view](/docs/client/viewer)                        |
-| 2 | Header               | Read what your browser can do: the `renderer:` and `decoders:` lines.                          | [Check your browser](/docs/client/browser-requirements)               |
-| 3 | **View**             | Switch **Blend overlapping cameras** and open **Blend tuning**.                                | [What you can tweak](/docs/client/what-you-can-tweak#view-section)    |
-| 4 | **Add server**       | Connect to a capture server by its address.                                                    | [Add a server](/docs/client/add-a-server)                             |
-| 5 | **Open recording**   | Play a recorded colour and depth video pair.                                                   | [Play a recording](/docs/client/playback)                             |
-| 6 | **Dev: mock server** | Add a simulated server. Only the development server has this section.                          | [Add a server](/docs/client/add-a-server#add-the-mock-server-instead) |
-| 7 | **Servers**          | One card per server or recording: its status, setup lock, calibration, counts and buttons.     | [Read a server card](/docs/client/server-card)                        |
-| 8 | **World anchors**    | Move where your browser draws each anchor, in your view only.                                  | [Move an anchor in your view](/docs/client/world-anchors)             |
+| # | Area              | What you do there                                                                                                             | Read more                                                          |
+| - | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1 | 3D view           | Drag to orbit, right-drag to pan, scroll to zoom.                                                                             | [Move around the 3D view](/docs/client/viewer)                     |
+| 2 | Panel toggle      | **Hide panel** gives the 3D view the whole window; **Show panel** brings the panel back.                                      |                                                                    |
+| 3 | Header            | The **WebGPU** or **WebGL2** and **WebCodecs** chips say what your browser can do. The sun or moon button switches the theme. | [Check your browser](/docs/client/browser-requirements)            |
+| 4 | **View**          | The **Blend** switch and **Blend tuning**.                                                                                    | [What you can tweak](/docs/client/what-you-can-tweak#view-section) |
+| 5 | **Servers**       | Type an address and select **Connect**, open a recording, or select **Add mock server**.                                      | [Add a server](/docs/client/add-a-server)                          |
+| 6 | Server card       | One per server: status, calibration, lock and buttons.                                                                        | [Read a server card](/docs/client/server-card)                     |
+| 7 | **World anchors** | Move where your browser draws each anchor.                                                                                    | [Move an anchor in your view](/docs/client/world-anchors)          |
 
 ## Find your way around the setup view [#find-your-way-around-the-setup-view]
 
-Select **Set up** on a card to open the setup view for that server. It takes the server’s setup lock and replaces areas 4 to 8. The header, the **View** section and the 3D view stay.
+Select **Set up** on a card. The setup view takes the server’s setup lock and replaces **Servers** and **World anchors**.
 
-<img alt="The setup view for the Dev mock server. Callouts: 1 the status label and title, 2 the Leave setup (release lock) button, 3 the session and lock lines, 4 Camera pose, 5 Depth quantization, 6 Network, 7 Placement" src="__img1" />
+<img alt="The setup view for the Dev mock server, with the synthetic test scene in the 3D view. Callouts: 1 the SET UP title with the Leave button; 2 the Locked by you, Active and lock countdown chips; 3 Camera pose; 4 Depth quantization; 5 Network; 6 Placement" src="__img1" />
 
-| # | Area                           | What you do there                                                | Read more                                                            |
-| - | ------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------- |
-| 1 | Title                          | Check the status label: `locked-by-me` while you hold the lock.  | [Set up a server](/docs/client/setup-workspace)                      |
-| 2 | **Leave setup (release lock)** | Leave and release the lock. Nothing is committed on the way out. | [Set up a server](/docs/client/setup-workspace#leave-the-setup-view) |
-| 3 | **session** and **lock**       | Check that you hold the lock, and when it runs out.              | [Set up a server](/docs/client/setup-workspace)                      |
-| 4 | **Camera pose**                | Read its state. Camera-pose calibration isn’t in the client yet. | [Calibrate depth](/docs/client/calibration#camera-pose)              |
-| 5 | **Depth quantization**         | Start, watch, cancel and commit a depth calibration.             | [Calibrate depth](/docs/client/calibration)                          |
-| 6 | **Network**                    | Read its state. Network calibration isn’t available yet.         | [Calibrate depth](/docs/client/calibration#network)                  |
-| 7 | **Placement**                  | Move the server in the scene, then commit it for everyone.       | [Place a server in the scene](/docs/client/placement-editing)        |
+| # | Area                   | What you do there                                                   | Read more                                                     |
+| - | ---------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1 | Title and **Leave**    | Leave and release the lock. Nothing is committed.                   | [Set up a server](/docs/client/setup-workspace)               |
+| 2 | Chips                  | **Locked by you**, the session (**Active**) and the lock countdown. | [Set up a server](/docs/client/setup-workspace)               |
+| 3 | **Camera pose**        | Not in the client yet.                                              | [Calibrate depth](/docs/client/calibration#camera-pose)       |
+| 4 | **Depth quantization** | **Start**, **Cancel** and **Commit** a depth calibration.           | [Calibrate depth](/docs/client/calibration)                   |
+| 5 | **Network**            | Not available yet.                                                  | [Calibrate depth](/docs/client/calibration#network)           |
+| 6 | **Placement**          | **Edit**, move the server, then **Commit**.                         | [Place a server in the scene](/docs/client/placement-editing) |
 
 ## Go from a server to the 3D view [#go-from-a-server-to-the-3d-view]
 
-1. Add a server. In **Dev: mock server**, select **Add mock server**. For a real server, type its address in **Add server** and select **Connect to server**.
-2. Watch the new card. Its status goes from `connecting` to a live one, such as `streaming`.
-3. Check the card for an orange `Setup and control only` line. Without it, your browser can decode the video, and **decoded pairs** and **uploaded** go up.
-4. Click the 3D view, then orbit, pan and zoom to find the point cloud.
-5. If the card shows `needs-setup`, select **Set up**, then [calibrate depth](/docs/client/calibration) and [place the server](/docs/client/placement-editing).
+1. Select **Add mock server**, or type a server’s address and select **Connect**.
+2. Wait for the card’s status chip to turn **Ready** or **Streaming**.
+3. Check the card for a **Setup and control only** chip. Without it, your browser decodes the video, and **Pairs** goes up.
+4. Click the 3D view, then orbit, pan and zoom.
+5. If the card shows **Needs setup**, select **Set up**, then [calibrate depth](/docs/client/calibration) and [place the server](/docs/client/placement-editing).
 
-Today, the 3D view stays empty in the main client. No browser tested so far decodes HEVC video, so every card shows `Setup and control only`, and the capture server doesn’t accept browser connections yet. Cards, setup, calibration and placement all work against the mock server. See [Use the browser client](/docs/client#what-works-today).
+## Switch the theme, or use a small screen [#switch-the-theme-or-use-a-small-screen]
 
-## Change settings [#change-settings]
+The sun button in the header switches to the light theme; the moon button switches back. This browser remembers your choice. The 3D view stays dark in both themes.
 
-[What you can tweak](/docs/client/what-you-can-tweak) lists every control in the client, with its range, default and when to change it.
+<img alt="The client in the light theme: a light side panel next to the 3D view, which shows the synthetic test scene" src="__img2" />
+
+On a window narrower than 720 pixels, the 3D view takes the top 42 % of the screen and the panel scrolls below it:
+
+<img alt="The client at phone width: the 3D view with the synthetic test scene on top, and the panel below it with the header, View and Servers" src="__img3" />
+
+[What you can tweak](/docs/client/what-you-can-tweak) lists every control.

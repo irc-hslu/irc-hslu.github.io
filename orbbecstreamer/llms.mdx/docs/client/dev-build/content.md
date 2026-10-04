@@ -29,9 +29,9 @@ Leave the terminal open while you use the client. To stop the server, press **Ct
 
 ## What you should see [#what-you-should-see]
 
-The terminal shows `VITE v6.4.3  ready in 300 ms`, then `➜  Local:   http://localhost:5173/`. The version and time may differ. The browser shows a dark 3D view on the left and the side panel on the right:
+The terminal shows `VITE v6.4.3  ready in 300 ms`, then `➜  Local:   http://localhost:5173/`. The version and time may differ. The browser shows the empty 3D view, reading `No servers yet`, and the side panel on the right:
 
-<img alt="The client right after it opens: an empty dark 3D view on the left, and the side panel on the right with the header, the View section, the Add server and Open recording forms, the Dev: mock server section, an empty Servers list and an empty World anchors section" src="__img0" />
+<img alt="The client right after it opens: the empty 3D view reading No servers yet, Connect a server or open a recording, and the side panel with the header, View, Servers with the URL field, Open recording and Add mock server, and an empty World anchors" src="__img0" />
 
 [Tour of the client](/docs/client/tour) explains each part of the screen.
 
@@ -44,7 +44,7 @@ npm run build
 npm run preview
 ```
 
-`npm run build` checks the code and writes the files to `client/dist/`. `npm run preview` serves that folder at [http://localhost:4173/](http://localhost:4173/). The built copy has no **Dev: mock server** section.
+`npm run build` checks the code and writes the files to `client/dist/`. `npm run preview` serves that folder at [http://localhost:4173/](http://localhost:4173/). The built copy has no **Add mock server** button.
 
 ## Troubleshooting [#troubleshooting]
 
@@ -62,6 +62,6 @@ These are the problems people hit most when starting the client:
   ./node_modules/.bin/vite
   ```
 
-* **The panel says `renderer: rendering-incompatible`**: your browser can’t draw 3D. See [Check your browser](/docs/client/browser-requirements).
+* **The header shows a red No 3D view chip**: your browser can’t draw 3D. See [Check your browser](/docs/client/browser-requirements).
 
 * **Nothing works when you open the page from another computer**: the development server only answers on this computer (`localhost`). Browsers also turn off the features the client needs on plain `http://` pages that aren’t `localhost`. Open the client on the machine that runs it. The repository has no HTTPS setup for the development server yet.

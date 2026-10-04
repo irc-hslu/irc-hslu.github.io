@@ -112,7 +112,7 @@ CUDA smoke test OK
 `check_unit` ends with:
 
 ```text
-100% tests passed, 0 tests failed out of 32
+100% tests passed, 0 tests failed out of 34
 ```
 
 The CTest command without cameras or the RVM engine ends with:
@@ -244,13 +244,13 @@ a name from this table.
 
 | Target                   | CTest selection                              | Needs                                                          |
 | ------------------------ | -------------------------------------------- | -------------------------------------------------------------- |
-| `check_unit`             | label `unit` (32 tests)                      | A CUDA GPU                                                     |
+| `check_unit`             | label `unit` (34 tests)                      | A CUDA GPU                                                     |
 | `check_integration`      | label `integration` (11 tests)               | A CUDA GPU with NVENC                                          |
 | `check_cuda`             | label `cuda`                                 | A CUDA GPU with NVENC, and the RVM engines                     |
 | `check_smoke`            | label `smoke`                                | Cameras and the RVM engines                                    |
 | `check_hardware`         | label `hardware` (4 tests)                   | The cameras in `config/dev/live.yaml`, and a GPU with NVENC    |
 | `check_orbbec_live_sync` | the test `orbbec_live_sync_integration_test` | The cameras in `config/dev/live.yaml`, wired for hardware sync |
-| `check`                  | all 50 tests                                 | Everything above                                               |
+| `check`                  | all 52 tests                                 | Everything above                                               |
 
 Every `check_*` target builds all test programs before it runs CTest.
 
@@ -292,6 +292,21 @@ For a coverage report after `ctest --preset coverage`, with
 ```bash
 gcovr -r . --filter src/ build/dev-coverage --html-details build/dev-coverage/coverage.html
 ```
+
+### Protocol fuzzing [#protocol-fuzzing]
+
+`protocol_fuzz_tests` (label `fuzz`) feeds 20 000 mutated control frames and
+media record headers, seeded from the contract's vectors, through the
+server's parsers. Only a protocol error may come out; anything else fails
+the test. It also sends a 1 MiB frame nested about 500 000 levels deep. For
+a longer run, from `server/`, give the iterations and a seed:
+
+```bash
+./build/dev-debug/orbbec_streamer_protocol_fuzz_tests ../protocol 1000000 42
+```
+
+A failure prints the seed and iteration, so it can be replayed. Run it with
+the `dev-asan` build to catch memory errors too.
 
 ### Tests with special needs [#tests-with-special-needs]
 

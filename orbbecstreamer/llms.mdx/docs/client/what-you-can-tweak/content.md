@@ -8,111 +8,109 @@
 
 
 
-This page lists every control you can change in the client. Each table covers one area of the screen; [Tour of the client](/docs/client/tour) shows where the areas are. Unless a row says otherwise, a change applies at once and stays in this browser tab only: nothing here is saved across a reload.
 
-When a button is unavailable, the client writes the reason under it. Those reasons are listed on the page for each area.
+
+
+
+Every control in the client, one table per area; [Tour of the client](/docs/client/tour) shows where the areas are. Unless a row says otherwise, a change applies at once and lasts until you reload the page.
+
+An unavailable button stays visible. Hover over it, or focus it with the keyboard, to see why:
+
+<img alt="A tip over the server card’s release-lock button: Release lock, This client does not hold the lock" src="__img0" />
+
+## Window and theme [#window-and-theme]
+
+| Control                                                                  | What it changes                                                                               | Default | When to change it             |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ------- | ----------------------------- |
+| Panel toggle, top right of the 3D view (**Hide panel** / **Show panel**) | Hides the side panel, so the 3D view fills the window                                         | Shown   | To look at the scene alone    |
+| Sun or moon button in the header (**Light theme** / **Dark theme**)      | The panel’s theme. This browser remembers it. The 3D view stays dark.                         | Dark    | In a bright room              |
+| **i** next to the header chips                                           | Shows the renderer notes, for example why WebGL2 was picked. Only shown when there are notes. |         | When the chip says **WebGL2** |
 
 ## View section [#view-section]
 
-The **View** section, under the header, sets how the 3D view draws overlapping cameras. Blending needs WebGPU. With WebGL2, the checkbox is unavailable, **Blend tuning** isn’t shown, and the line under the checkbox reads `Blending needs WebGPU; with WebGL2 the nearest point is drawn.`
+<img alt="The View section: the Blend switch on, the status line Blending overlapping cameras., and Blend tuning open with its eight fields at their defaults and Reset tuning" src="__img1" />
 
-<img alt="The View section with Blend overlapping cameras ticked, the status line Blending overlapping cameras., and Blend tuning open with its eight fields at their defaults and the Reset tuning button" src="__img0" />
-
-| Control                       | What it changes                                                                                      | Range and default | When to change it                                                    |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------- |
-| **Blend overlapping cameras** | Where cameras overlap: on, their colours mix smoothly; off, the dot nearest to you wins.             | On by default     | Turn it off when the view is slow: blending draws every point twice. |
-| **Reset tuning**              | Sets the eight tuning fields back to their defaults. It doesn’t touch **Blend overlapping cameras**. |                   | After experimenting.                                                 |
+| Control          | What it changes                                                                                                                                       | Default | When to change it                                                    |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
+| **Blend**        | On: where cameras overlap, their colours mix smoothly. Off: the dot nearest to you wins. Needs WebGPU; with WebGL2 the switch is off and unavailable. | On      | Turn it off when the view is slow: blending draws every point twice. |
+| **Reset tuning** | Sets the eight fields below back to their defaults. **Blend** stays as it is.                                                                         |         | After experimenting                                                  |
 
 ### Blend tuning [#blend-tuning]
 
-Open **Blend tuning** to see eight fields. Type a value, then press **Enter** or leave the field. A value outside the range is set to the nearest allowed value; text that isn’t a number is replaced by the value in force. The fields are unavailable while blending is off.
+Open **Blend tuning** for eight fields; hover over a field for its one-line hint. Type a value, then press **Enter** or leave the field. A value out of range is set to the nearest allowed one. The fields are unavailable while **Blend** is off.
 
-| Field                         | What it changes                                                                                                                                | Range          | Default | When to change it                                                                                                    |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------- | -------------------------------------------------------------------------------------------------------------------- |
-| **View-angle sharpness**      | How strongly the camera whose view is closest to yours wins. At 0, the viewing direction doesn’t matter.                                       | 0 to 64        | 4       | Raise it when overlaps look smeared or doubled.                                                                      |
-| **Depth tolerance (m)**       | Surfaces closer together in depth than this blend instead of hiding each other.                                                                | 0 or more      | 0.01    | Lower it when a surface shows through one in front of it. Raise it when the overlap stays speckled with blending on. |
-| **Depth tolerance per metre** | Extra tolerance per metre of distance from you, because depth gets noisier with distance.                                                      | 0 or more      | 0.01    | Raise it for scenes far from the cameras.                                                                            |
-| **Edge fade width (px)**      | Over how many depth pixels a camera fades out towards the edges of what it sees, such as a silhouette or the image border. Whole numbers only. | 1 to 16        | 8       | Raise it when seams show along object edges.                                                                         |
-| **Edge step (per m)**         | How big a depth jump between neighbouring pixels counts as an edge, times the distance: 2.5 cm at 1 m by default.                              | 0.0001 or more | 0.025   | Raise it when sloped surfaces fade as if they were edges.                                                            |
-| **Full-weight distance (m)**  | Points up to this distance from their camera count fully. Farther points count less, with the square of the distance.                          | 0.001 or more  | 1       | Raise it when your cameras sit farther than 1 m from the subject.                                                    |
-| **Grazing-angle floor**       | The lowest weight of a surface seen at a grazing angle.                                                                                        | 0 to 1         | 0.1     | Raise it when surfaces seen edge-on drop out of the blend.                                                           |
-| **Splat falloff**             | How much less each dot counts towards its rim. At 0, the whole dot counts the same.                                                            | 0 to 64        | 2       | Raise it for smoother mixing between neighbouring dots.                                                              |
+| Field                         | What raising it does                                                                         | Range          | Default | When to change it                                                                        |
+| ----------------------------- | -------------------------------------------------------------------------------------------- | -------------- | ------- | ---------------------------------------------------------------------------------------- |
+| **View-angle sharpness**      | Favours the camera whose view is closest to yours. At 0, the view angle doesn’t matter.      | 0 to 64        | 4       | Overlaps look smeared or doubled                                                         |
+| **Depth tolerance (m)**       | Blends surfaces farther apart in depth instead of hiding one                                 | 0 or more      | 0.01    | Lower it when a surface shows through one in front; raise it when overlaps stay speckled |
+| **Depth tolerance per metre** | Adds tolerance per metre of distance from you                                                | 0 or more      | 0.01    | Scenes far from the cameras                                                              |
+| **Edge fade width (px)**      | Fades a camera out over more depth pixels at the edges of what it sees. Whole numbers.       | 1 to 16        | 8       | Seams along object edges                                                                 |
+| **Edge step (per m)**         | Needs a bigger depth jump, times the distance, to count as an edge: 2.5 cm at 1 m by default | 0.0001 or more | 0.025   | Sloped surfaces fade as if they were edges                                               |
+| **Full-weight distance (m)**  | Points up to this distance from their camera count fully; farther ones count less            | 0.001 or more  | 1       | Cameras sit farther than 1 m from the subject                                            |
+| **Grazing-angle floor**       | Raises the lowest weight of surfaces seen edge-on                                            | 0 to 1         | 0.1     | Edge-on surfaces drop out of the blend                                                   |
+| **Splat falloff**             | Makes each dot count less towards its rim                                                    | 0 to 64        | 2       | Mixing between neighbouring dots looks rough                                             |
 
-[Move around the 3D view](/docs/client/viewer#blend-overlapping-cameras) shows the effect of blending.
+## Servers section [#servers-section]
 
-## Connection forms [#connection-forms]
+<img alt="The top of the Servers section: the URL field with Connect, the folded Open recording, and Add mock server" src="__img2" />
 
-These forms add servers and recordings. Each adds a card under **Servers**.
-
-| Control                                                                               | What it does                                             | Values                                                                                               | When to use it                                                           |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| **WebTransport URL** and **Connect to server**                                        | Connects to a capture server.                            | A URL that starts with `https://` and has no `#`, for example `https://capture-01.local:4433/orbbec` | For a real server. See [Add a server](/docs/client/add-a-server).        |
-| **Colour .hevc**, **Depth .hevc (Main10)**, **Manifest .json** and **Play recording** | Plays a recording.                                       | Raw HEVC files and a manifest. See [File requirements](/docs/client/playback#file-requirements).     | To test without a server. See [Play a recording](/docs/client/playback). |
-| **Add mock server**                                                                   | Adds a simulated server. Only in the development server. |                                                                                                      | To try cards and setup without hardware.                                 |
+| Control                                                                                                         | What it does                                                                 | When to use it                                                           |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| URL field and **Connect**                                                                                       | Connects to a capture server. The URL starts with `https://` and has no `#`. | For a real server. See [Add a server](/docs/client/add-a-server).        |
+| **Open recording** (folded): **Colour .hevc**, **Depth .hevc (Main10)**, **Manifest .json**, **Play recording** | Plays a recording                                                            | To test without a server. See [Play a recording](/docs/client/playback). |
+| **Add mock server**                                                                                             | Adds a simulated server. Development server only.                            | To try the client without hardware                                       |
 
 ## Server card [#server-card]
 
-Each card holds one checkbox and up to seven buttons. [Read a server card](/docs/client/server-card#what-each-button-does) lists when each button is unavailable.
+<img alt="A server card with Details open: Lock, Calibration, Layout, Counts, Network, and Shared with the Receive updates switch" src="__img3" />
 
-<img alt="A server card for the Dev mock server, with the Receive shared updates checkbox ticked and the Set up, Acquire lock, Release lock, Refresh, Reconnect and Remove buttons" src="__img1" />
-
-| Control                                                     | What it does                                                                                                                                                                   | Default | When to use it                                                             |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------- |
-| **Receive shared updates (calibration results, placement)** | On: the server sends this client every calibration result and placement change. Off: the card shows `Metadata is stale: a shared update was withheld.` when something changed. | On      | Turn it off if you don’t need other clients’ setup results as they happen. |
-| **Refresh stale metadata**                                  | Fetches the server’s full state. Shown only while the stale line is shown.                                                                                                     |         | When the stale line appears.                                               |
-| **Set up**                                                  | Opens the setup view and takes the setup lock.                                                                                                                                 |         | To calibrate or place the server.                                          |
-| **Acquire lock**                                            | Takes the setup lock without opening the setup view.                                                                                                                           |         | To keep others from changing the server.                                   |
-| **Release lock**                                            | Gives the lock back.                                                                                                                                                           |         | When you’re done holding it.                                               |
-| **Refresh**                                                 | Fetches the server’s full state.                                                                                                                                               |         | When the card looks out of date.                                           |
-| **Reconnect**                                               | Connects again at once, instead of waiting for the automatic retry.                                                                                                            |         | When the card shows `reconnect scheduled`.                                 |
-| **Remove**                                                  | Disconnects and removes the card and its point clouds.                                                                                                                         |         | To stop using a server, or to replay a recording.                          |
+| Control                                | What it does                                                                               | When to use it                                    |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| **Set up**                             | Opens the setup view and takes the setup lock. Unavailable for a recording.                | To calibrate or place the server                  |
+| Lock icon (**Acquire lock**)           | Takes the setup lock without opening setup                                                 | To keep others from changing the server           |
+| Open-lock icon (**Release lock**)      | Gives the lock back                                                                        | When you’re done holding it                       |
+| Circular arrow (**Refresh**)           | Fetches the server’s full state                                                            | The card looks out of date                        |
+| Plug (**Reconnect**)                   | Connects again at once                                                                     | The card waits for an automatic retry             |
+| Bin (**Remove**)                       | Disconnects and removes the card                                                           | To stop using a server, or to replay a recording  |
+| **Refresh** in the stale-metadata box  | Fetches the server’s full state. Shown only with `Metadata is stale`.                      | When the box appears                              |
+| **Details**                            | Folds the card’s full status out                                                           | To read lock, calibration and bundle details      |
+| **Receive updates**, under **Details** | On: the server sends other clients’ calibration results and placement changes. Default on. | Turn it off if you don’t need them as they happen |
 
 ## Setup view [#setup-view]
 
-The setup view holds the setup lock while it’s open. [Set up a server](/docs/client/setup-workspace) and [Calibrate depth](/docs/client/calibration) explain each control.
-
-| Control                          | What it does                                                                                    | When to use it                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **Leave setup (release lock)**   | Cancels a running calibration, releases the lock and closes the setup view. It commits nothing. | When you’re done. Commit first what you want to keep.                          |
-| **Enter setup again**            | Asks for the lock again after the session ended.                                                | After you were forced out.                                                     |
-| **Back to servers**              | Closes the setup view after the session ended.                                                  | After the session ended.                                                       |
-| **Start depth quantization**     | Starts a depth calibration run on the server.                                                   | To measure a new depth mapping.                                                |
-| **Cancel depth quantization**    | Stops the run. Nothing is committed.                                                            | When the scene isn’t ready.                                                    |
-| **Commit depth quantization**    | Puts the result in force for every client.                                                      | After `Result ready`. A result you don’t commit is thrown away when you leave. |
-| **scale**: **log** or **linear** | The histogram’s vertical scale. Default **log**, which keeps small counts visible.              | Choose **linear** to compare the big peaks.                                    |
-
-The **Camera pose** and **Network** sections have no controls yet.
+| Control                                                | What it does                                                                     | When to use it                                        |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Leave**                                              | Cancels a running calibration, releases the lock, closes setup. Commits nothing. | When you’re done. Commit first what you want to keep. |
+| **Enter setup**, **Back**                              | Ask for the lock again, or close setup, after the session ended                  | After you were forced out                             |
+| **Start**, **Cancel**, **Commit** (Depth quantization) | Run, stop, or put a depth calibration in force                                   | See [Calibrate depth](/docs/client/calibration)       |
+| **Log** / **Linear** (Depth codes)                     | The histogram’s scale. Default **Log**.                                          | **Linear** to compare the big peaks                   |
 
 ## Placement [#placement]
 
-The **Placement** section is at the bottom of the setup view. It edits a draft that only your 3D view shows until you commit it. See [Place a server in the scene](/docs/client/placement-editing).
+<img alt="The Placement section with a draft: Draft and Changed chips, the draft pose fields, Move in 3D on with Translate selected, and Commit and Discard" src="__img4" />
 
-<img alt="The Placement section with a draft: the server placement at revision 1, the draft changed to x 0.500, z 1.000 and yaw 30.0, Move in 3D ticked with translate selected, and the Commit placement and Discard draft buttons" src="__img2" />
-
-| Control                                                | What it changes                                                                                                              | Range and default                                                                       | When to change it                     |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------- |
-| **Edit placement**                                     | Starts a draft equal to the server’s placement.                                                                              |                                                                                         | To move the server.                   |
-| **x (m)**, **y (m)**, **z (m)**                        | The server’s position relative to its anchor. +X is right, +Y up, +Z forward.                                                | −1000 to 1000 m. Shown to 1 mm.                                                         | To set an exact position.             |
-| **yaw (°)**, **pitch (°)**, **roll (°)**               | The server’s rotation, applied roll first, then pitch, then yaw.                                                             | −360 to 360° typed. Shown to 0.1°, with pitch −90 to 90° and yaw and roll −180 to 180°. | To set an exact rotation.             |
-| **−** and **+**, or **Arrow Down** and **Arrow Up**    | Step a field by 0.01 m or 1°. With **Shift**, the arrow keys step ten times that.                                            |                                                                                         | To nudge a value.                     |
-| **Move in 3D (drag the handle on the server’s cloud)** | Shows a handle in the 3D view that moves the draft as you drag it.                                                           | Off                                                                                     | To place the server by eye.           |
-| **handle**: **translate** or **rotate**                | Arrows that move along an axis, or rings that turn about one.                                                                | **translate**                                                                           | Choose **rotate** to turn the server. |
-| **Commit placement (expected revision N)**             | Sends the draft. Every client then draws the server there.                                                                   |                                                                                         | When the draft is right.              |
-| **Discard draft**                                      | Drops the draft. Nothing is sent.                                                                                            |                                                                                         | To start over.                        |
-| **Rebase on server placement (revision M)**            | Keeps your draft’s pose, but bases it on a newer server placement. Shown only when someone else committed after you started. |                                                                                         | Before you commit a stale draft.      |
+| Control                                         | What it changes                                                                           | Range and default                                 | When to change it               |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------- |
+| **Edit**                                        | Starts a draft equal to the server’s placement                                            |                                                   | To move the server              |
+| **x (m)**, **y (m)**, **z (m)**                 | Position relative to the anchor. +X right, +Y up, +Z forward.                             | −1000 to 1000 m, shown to 1 mm                    | Exact position                  |
+| **yaw (°)**, **pitch (°)**, **roll (°)**        | Rotation, roll first, then pitch, then yaw                                                | −360 to 360°, shown to 0.1° with pitch −90 to 90° | Exact rotation                  |
+| **−** / **+**, or **Arrow Down** / **Arrow Up** | Steps a field by 0.01 m or 1°; **Shift** with the arrow keys steps ten times that         |                                                   | Nudging                         |
+| **Move in 3D**                                  | Shows a handle in the 3D view; dragging it moves the draft                                | Off                                               | Placing by eye                  |
+| **Translate** / **Rotate**                      | Handle arrows that move, or rings that turn                                               | **Translate**                                     | **Rotate** to turn the server   |
+| **Commit**                                      | Sends the draft; every client then draws the server there                                 |                                                   | The draft is right              |
+| **Rebase**                                      | Keeps your pose on a newer server placement. Shown when someone else committed meanwhile. |                                                   | Before committing a stale draft |
+| **Discard**                                     | Drops the draft                                                                           |                                                   | To start over                   |
 
 ## World anchors [#world-anchors]
 
-The **World anchors** section, under the server cards, moves where this browser draws an anchor, and every server placed relative to it. It needs no lock and never reaches a server. See [Move an anchor in your view](/docs/client/world-anchors).
-
-| Control                                                                   | What it changes                                                         | Range and default                                       | When to change it                    |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------ |
-| **x (m)**, **y (m)**, **z (m)**, **yaw (°)**, **pitch (°)**, **roll (°)** | The anchor’s pose in your 3D view. They work like the placement fields. | Same as placement. Default: the scene origin, all zero. | To line servers up in your own view. |
-| **Reset to identity**                                                     | Puts the anchor back at the scene origin.                               |                                                         | To undo your changes.                |
+| Control                             | What it changes                                                                                        | Default              | When to change it                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------- | ----------------------------------- |
+| **x (m)** … **roll (°)** per anchor | Where this browser draws the anchor and its servers. Never sent to a server. Same fields as placement. | At the origin, all 0 | To line servers up in your own view |
+| **Reset**                           | Puts the anchor back at the origin                                                                     |                      | To undo your changes                |
 
 ## 3D view [#3d-view]
 
-The 3D view has camera controls but no settings. [Move around the 3D view](/docs/client/viewer#move-the-camera) lists them:
+No settings; [Move around the 3D view](/docs/client/viewer#move-the-camera) lists the camera controls:
 
 * **Orbit**: drag with the left button, or the arrow keys
 * **Pan**: drag with the right button, or **Ctrl** with the arrow keys
@@ -120,9 +118,8 @@ The 3D view has camera controls but no settings. [Move around the 3D view](/docs
 
 ## What you can’t change in the client [#what-you-cant-change-in-the-client]
 
-These have fixed values, or are set elsewhere:
-
-* **Point size and shape**: square dots 2 device pixels wide. The renderer supports other sizes, round dots and a debug view as developer options. See [Developer options](/docs/client/developer/developer-options#point-settings).
-* **Playback speed, looping and seeking**: a recording plays at its manifest’s `frameRate`, and loops when `loop` is `true`. To play it again, select **Remove** on its card and open it again. See [Manifest fields](/docs/client/playback#manifest-fields).
-* **Reconnect delays and timeouts**: developer options without a control. See [Developer options](/docs/client/developer/developer-options#connection-timing).
+* **Point size and shape**: square dots 2 device pixels wide. Other sizes, round dots and a debug view are [developer options](/docs/client/developer/developer-options#point-settings).
+* **Playback speed, looping and seeking**: set by the recording’s manifest. See [Manifest fields](/docs/client/playback#manifest-fields).
+* **Reconnect delays and timeouts**: [developer options](/docs/client/developer/developer-options#connection-timing).
+* **Background pause**: streams pause after the tab is hidden for 10 s. See [When the tab is in the background](/docs/client/viewer#when-the-tab-is-in-the-background).
 * **Colour-only, depth-only and mask views**: not planned yet

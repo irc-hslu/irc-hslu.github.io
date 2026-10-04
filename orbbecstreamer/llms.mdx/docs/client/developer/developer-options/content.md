@@ -23,14 +23,15 @@ The blend settings are in the same object; the app exposes them in its **View** 
 
 `PointCloudRendererOptions`, fixed when the renderer is created:
 
-| Option                  | Default     | Meaning                                                                                       |
-| ----------------------- | ----------- | --------------------------------------------------------------------------------------------- |
-| `engine`                | `auto`      | `auto` picks WebGPU when an adapter exists, else WebGL2. `webgpu` or `webgl2` forces one.     |
-| `renderMode`            | `on-demand` | `on-demand` draws only when something changed. `continuous` draws every animation frame.      |
-| `computePoints`         | `true`      | The WebGPU compute path, which blending needs. `false` keeps plain dots. Ignored with WebGL2. |
-| `antialias`             | `false`     | Multisample antialiasing                                                                      |
-| `desynchronized`        | `true`      | Low-latency WebGL2 canvas, which may tear                                                     |
-| `preserveDrawingBuffer` | `false`     | Keeps the drawing buffer for canvas readback, for dev pages and screenshots                   |
+| Option                  | Default     | Meaning                                                                                                                                                                                                                                                                                                          |
+| ----------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine`                | `auto`      | `auto` picks WebGPU when an adapter exists, else WebGL2. `webgpu` or `webgl2` forces one.                                                                                                                                                                                                                        |
+| `renderMode`            | `on-demand` | `on-demand` draws only when something changed. `continuous` draws every animation frame.                                                                                                                                                                                                                         |
+| `parkWhenIdle`          | `true`      | With `on-demand`, the render loop stops after one animation frame without a draw and restarts on the next change or camera input. An idle view then costs no animation frames and no GPU submissions. Never stops in WebXR or with `continuous`. A host that moves the camera from code calls `requestRender()`. |
+| `computePoints`         | `true`      | The WebGPU compute path, which blending needs. `false` keeps plain dots. Ignored with WebGL2.                                                                                                                                                                                                                    |
+| `antialias`             | `false`     | Multisample antialiasing                                                                                                                                                                                                                                                                                         |
+| `desynchronized`        | `true`      | Low-latency WebGL2 canvas, which may tear                                                                                                                                                                                                                                                                        |
+| `preserveDrawingBuffer` | `false`     | Keeps the drawing buffer for canvas readback, for dev pages and screenshots                                                                                                                                                                                                                                      |
 
 ## Connection timing [#connection-timing]
 
@@ -62,7 +63,7 @@ A session that ends sooner than `stableSessionUs` after its hello counts as anot
 | `requestTimeoutUs`          | 10 s    | A request answered by `server.ack` or `server.error`. The card shows `failed (timeout)`.                                                                                    |
 | `snapshotRequestTimeoutUs`  | 10 s    | A `client.snapshot.request`                                                                                                                                                 |
 | `mediaHeaderDeadlineUs`     | 5 s     | How long media stream headers may stay incomplete before the session closes                                                                                                 |
-| `mediaHeaderPollUs`         | 0.25 s  | How often that condition is checked                                                                                                                                         |
+| `mediaHeaderPollUs`         | 0.25 s  | How often that condition is checked. The check runs only while a header is pending or a channel is held, so an idle session sets no timer for it.                           |
 | `sessionCloseGraceUs`       | 0.25 s  | After a fatal transport error, how long to wait for the session’s own close                                                                                                 |
 | `ownPlacementResultGraceUs` | 5 s     | After an accepted placement commit, how long a placement update counts as this client’s own result (interim, see [Contract gaps](/docs/client/developer/interim-behaviour)) |
 
