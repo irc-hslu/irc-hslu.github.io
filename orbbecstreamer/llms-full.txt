@@ -3862,6 +3862,31 @@ The batcher turns per-camera frame sets into batches:
    is dropped; the batcher tries again with the next one.
 4. Frame sets that repeat or go back in number are dropped.
 
+### Offset tracking [#offset-tracking]
+
+With hardware sync, the cameras expose within about 0.2 ms of each other,
+but their timestamps can disagree by more. The SDK maps each camera's clock
+to host time with its own straight-line fit and refits it every few seconds.
+Between refits one camera's timestamps can drift away from the others':
+measured on two Femto Bolts, by up to 0.3 ms per frame in the first seconds
+of a run and about 0.26 ms per second later, reset at each refit. Once that
+error passes the tolerance, every frame set of every camera fails to match
+until the next refit. One such 4-second gap cost 246 frame sets at 30 fps.
+
+So when every camera is a hardware-sync primary or secondary, the batcher
+tracks each camera's offset to the first camera. It learns the offset from
+the batches it forms (an average over about 8 batches) and compares
+timestamps after subtracting it. A slow drift is followed and costs no
+batches. The learned offset is limited to half the frame interval minus the
+tolerance (11.7 ms at 30 fps, 28.3 ms at 15 fps with 5000 µs), so the batcher
+never pairs a frame set with the camera's previous or next frame. A camera
+that misses a slot is still a whole frame interval off, and that frame set
+is dropped as before. Batches keep the cameras' own timestamps and spread.
+Free-running cameras (`sync.enabled: false`) are not tracked.
+
+The session summary shows the largest spread and tracked offset:
+`frame batcher: ... max skew 5.18 ms, max tracked camera offset 2.24 ms`.
+
 So a batch always has one frame set from **every** active camera, in config
 order. There are no partial batches: if one camera delivers nothing, no
 batches are produced. Unmatched frame sets are dropped and reported with a
@@ -3942,11 +3967,13 @@ Femto Bolts, 15 fps, `rgb8`):
 * **Unmatched frame sets are reported.** When a frame set finds no partner
   from every camera within `sync.timestamp_tolerance_us`, or a camera's
   pending limit overflows, the batcher drops it. Some drops are expected:
-  each Femto Bolt's colour sensor runs about 0.25 % slower than its depth
-  sensor, so about every 300–400 frames (20–30 s at 15 fps) a camera has no
+  at 15 fps each Femto Bolt's colour sensor runs about 0.25 % slower than
+  its depth sensor, so every 399 frames (about 27 s) a camera has no
   colour frame for one depth frame. The SDK drops that depth frame, and the
   other cameras' frame sets for that moment have no partner. With two
-  cameras that is one lost batch about every 13 s. After the first 5 s (start-up
+  cameras that is one lost batch about every 13 s. At 30 fps colour and
+  depth stay in step and this does not happen. The first second also drops
+  a few dozen frame sets while the cameras and their clocks settle. After the first 5 s (start-up
   settling is not reported) the server logs at most every 10 s: `frame batcher
   dropped N frame set(s) without a match from every camera (M in total)`. The
   session summary ends with the totals (`frame batcher: ... stale ...
@@ -6337,12 +6364,16 @@ report. Use it for tail latencies. The last two lines before `pipeline stopped
 cleanly` are totals:
 
 ```text
-[info] frame batcher: 1029 batches, 0 stale and 0 duplicate/regressive frame sets dropped
+[info] frame batcher: 1029 batches, 0 stale and 0 duplicate/regressive frame sets dropped; max skew 0.57 ms, max tracked camera offset 0.22 ms
 [info] keyframes: 0 requested, 0 forced (on-demand; periodic IDRs not counted)
 ```
 
 `stale` frame sets had no partner from every camera within the timestamp
-tolerance (a sync problem when it grows). `keyframes` counts on-demand
+tolerance (a sync problem when it grows). `max skew` is the largest
+timestamp spread inside a batch, and `max tracked camera offset` the largest
+offset the batcher learned between hardware-synced cameras (see
+[Offset tracking](./how-it-works/capture-and-sync#offset-tracking)).
+`keyframes` counts on-demand
 keyframe requests and the IDRs (keyframes that a decoder can start from)
 they forced. Nothing requests keyframes until the server serves browsers, so
 both stay 0.

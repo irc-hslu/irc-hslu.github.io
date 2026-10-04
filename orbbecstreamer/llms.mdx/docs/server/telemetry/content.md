@@ -305,12 +305,16 @@ report. Use it for tail latencies. The last two lines before `pipeline stopped
 cleanly` are totals:
 
 ```text
-[info] frame batcher: 1029 batches, 0 stale and 0 duplicate/regressive frame sets dropped
+[info] frame batcher: 1029 batches, 0 stale and 0 duplicate/regressive frame sets dropped; max skew 0.57 ms, max tracked camera offset 0.22 ms
 [info] keyframes: 0 requested, 0 forced (on-demand; periodic IDRs not counted)
 ```
 
 `stale` frame sets had no partner from every camera within the timestamp
-tolerance (a sync problem when it grows). `keyframes` counts on-demand
+tolerance (a sync problem when it grows). `max skew` is the largest
+timestamp spread inside a batch, and `max tracked camera offset` the largest
+offset the batcher learned between hardware-synced cameras (see
+[Offset tracking](./how-it-works/capture-and-sync#offset-tracking)).
+`keyframes` counts on-demand
 keyframe requests and the IDRs (keyframes that a decoder can start from)
 they forced. Nothing requests keyframes until the server serves browsers, so
 both stay 0.
