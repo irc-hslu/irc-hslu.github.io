@@ -11,11 +11,12 @@ server/config/dev/
   live.yaml                   development config (two synced cameras); checked in
   depth-quantization.json     written by the depth calibrator; optional
   camera-pose.json            written by camera-pose calibration; optional
+  placement.json              written by a client placement commit; optional
 ```
 
-When the JSON files are missing the server still starts: it uses a linear depth mapping and reports that camera-pose calibration is needed. Git ignores both files and the folder `config/local/`.
+When the JSON files are missing the server still starts: it uses a linear depth mapping and reports that camera-pose calibration is needed. Git ignores these files and the folder `config/local/`.
 
-Every relative path (`rvm_engine_path`, `quantization_profile_path`, `camera_pose_path`, `debug_recording.directory`) resolves against the working directory, so run the server from `server/`.
+Every relative path (`rvm_engine_path`, `quantization_profile_path`, `camera_pose_path`, `placement_path`, `debug_recording.directory`) resolves against the working directory, so run the server from `server/`.
 
 ## Point the server at a config [#point-the-server-at-a-config]
 
@@ -114,10 +115,11 @@ Without `serial_number` the server takes the first Orbbec camera it finds. This 
 
 Used by the depth quantization calibrator only.
 
-| Key                        | Type    | Default | Description                                                          |
-| -------------------------- | ------- | ------- | -------------------------------------------------------------------- |
-| `maximum_duration_seconds` | integer | `60`    | Calibration run time including warm-up, 1 to 60.                     |
-| `warmup_seconds`           | integer | `5`     | Discarded start of the run. Smaller than `maximum_duration_seconds`. |
+| Key                          | Type    | Default | Description                                                                                                                                                      |
+| ---------------------------- | ------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maximum_duration_seconds`   | integer | `60`    | Calibration run time including warm-up, 1 to 60.                                                                                                                 |
+| `warmup_seconds`             | integer | `5`     | Discarded start of the run. Smaller than `maximum_duration_seconds`.                                                                                             |
+| `max_lease_lifetime_seconds` | integer | `1800`  | Longest a setup lease lasts after it is acquired, heartbeats or not; then it ends and the holder waits 15 s before acquiring again. Above 15 (the lease expiry). |
 
 ### `cameras` [#cameras]
 
@@ -246,14 +248,15 @@ Bitrates are per camera; in `concatenated_batch` the encoder runs at bitrate × 
 
 Camera-pose calibration with a printed ChArUco board; see [Camera pose calibration](./camera-calibration).
 
-| Key                                  | Type      | Default                       | Description                                                                                                                                                              |
-| ------------------------------------ | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `camera_pose_path`                   | path      | `config/dev/camera-pose.json` | Saved poses. A missing file means "needs setup", not an error.                                                                                                           |
-| `autocalibrate`                      | bool      | `false`                       | With a missing or stale pose: `true` lets a client holding the setup lease start calibration; `false` needs an operator. Has no client to wait for until serving exists. |
-| `board.squares_x`, `board.squares_y` | integer   | `7`, `5`                      | Squares across and down, at least 2.                                                                                                                                     |
-| `board.square_length_m`              | float (m) | `0.08`                        | Printed square size. Measure the print.                                                                                                                                  |
-| `board.marker_length_m`              | float (m) | `0.06`                        | Printed marker size, smaller than the square.                                                                                                                            |
-| `board.dictionary`                   | string    | `DICT_5X5_100`                | OpenCV ArUco dictionary, checked when the board is built.                                                                                                                |
+| Key                                  | Type      | Default                       | Description                                                                                                                                                                                                                                                                           |
+| ------------------------------------ | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `camera_pose_path`                   | path      | `config/dev/camera-pose.json` | Saved poses. A missing file means "needs setup", not an error.                                                                                                                                                                                                                        |
+| `placement_path`                     | path      | `config/dev/placement.json`   | Persisted placement (where the server frame sits in the client anchor), saved on every placement commit before clients see it. A missing file means the default placement. Empty (`""`): placement is kept in memory only and resets at restart. Must differ from `camera_pose_path`. |
+| `autocalibrate`                      | bool      | `false`                       | With a missing or stale pose: `true` lets a client holding the setup lease start calibration; `false` needs an operator. Has no client to wait for until serving exists.                                                                                                              |
+| `board.squares_x`, `board.squares_y` | integer   | `7`, `5`                      | Squares across and down, at least 2.                                                                                                                                                                                                                                                  |
+| `board.square_length_m`              | float (m) | `0.08`                        | Printed square size. Measure the print.                                                                                                                                                                                                                                               |
+| `board.marker_length_m`              | float (m) | `0.06`                        | Printed marker size, smaller than the square.                                                                                                                                                                                                                                         |
+| `board.dictionary`                   | string    | `DICT_5X5_100`                | OpenCV ArUco dictionary, checked when the board is built.                                                                                                                                                                                                                             |
 
 The setup lease is fixed at 15 s (wire-format §11) and not configurable.
 

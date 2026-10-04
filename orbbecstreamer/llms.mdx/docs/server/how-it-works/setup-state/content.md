@@ -66,7 +66,8 @@ At start, after the cameras are open:
 
 After that, a `setup update` line appears whenever the phase, the camera-pose
 calibration, the streaming state or the lock owner changes. Lease heartbeats
-are not logged.
+are not logged, and lock changes alone are logged at most once every 5 s
+(`setup: N setup-lock changes not logged` counts the rest).
 
 ## Revisions [#revisions]
 
@@ -74,12 +75,19 @@ A revision is a counter that goes up when something changes. Every change a
 client needs to interpret media carries one. Revisions never decrease, and
 content that affects interpretation changes only with a newer revision.
 
-| Revision                            | Starts at                                              | Changes when                                                                                          | Persisted                                             |
-| ----------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `calibrationRevision` (camera pose) | The revision in `camera-pose.json`; `0` without a file | A calibration is committed: previous + 1, also when the previous pose was stale                       | Yes, in `camera-pose.json`                            |
-| `depthQuantizationRevision`         | `1`                                                    | Never while running. Changing the profile needs a restart.                                            | No                                                    |
-| `placementRevision`                 | `0`                                                    | A client commits a new placement (`client.placement.commit`): + 1                                     | No: placement is kept in memory and resets at restart |
-| `metadataRevision`                  | `1` at every start                                     | Once per authoritative update message (lock, calibration state, readiness, streaming, descriptors, …) | No                                                    |
+| Revision                            | Starts at                                                                                                | Changes when                                                                    | Persisted                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `calibrationRevision` (camera pose) | The revision in `camera-pose.json`; `0` without a file. For a damaged file, the revision it still shows. | A calibration is committed: previous + 1, also when the previous pose was stale | Yes, in `camera-pose.json`                                            |
+| `depthQuantizationRevision`         | `1`                                                                                                      | Never while running. Changing the profile needs a restart.                      | No                                                                    |
+| `placementRevision`                 | The revision in `placement.json`; `0` without a file                                                     | A client commits a new placement (`client.placement.commit`): + 1               | Yes, in `calibration.placement_path`, saved before any client sees it |
+
+A damaged `camera-pose.json` or `placement.json` is not used, but its
+revision is still read where possible, so the next commit gets a higher one:
+clients never see one revision with two different contents. A damaged
+placement file starts the server at the default placement (`server-origin`,
+identity) with that revision + 1, and logs
+`placement not restored, using the default at revision N: ...`.
+\| `metadataRevision` | `1` at every start | Once per authoritative update message (lock, calibration state, readiness, streaming, descriptors, …) | No |
 
 Stream descriptors carry the metadata revision at which something they depend
 on last changed, not the current one. A lock or streaming change therefore
@@ -94,13 +102,15 @@ Setup operations (calibration, placement) need the setup lock. There is one
 per server. The lock is a **lease**: it expires unless the holder renews it
 with regular heartbeats, so a client that disappears cannot keep it.
 
-| Property  | Value                                                                               |
-| --------- | ----------------------------------------------------------------------------------- |
-| Holders   | One connection at a time; others are rejected with `lock-held`                      |
-| Expiry    | 15 s after acquiring or the last heartbeat (fixed, not configurable)                |
-| Heartbeat | Every 5 s from the holder (wire-format §11)                                         |
-| Lease id  | 128 random bits, sent only to the holding connection; never valid after a reconnect |
-| Ends on   | Release, disconnect, expiry. Ending the lease cancels a running calibration.        |
+| Property         | Value                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Holders          | One connection at a time; others are rejected with `lock-held`                                                                                                                                                                                                                                                                                                                    |
+| Expiry           | 15 s after acquiring or the last heartbeat (fixed, not configurable)                                                                                                                                                                                                                                                                                                              |
+| Maximum lifetime | 30 min after acquiring (`setup.max_lease_lifetime_seconds`), however often the holder heartbeats. `expiresAtUs` stops advancing at that point, so every client sees the real end; then the lease ends as on expiry. The same connection must wait 15 s before acquiring again (refused with `rate-limited`); other clients may acquire at once. Applies to the console lease too. |
+| Heartbeat        | Every 5 s from the holder. A heartbeat moves the expiry (which every client sees) only if it gains at least 1 s; faster heartbeats are accepted and change nothing.                                                                                                                                                                                                               |
+| Rate limit       | Per session, lock acquire, calibration start and commit, and placement commands: 10 at once, then 2 per second. Over the limit the command is refused with `rate-limited` and changes nothing. Lock release, calibration cancel and heartbeats are not counted, so a client can always give the lock back. A reconnect starts with a fresh budget.                                |
+| Lease id         | 128 random bits, sent only to the holding connection; never valid after a reconnect                                                                                                                                                                                                                                                                                               |
+| Ends on          | Release, disconnect, expiry, maximum lifetime. Ending the lease cancels a running calibration.                                                                                                                                                                                                                                                                                    |
 
 The lock state is broadcast to every client. Clients without the lock keep
 their normal control connection and see every state change.
@@ -116,6 +126,13 @@ heartbeats it every 5 s and releases it when the run ends.
 | `false` (default) | A client may not start a calibration (`calibration-requires-operator`); an operator calibrates on the server with `--calibrate-camera-pose`. Phase `NEEDS_SETUP`. |
 | `true`            | A client holding the lease may start the calibration itself; normal media is held until it is committed. Phase `WAITING_FOR_CALIBRATION`.                         |
 
+`true` takes effect only when the calibration engine can run: colour aligned
+to depth (`streams.alignment: color_to_depth`) and a valid board
+(`calibration.board`). Otherwise the server logs
+`camera-pose calibration unavailable (autocalibrate off, calibration start rejected): ...`,
+reports `autocalibrate: false`, and refuses every calibration start with
+`calibration-unavailable`.
+
 In both modes a valid pose may be recalibrated by the lease holder. Until
 clients can connect, `true` only changes the phase name in the log; keep it
 `false`. See [Configuration](../configuration#calibration).
@@ -126,8 +143,8 @@ At every start, after the cameras are running, the server writes
 `<debug_recording.directory>/setup.json` (default `debug/live/setup.json`),
 even with recording off. It is a local debug file for tools and recordings,
 not part of the client protocol, and it is replaced on each start: written
-to `setup.json.tmp` and renamed over the old file, so a reader never sees a
-half-written file.
+to a uniquely named temporary file next to it, flushed to disk and renamed
+over the old file, so a reader never sees a half-written file.
 
 | Section          | Contents                                                                                                                                                                                |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -150,7 +167,7 @@ It does not contain camera poses, revisions or the setup phase. Poses are in
 | `setup.json`                                                                        | Available                                                                                                |
 | Snapshot and updates per client, lease commands, calibration and placement commands | Implemented in `SessionHub` and tested with loopback clients; needs the network listener (not available) |
 | `autocalibrate: true` in practice                                                   | Needs the network listener                                                                               |
-| Placement persistence                                                               | Not implemented: placement resets at restart                                                             |
+| Placement persistence                                                               | Implemented: a committed placement is saved before clients see it and restored at start                  |
 
 Without `streams.alignment: color_to_depth` the server logs
 `setup state not built: client-facing setup requires streams.alignment=color_to_depth`
