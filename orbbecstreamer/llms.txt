@@ -8,17 +8,17 @@
   - [Calibration](https://irc-hslu.github.io/orbbecstreamer/docs/guides/calibration): What each calibration kind does, what works today on the server and the client, and why they can't yet be chained into one flow.
   - [Placement](https://irc-hslu.github.io/orbbecstreamer/docs/guides/placement): Move a server's point cloud into position and commit it, and what happens on the server side today.
 - Server
-  - [Server](https://irc-hslu.github.io/orbbecstreamer/docs/server): The C++/CUDA server that captures, encodes and streams Orbbec camera data.
+  - [Server](https://irc-hslu.github.io/orbbecstreamer/docs/server): The C++/CUDA server that captures, encodes and will stream Orbbec camera data.
   - [Requirements](https://irc-hslu.github.io/orbbecstreamer/docs/server/requirements): The hardware, operating system, drivers and SDKs the server needs, and how to check each one.
   - [Install](https://irc-hslu.github.io/orbbecstreamer/docs/server/install): Install the system packages, CUDA, TensorRT, the Orbbec SDK and vcpkg, and optionally build the RVM segmentation engine.
-  - [Build and test](https://irc-hslu.github.io/orbbecstreamer/docs/server/build): Configure and build the server with the CMake presets or the Makefile, and run the unit, integration, smoke and hardware tests.
-  - [Configuration](https://irc-hslu.github.io/orbbecstreamer/docs/server/configuration): The live YAML config file, every option it accepts, and how to check a config before you run it.
+  - [Build and test](https://irc-hslu.github.io/orbbecstreamer/docs/server/build): Configure and build the server with the CMake presets or the Makefile, and run the unit, integration, sanitizer, fuzz and hardware tests.
+  - [Configuration](https://irc-hslu.github.io/orbbecstreamer/docs/server/configuration): The live YAML config file, every key it accepts, environment variables, and how to check a config before you run it.
   - [Stream layout](https://irc-hslu.github.io/orbbecstreamer/docs/server/stream-layout): Choose between concatenated and per-camera encoding, what each produces, and the encoded colour and depth bitstreams.
   - [Run the server](https://irc-hslu.github.io/orbbecstreamer/docs/server/running): Start the live capture and encode pipeline, run the hardware checks, stop the server cleanly and fix common start-up failures.
-  - [Read the telemetry](https://irc-hslu.github.io/orbbecstreamer/docs/server/telemetry): What every periodic log line of the live server means, what healthy numbers look like, and how to act on drops, skew and queueing.
+  - [Read the telemetry](https://irc-hslu.github.io/orbbecstreamer/docs/server/telemetry): What every periodic table and log line of the live server means, what healthy numbers look like, and how to act on drops, skew and queueing.
   - [Camera pose calibration](https://irc-hslu.github.io/orbbecstreamer/docs/server/camera-calibration): Print the ChArUco board, calibrate where each depth camera sits, and read the calibration state at startup.
   - [Depth quantization calibrator](https://irc-hslu.github.io/orbbecstreamer/docs/server/depth-quantization-calibrator): Fit the 10-bit depth code table to your scene with orbbec_streamer_depth_quantization_calibrator.
-  - [Serve to browsers](https://irc-hslu.github.io/orbbecstreamer/docs/server/serving): Status of the WebTransport server, the TLS certificates browsers need, and how to try the WebTransport spike.
+  - [Serve to browsers](https://irc-hslu.github.io/orbbecstreamer/docs/server/serving): What exists of the WebTransport serving path, how to try the WebTransport spike, and the TLS certificates browsers need.
   - How it works
     - [How the server works](https://irc-hslu.github.io/orbbecstreamer/docs/server/how-it-works/architecture): The live pipeline from the cameras to the encoded bundles, which thread owns each stage, the bounded queues, the clock domains and what leaves the server today.
     - [Capture and synchronisation](https://irc-hslu.github.io/orbbecstreamer/docs/server/how-it-works/capture-and-sync): How the server opens the cameras, synchronises them in hardware and in time, aligns colour to depth and groups frames from all cameras into batches.

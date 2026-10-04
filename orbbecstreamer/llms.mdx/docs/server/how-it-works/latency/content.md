@@ -41,7 +41,7 @@ Inside the server's part:
 | GPU processing (mask + bilateral filter, no RVM) | 0.25–0.48 ms | 1.0–1.2 ms |
 | NVENC, colour and depth out                      | 1.9–2.4 ms   | 3.5–4.2 ms |
 
-How to read this: about 140 ms of the 155 ms happen before the SDK hands
+These figures are at 15 fps capture; for the 30 fps capture now in the dev config see [the capture-rate lever](#the-biggest-lever-capture-rate). About 140 ms of the 155 ms happen before the SDK hands
 the frames to the server. The server code adds about 6–8 ms typically and about 12 ms at
 p99. Capture timestamps come from the camera clock mapped to the host clock,
 so absolute capture-relative numbers may carry a constant offset;
@@ -56,12 +56,12 @@ window, and the network (serving is not implemented yet; see
 Proposed p99 budgets from the latency review. They are targets, not
 guarantees.
 
-| Segment                                         | Target                                 | Status                                                   |
-| ----------------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
-| SDK delivers → access unit handed off           | ≤ 12 ms p99 (≤ 8 ms p50), RVM included | Met at 11.5–12.3 ms without RVM; RVM not yet measured    |
-| Access unit ready → bytes handed to QUIC        | ≤ 0.5 ms p99 (≤ 0.2 ms p50)            | Needs serving; the WebTransport spike measured \< 0.5 ms |
-| Drop or join → first aligned keyframe delivered | ≤ 2 frame intervals                    | Encoder side ready (on-demand keyframes); needs serving  |
-| Sensor → SDK delivery                           | Measure first, then set                | Camera-side; see the frame-rate lever below              |
+| Segment                                         | Target                                 | Status                                                                   |
+| ----------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
+| SDK delivers → access unit handed off           | ≤ 12 ms p99 (≤ 8 ms p50), RVM included | Met at 11.5–12.3 ms without RVM; RVM not yet measured                    |
+| Access unit ready → bytes handed to QUIC        | ≤ 0.5 ms p99 (≤ 0.2 ms p50)            | Needs serving; the WebTransport spike measured \< 0.5 ms                 |
+| Drop or join → first aligned keyframe delivered | ≤ 2 frame intervals                    | Encoder side ready (on-demand keyframes); needs serving                  |
+| Sensor → SDK delivery                           | Measure first, then set                | Camera-side; halved by [30 fps capture](#the-biggest-lever-capture-rate) |
 
 ## What the server does to avoid adding latency [#what-the-server-does-to-avoid-adding-latency]
 
@@ -89,25 +89,18 @@ guarantees.
 
 A slow consumer never blocks capture, GPU processing or NVENC.
 
-## The biggest lever: frame rate [#the-biggest-lever-frame-rate]
+## The biggest lever: capture rate [#the-biggest-lever-capture-rate]
 
-The dev config captures at 15 fps. Measured on the cameras alone, 30 fps cuts
-the camera-side latency by about 65 ms (colour arrival 133 → 68 ms with raw
-MJPG, 141 → 77 ms with YUYV; depth 93–96 → 60–64 ms). That is about ten times
-the whole server pipeline, and it also halves the cost of any one-frame wait
-(67 ms → 33 ms).
+The camera side scales with the capture frame interval, so the server captures faster than it streams. With capture 30 / stream 15 (the dev config) it keeps every second batch right after batching, before any GPU work, and the stream keeps its rate and bitrate. Measured on the same two-camera rig, 3 minutes each, 15/15 against 30/15:
 
-Switching to 30 fps is a pending product decision. It needs:
+| Metric                  | 15 / 15  | 30 / 15 |
+| ----------------------- | -------- | ------- |
+| `capture->color_rx` p50 | 134 ms   | 67 ms   |
+| `capture->handoff` p50  | 146.8 ms | 73.4 ms |
+| `capture->handoff` p99  | 159.4 ms | 83.9 ms |
+| `arrival_skew` p99      | 12.8 ms  | 7.5 ms  |
 
-* a check that RVM and NVENC fit in 33 ms per frame,
-* a new check of the sync settings, including the depth delays that keep
-  the cameras' infrared light from interfering,
-* a review of the bitrate and GOP length.
-
-The wire contract does not need to change: the frame rate is already in the
-stream descriptor. The rate is set with
-`streams.depth.fps` and `streams.color.fps` (see
-[Configuration](../configuration#streams)).
+The cost is twice the USB traffic and twice the SDK's colour conversion on the CPU. Set the rates with `streams.*.fps` and `encoding.stream_fps`; see [Capture rate and stream rate](../configuration#capture-rate-and-stream-rate). The wire contract is unchanged: descriptors carry the stream rate.
 
 ## Measure it yourself [#measure-it-yourself]
 
@@ -140,22 +133,23 @@ Done:
 * Latest-wins queues of 2, and running out of upload slots handled as a
   counted drop.
 * Pooled GPU output buffers: no `cudaMalloc` or `cudaFree` while running.
+* Capture at 30 fps, stream at 15: about 73 ms less end to end; see [the capture-rate lever](#the-biggest-lever-capture-rate).
+* Batcher offset tracking for hardware-synced cameras, so SDK clock-fit drift no longer drops batches; see [Offset tracking](./capture-and-sync#offset-tracking).
 * NVENC inputs registered once, and colour and depth submitted before
   either is collected. Both access units come out in 0.73 ms p50 and 1.0 ms
   p99 in an isolated test, down from 3.5 ms and 7.1 ms.
 
 Planned:
 
-| What                                                                                    | Status                                                                              |
-| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Capture at 30 fps                                                                       | Pending product decision; see [the frame-rate lever](#the-biggest-lever-frame-rate) |
-| Smaller Orbbec SDK frame queues                                                         | Pending; needs cameras to measure                                                   |
-| Event-based hand-off between stages, RVM writing masks directly, CUDA stream priorities | Pending                                                                             |
-| Publishing each access unit on its own, as soon as it is ready                          | Comes with serving                                                                  |
-| Serving: a per-client backlog bounded by age, then drop and send a keyframe             | Comes with serving                                                                  |
-| Colour path off the CPU (raw colour format, GPU conversion and alignment)               | Pending; worth 8–10 ms plus the CPU alignment                                       |
-| Delay-based rate control (lower the bitrate when the network queues up)                 | Pending                                                                             |
-| OS and deployment tuning (thread pinning, CPU governor, priorities)                     | Pending                                                                             |
+| What                                                                                    | Status                                                                                                                               |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Smaller Orbbec SDK frame queues                                                         | Pending; needs cameras to measure                                                                                                    |
+| Event-based hand-off between stages, RVM writing masks directly, CUDA stream priorities | Pending                                                                                                                              |
+| Publishing each access unit on its own, as soon as it is ready                          | Comes with serving                                                                                                                   |
+| Serving: bounded per-client queues with keyframe-aware drops                            | Implemented in `MediaFanout` (2 frame sets per channel, 1 record in flight); not wired. An age bound on the backlog is still planned |
+| Colour path off the CPU (raw colour format, GPU conversion and alignment)               | Pending; worth 8–10 ms plus the CPU alignment                                                                                        |
+| Delay-based rate control (lower the bitrate when the network queues up)                 | Pending                                                                                                                              |
+| OS and deployment tuning (thread pinning, CPU governor, priorities)                     | Pending                                                                                                                              |
 
 The full plan is in `server/docs/development/ROADMAP.md` (Performance).
 

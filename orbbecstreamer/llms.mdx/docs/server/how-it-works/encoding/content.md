@@ -59,7 +59,7 @@ None of them is configurable.
 | Look-ahead        | Off                                                           | The encoder never waits for later frames                                                  |
 | Reorder delay     | Zero (`zeroReorderDelay`)                                     | Each input frame produces its access unit at once                                         |
 | Rate control      | Constant bitrate (CBR), single pass, no adaptive quantization | Predictable size per frame                                                                |
-| Rate buffer (VBV) | One frame of bits (bitrate ÷ fps)                             | Access units stay close to the per-frame budget, so no frame bursts far above the average |
+| Rate buffer (VBV) | One frame of bits (bitrate ÷ stream rate)                     | Access units stay close to the per-frame budget, so no frame bursts far above the average |
 | Mode              | Synchronous: submit, then wait for the bitstream              | One access unit out per frame in                                                          |
 | Parameter sets    | VPS/SPS/PPS repeated in-band on every IDR                     | A decoder can start at any keyframe                                                       |
 
@@ -75,7 +75,7 @@ Bitrates are set per camera in the config:
 In `per_camera` mode each camera's encoders run at these rates. In
 `concatenated_batch` mode the single colour and depth encoders run at the
 rate times the number of cameras (two cameras: 24 and 16 Mbit/s). With the
-defaults at 15 fps a colour access unit is about 100 kB per camera and a depth
+defaults at a 15 fps stream rate a colour access unit is about 100 kB per camera and a depth
 access unit about 67 kB.
 
 The bitrate is fixed for the whole run. It also sets the HEVC level in the
@@ -86,7 +86,8 @@ yet.
 ## GOP and keyframes [#gop-and-keyframes]
 
 **Periodic keyframes.** Every stream starts with an IDR and repeats one every
-`encoding.gop_length` frames (default 60, which is 4 s at 15 fps). `0` means
+`encoding.gop_length` frames (default 60, which is 4 s at a 15 fps stream
+rate). `0` means
 an infinite GOP: only the first frame and on-demand keyframes are IDR.
 
 **Aligned per bundle.** Colour and depth of one bundle are always keyframes
@@ -110,8 +111,10 @@ streams. Without it the client waits up to a whole GOP.
   one.
 
 Status: the encoder side (`NvencEncodeStage::request_keyframe`) is
-implemented and tested. Nothing calls it yet; the network layer will call it
-on join, drop and stream restart once serving exists. A message that lets a
+implemented and tested. Nothing calls it yet. The media fan-out
+(`MediaFanout`) already raises a keyframe request when a session joins or
+after a drop; binding that callback to the encoder is part of the serving
+wiring that is still missing. A message that lets a
 client ask for a keyframe is proposed for the wire contract but not yet
 accepted.
 
@@ -143,14 +146,16 @@ All keys are in the `encoding` section; see
 | `session_mode`                                                                        | `per_camera`                                        | Stream layout; see [Stream layout](../stream-layout)                |
 | `gpu_ordinal`                                                                         | `0`                                                 | CUDA device used by NVENC                                           |
 | `queue_capacity`                                                                      | `2`                                                 | Encode queue length in batches; a full queue drops its oldest batch |
+| `stream_fps`                                                                          | `15`                                                | Encoder frame rate, 15 or 30, at most the capture rate              |
 | `gop_length`                                                                          | `60`                                                | IDR period in frames; `0` = infinite                                |
 | `color.bitrate_bps`                                                                   | `12000000`                                          | Colour bitrate per camera                                           |
 | `depth.bitrate_bps`                                                                   | `8000000`                                           | Depth bitrate per camera                                            |
 | `depth.minimum_depth_mm`, `depth.maximum_depth_mm`, `depth.quantization_profile_path` | `500`, `5000`, `config/dev/depth-quantization.json` | Depth code range and LUT                                            |
 
-The encoder frame rate is `streams.depth.fps`; colour and depth fps must be
-equal. Enlarging `queue_capacity` does not make encoding faster; it only adds
-latency after a stall.
+The encoder frame rate is the stream rate `encoding.stream_fps`, not the
+capture rate `streams.*.fps`: rate control, the one-frame VBV, the HEVC level
+and the descriptors all use it. Enlarging `queue_capacity` does not make
+encoding faster; it only adds latency after a stall.
 
 ## Measured timing [#measured-timing]
 

@@ -9,8 +9,9 @@ state in a **snapshot** when it connects, then follow the updates. Today you
 see the state in the server log. The wire form is defined in the wire
 contract, `protocol/wire-format.md`.
 
-The state machine (`src/control/SetupController`) is implemented and tested.
-The network layer that carries it to clients is not available yet; see
+The state machine (`server/src/control/SetupController`) and the session layer
+that will carry it to clients (`server/src/session/SessionHub`) are implemented
+and tested. No network listener feeds the session layer yet; see
 [What works today](#what-works-today).
 
 ## Phases and readiness [#phases-and-readiness]
@@ -97,7 +98,7 @@ with regular heartbeats, so a client that disappears cannot keep it.
 | --------- | ----------------------------------------------------------------------------------- |
 | Holders   | One connection at a time; others are rejected with `lock-held`                      |
 | Expiry    | 15 s after acquiring or the last heartbeat (fixed, not configurable)                |
-| Heartbeat | Every 5 s from the holder                                                           |
+| Heartbeat | Every 5 s from the holder (wire-format §11)                                         |
 | Lease id  | 128 random bits, sent only to the holding connection; never valid after a reconnect |
 | Ends on   | Release, disconnect, expiry. Ending the lease cancels a running calibration.        |
 
@@ -141,16 +142,15 @@ It does not contain camera poses, revisions or the setup phase. Poses are in
 
 ## What works today [#what-works-today]
 
-| Part                                                                           | Status                                                  |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| Setup state, readiness and revisions, built at start                           | Available (needs `streams.alignment: color_to_depth`)   |
-| Loading and checking the saved camera pose                                     | Available                                               |
-| Local calibration with the console lease (`--calibrate-camera-pose`)           | Available                                               |
-| `setup.json`                                                                   | Available                                               |
-| Snapshot and updates sent to clients                                           | Needs the network layer (not yet available)             |
-| Lease acquire, heartbeat and release by clients                                | Needs the network layer                                 |
-| Calibration started, cancelled or committed by a client; `autocalibrate: true` | Needs the network layer                                 |
-| Placement commits                                                              | Needs the network layer; placement is not persisted yet |
+| Part                                                                                | Status                                                                                                   |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Setup state, readiness and revisions, built at start                                | Available (needs `streams.alignment: color_to_depth`)                                                    |
+| Loading and checking the saved camera pose                                          | Available                                                                                                |
+| Local calibration with the console lease (`--calibrate-camera-pose`)                | Available                                                                                                |
+| `setup.json`                                                                        | Available                                                                                                |
+| Snapshot and updates per client, lease commands, calibration and placement commands | Implemented in `SessionHub` and tested with loopback clients; needs the network listener (not available) |
+| `autocalibrate: true` in practice                                                   | Needs the network listener                                                                               |
+| Placement persistence                                                               | Not implemented: placement resets at restart                                                             |
 
 Without `streams.alignment: color_to_depth` the server logs
 `setup state not built: client-facing setup requires streams.alignment=color_to_depth`

@@ -2,7 +2,7 @@
 
 
 
-After a multi-camera batch is formed, the server copies it to the GPU and
+After a multi-camera batch is formed and passes the stream-rate filter, the server copies it to the GPU and
 runs two steps on every camera's frames: a **foreground mask** (which pixels
 belong to the person) and a **depth filter** (edge-preserving smoothing that
 also removes the background from depth). The result goes to the encoder.
@@ -66,7 +66,7 @@ Set with `mask.backend` ([Configuration](../configuration#mask)):
 | `rvm`                     | Robust Video Matting (MobileNetV3) on TensorRT, FP16. One inference for all cameras of a batch. Outputs a soft alpha matte: a foreground weight per pixel (0–255) rather than a hard yes or no. Keeps a recurrent state from frame to frame. | The working segmenter. Needs a TensorRT engine ([Install](../install#rvm-segmentation-engine-optional)).         |
 | `fill_all`                | Every pixel is foreground (255).                                                                                                                                                                                                             | Test backend; use it to run without segmentation.                                                                |
 | `rgb_luma_threshold`      | Foreground where the colour's luma is above 128 (fixed).                                                                                                                                                                                     | Test backend.                                                                                                    |
-| `none`                    | No mask is produced.                                                                                                                                                                                                                         | Works only with `depth_filter_backend: identity_copy` or `none`; see [Limits](#limits).                          |
+| `none`                    | No mask is produced.                                                                                                                                                                                                                         | Works with every depth filter; `bilateral_cuda` then treats every pixel as foreground (see [Limits](#limits)).   |
 | `sam3`                    | Placeholder: every pixel is foreground, like `fill_all`.                                                                                                                                                                                     | Not a segmenter. It is the code default, so set `backend` explicitly.                                            |
 | `tensorrt`, `onnxruntime` | -                                                                                                                                                                                                                                            | Accepted by the config, then fail at the first batch with `Selected foreground mask backend is not implemented`. |
 
@@ -135,8 +135,9 @@ Femto Bolts, 640 × 576 at 15 fps, RTX 4090, `dev-relwithdebinfo` build):
 
 RVM was not part of the baseline (no engine on the measuring host), so its
 cost is not measured yet. It adds to `processing` in the
-[latency report](../telemetry#latency-report); at 15 fps the stage has
-66.7 ms per batch before it starts to drop.
+[latency report](../telemetry#latency-report). The stage runs at the stream
+rate, so at 15 fps it has 66.7 ms per batch before it starts to drop, also
+when the cameras capture at 30.
 
 ## Limits [#limits]
 

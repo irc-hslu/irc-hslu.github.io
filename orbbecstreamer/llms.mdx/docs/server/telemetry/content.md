@@ -2,58 +2,42 @@
 
 
 
-While `--live` runs, the server prints its own health to the terminal:
-frame rates, dropped frames and how long each stage takes. This page shows
-each kind of output, explains every column, and lists the values of a
-healthy run.
+While `--live` runs, the server prints its health to the terminal: rates, drops and per-stage latency. A **batch** is one synchronised frame set from every camera; it moves through capture, upload, GPU processing and encoding.
 
-In this page, a **batch** is one synchronised frame set from every camera.
-The pipeline moves batches through its stages: capture, upload to the GPU,
-GPU processing, and encoding.
+| Output                                                                 | When                                                       | Content                                   |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------- |
+| Rate tables `LIVE PIPELINE`, `CAMERA INGRESS`, `DEBUG RECORDING RATES` | Every second, from about 6 s after `live pipeline started` | Rates per stage, drop counters, bandwidth |
+| `pipeline latency, last 5 s`                                           | Every 5 s                                                  | Per-stage latency percentiles             |
+| `SESSION SUMMARY`, `pipeline latency, whole session`, totals           | Once, at shutdown                                          | Totals and whole-run latency              |
 
-The server prints three kinds of telemetry:
-
-| Output                                                                   | When                                                           | Content                                               |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------- | ----------------------------------------------------- |
-| Rate tables (`LIVE PIPELINE`, `CAMERA INGRESS`, `DEBUG RECORDING RATES`) | Every second, starting about 6 s after `live pipeline started` | Frames per second per stage, drop counters, bandwidth |
-| `pipeline latency, last 5 s`                                             | Every 5 s                                                      | Stage-by-stage latency percentiles of the last 5 s    |
-| `SESSION SUMMARY` and `pipeline latency, whole session`                  | Once, at shutdown                                              | Totals and whole-session latency                      |
-
-There is no config section for telemetry and no metrics endpoint yet.
-Network metrics (per-client queues, drops, stalls) will come with the
-WebTransport server; see [Serve to browsers](./serving).
+There is no telemetry config section and no metrics endpoint. Per-client network metrics exist in the media fan-out library but are not wired; see [Serve to browsers](./serving).
 
 ## Check a run in four steps [#check-a-run-in-four-steps]
 
 1. Wait about 6 s after `live pipeline started` for the first rate table.
-2. In `LIVE PIPELINE`, check that `capture`, `upload` and `process` run at
-   the configured frame rate, and `encode` at cameras × frame rate.
-3. Check that every `dropped` counter stays at `0`.
-4. After a minute, compare the latest latency report with
-   [What good looks like](#what-good-looks-like).
-
-If a number is off, go to [Troubleshooting](#troubleshooting).
+2. In `LIVE PIPELINE`: `capture` at the capture rate (`streams.*.fps`), `upload` and `process` at the stream rate (`encoding.stream_fps`), `encode` at cameras × stream rate.
+3. Every `dropped` counter stays at `0`.
+4. After a minute, compare the latency report with [What good looks like](#what-good-looks-like).
 
 ## Choose the display mode [#choose-the-display-mode]
 
-On an interactive terminal the rate tables are redrawn in place on a
-separate screen, which also overwrites the latency reports within a second.
-To keep every report, use log mode. From the `server/` folder:
+On an interactive terminal the rate tables are redrawn in place at the top of a separate screen, which also overwrites the latency reports. To keep every report, use log mode, from `server/`:
 
 ```bash
 ORBBEC_STREAMER_STATUS_MODE=log ./build/dev-relwithdebinfo/orbbec_streamer --live config/dev/live.yaml 2>&1 | tee live.log
 ```
 
-| `ORBBEC_STREAMER_STATUS_MODE` | Behaviour                                                                                                            |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| unset                         | In-place display if stdout is a terminal, `TERM` is set and not `dumb`, and `NO_COLOR` is unset; otherwise log mode. |
-| `log`                         | Every table is an ordinary log line. Use this for measurements and log files.                                        |
-| `dashboard`                   | Always redraw in place.                                                                                              |
+| `ORBBEC_STREAMER_STATUS_MODE` | Behaviour                                                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| unset                         | In place if stdout is a terminal, `TERM` is set and not `dumb`, and `NO_COLOR` is unset; otherwise log mode |
+| `log`                         | Every table is a log line. Use it for measurements.                                                         |
+| `dashboard`                   | Always in place                                                                                             |
 
-The in-place display keeps the rate tables at the top of the screen and
-redraws them every second. Log lines, such as warnings, still appear below
-the tables. A real screen with two cameras at 15 fps, the preview open and
-GPU-output recording on (serial numbers replaced):
+The in-place display closes before the session summary, so the summary stays on screen.
+
+## Rate tables [#rate-tables]
+
+Example from two Femto Bolts at 15 fps capture and stream, `concatenated_batch`, the preview open and GPU-output recording with local decoding on (serials replaced):
 
 ```text
 LIVE PIPELINE
@@ -69,120 +53,64 @@ camera                        frame_sets/s    frames/s       MiB/s
 orbbec:CL8K0000000A                    15.0        30.0        26.4
 orbbec:CL8K0000000B                    14.0        28.0        24.6
 
-
 DEBUG RECORDING RATES  queues(in/out)=0/0 drops(in/out)=0/0 worker=ok
 camera          in_color    in_depth   out_color   out_depth   dec_color   dec_depth  decoder
 cam0                 0.0         0.0         0.0         0.0         0.0         0.0  disabled/disabled
 cam1                 0.0         0.0         0.0         0.0         0.0         0.0  disabled/disabled
 multicam             0.0         0.0        14.0        14.0        14.0        14.0  ffmpeg-cuda/ffmpeg-cuda
-
-[2026-10-03 18:19:33.501] [info] live preview: frame=390 color=640x576 mask_nonzero=368640/368640 depth_min=45 depth_max=13479
 ```
 
-The in-place display is closed before the session summary is printed, so the
-summary stays on screen.
-
-## Rate tables [#rate-tables]
-
-The rate tables show how many frames each stage handles per second and how
-many it dropped. Example from a run with two Femto Bolt cameras at 15 fps,
-`session_mode: concatenated_batch` and debug recording on:
-
-```text
-LIVE PIPELINE
-stage              fps     dropped       MiB/s
-capture           16.0           -           -
-upload            16.0           0           -
-process           16.0           0           -
-encode            30.0           0        1.98
-
-CAMERA INGRESS
-camera                        frame_sets/s    frames/s       MiB/s
-orbbec:CL8K0000000A                    16.0        32.0        28.1
-orbbec:CL8K0000000B                    15.0        30.0        26.4
-
-DEBUG RECORDING RATES  queues(in/out)=0/0 drops(in/out)=0/0 worker=ok
-camera          in_color    in_depth   out_color   out_depth   dec_color   dec_depth  decoder
-cam0                15.0        15.0         0.0         0.0         0.0         0.0  disabled/disabled
-cam1                15.0        15.0         0.0         0.0         0.0         0.0  disabled/disabled
-multicam             0.0         0.0        15.0        15.0        15.0        15.0  ffmpeg-cuda/ffmpeg-cuda
-```
-
-Rates are counts in the last interval (about 1 s) divided by its length, so
-single readings jump between 14 and 16 at 15 fps.
+Rates are counts in the last interval (about 1 s) divided by its length, so single readings jump between 14 and 16 at 15 fps. At capture 30 / stream 15, `capture` and `CAMERA INGRESS` show about 30 and every other row about 15.
 
 ### `LIVE PIPELINE` [#live-pipeline]
 
-| Row       | `fps`                                                                                                                                                                                                                      | `dropped`                                                                                                                                         | `MiB/s`                                  |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `capture` | Synchronised batches (one frame set from every camera) per second.                                                                                                                                                         | -                                                                                                                                                 | -                                        |
-| `upload`  | Batches copied to the GPU per second.                                                                                                                                                                                      | Total batches dropped since start: evicted from the full upload queue (2 batches), plus batches dropped because every GPU upload slot was in use. | -                                        |
-| `process` | Batches through GPU processing (mask, depth filter) per second.                                                                                                                                                            | Total evicted from the full processing queue (2 batches).                                                                                         | -                                        |
-| `encode`  | Encoded camera views (one camera's colour and depth image) per second. With N cameras this is N × the batch rate, in both encoding modes.                                                                                  | Total evicted from the full encode queue (`encoding.queue_capacity`, default 2).                                                                  | Encoded colour + depth bitstream, MiB/s. |
-| `preview` | Preview frames shown per second (only with an open preview window). The preview runs on its own thread and shows the newest batch whenever it is free, so a rate below `capture` is normal and does not slow the pipeline. | -                                                                                                                                                 | -                                        |
+| Row       | `fps`                                                                       | `dropped` (running total, exact)                                                                  | `MiB/s`                |
+| --------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------- |
+| `capture` | Batches formed by the batcher, at the capture rate                          | -                                                                                                 | -                      |
+| `upload`  | Batches copied to the GPU, at the stream rate                               | Evicted from the full upload queue (2), plus batches dropped because every upload slot was in use | -                      |
+| `process` | Batches through GPU processing                                              | Evicted from the full processing queue (2)                                                        | -                      |
+| `encode`  | Camera views encoded: cameras × batch rate, in both layouts                 | Evicted from the full encode queue (`encoding.queue_capacity`)                                    | Encoded colour + depth |
+| `preview` | Preview frames shown (only with an open window). Below `capture` is normal. | -                                                                                                 | -                      |
 
-`dropped` is a running total, not a rate, and it is exact. The queues are
-short and "latest wins": a full queue drops its **oldest** batch and keeps the
-new one, so after a stall the pipeline carries on with the newest frames
-instead of working through a backlog. The stage then logs a warning, at most
-one per second per stage, with the number of drops since its previous warning:
+Batches skipped to reach the stream rate are not drops; they are counted in the shutdown line `stream rate: ... passed on`.
+
+The queues are short and latest-wins: a full queue drops its **oldest** batch, so after a stall the pipeline continues with the newest frames. Each stage then warns at most once per second, with the drops since its last warning:
 
 ```text
 [warning] upload queue full: dropped the oldest captured batch (14 more since the last warning)
 ```
 
-The other two warnings are `processing queue full: dropped the oldest uploaded
-GPU batch` and `encode queue full: dropped the oldest processed GPU batch`. The
-first warning of a run reports `0 more`.
+The other two are `processing queue full: dropped the oldest uploaded GPU batch` and `encode queue full: dropped the oldest processed GPU batch`.
 
-At start-up the server logs the queue sizes and how many GPU upload slots it
-reserved for them (here `config/dev/live.yaml`: two cameras, debug GPU-input
-recording and the preview on):
+At start-up the server logs the queue sizes and the GPU upload slots reserved for them (`config/dev/live.yaml`: two cameras, GPU-input recording and preview on):
 
 ```text
 [info] live queues: capacity=2 per GPU stage (drop oldest), encode=2, upload slots=41
 ```
 
-Each captured frame needs one upload slot until the encoder is done with its
-batch; the count covers every batch the queues and stages can hold at once.
-If they still run out, the batch is dropped and counted, and about once per
-second the server logs `upload slots exhausted: dropped N captured batch(es)
-in the last second ...`. The server keeps running.
+If the slots still run out, the batch is dropped and counted, and the server logs `upload slots exhausted: dropped N captured batch(es) in the last second ...` about once per second. It keeps running.
 
 ### `CAMERA INGRESS` [#camera-ingress]
 
-One row per camera, counted where the Orbbec SDK hands frames to the server,
-before cross-camera batching.
-
-| Column         | Meaning                                           |
-| -------------- | ------------------------------------------------- |
-| `camera`       | Runtime camera id, `orbbec:<serial>`.             |
-| `frame_sets/s` | Colour + depth pairs per second from this camera. |
-| `frames/s`     | Individual frames per second (2 per frame set).   |
-| `MiB/s`        | Raw frame bytes per second received from the SDK. |
+One row per camera, counted where the SDK hands frames to the server, before batching: `frame_sets/s` (colour + depth pairs), `frames/s` (2 per frame set) and raw `MiB/s`. `camera` is the runtime id `orbbec:<serial>`.
 
 ### `DEBUG RECORDING RATES` [#debug-recording-rates]
 
-Shown only when debug recording is on.
+Shown only with recording on. Recording never slows the pipeline; it drops instead.
 
-| Field                    | Meaning                                                                                                          |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `queues(in/out)`         | Batches waiting for the recorder: GPU inputs / encoded outputs.                                                  |
-| `drops(in/out)`          | Total batches the recorder dropped because it fell behind. Recording never slows the pipeline; it drops instead. |
-| `worker`                 | `ok`, or `failed` after a recorder error (logged as `<name> debug worker disabled: <reason>`).                   |
-| `in_color`, `in_depth`   | Frames per second written to `gpu-input-*.mkv`.                                                                  |
-| `out_color`, `out_depth` | Encoded access units (one compressed video frame each) per second received for recording.                        |
-| `dec_color`, `dec_depth` | Frames per second decoded locally (with `locally_decode_gpu_outputs`).                                           |
-| `decoder`                | Colour/depth decoder backend, for example `ffmpeg-cuda`, or `disabled`.                                          |
+| Field                    | Meaning                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `queues(in/out)`         | Batches waiting for the recorder: GPU inputs / encoded outputs                                               |
+| `drops(in/out)`          | Batches the recorder dropped because it fell behind                                                          |
+| `worker`                 | `ok`, or `failed` after an error (logged as `<name> debug worker disabled: <reason>`)                        |
+| `in_*`, `out_*`, `dec_*` | Per second: frames written to `gpu-input-*.mkv`, access units received for recording, frames decoded locally |
+| `decoder`                | Colour/depth decoder, for example `ffmpeg-cuda`, or `disabled`                                               |
 
-The `multicam` row is the concatenated encoder output in
-`concatenated_batch` mode.
+The `multicam` row is the concatenated output in `concatenated_batch` mode.
 
 ## Latency report [#latency-report]
 
-The latency report shows how long each stage of the pipeline takes. The
-server prints it every 5 s. Example (a real window: two cameras at 15 fps, `concatenated_batch`,
-`mask.backend: fill_all`, no preview):
+Every 5 s the server prints per-stage percentiles. A real window from two cameras at 15 fps, `concatenated_batch`, `fill_all`, no preview:
 
 ```text
 [2026-09-26 13:02:26.824] [info] pipeline latency, last 5 s (steady clock):
@@ -207,62 +135,37 @@ server prints it every 5 s. Example (a real window: two cameras at 15 fps, `conc
   capture->handoff  n=74     p50  159.384  p99  165.152  p99.9  165.152  max  165.152 ms
 ```
 
-Each line is one metric: the number of samples `n`, then the 50th, 99th and
-99.9th percentile and the maximum, in milliseconds. Metrics without samples
-are left out.
+How to read it:
 
-* A percentile is the value below which that share of samples falls.
-  **p50** is the typical value. **p99** is exceeded by 1 in 100 samples;
-  this is the number to compare against targets. **p99.9** and **max** show
-  rare stalls. With about 75 batches per 5 s window at 15 fps, p99, p99.9
-  and max are close to the single worst sample; use the whole-session report for tails.
-* Percentiles are histogram bucket upper bounds with about 3 % resolution.
-  That is why the same values (for example `146.801`) repeat. `max` is exact.
-* All times are measured on the steady clock of the server. Metrics starting
-  with `capture` use the camera's global timestamp, which the SDK maps to the
-  host clock; they can include a constant offset. Differences between runs
-  are still valid, and everything downstream of the SDK is exact.
-* Per-camera metrics count one sample per camera per batch, so their `n` is
-  twice the batch count with two cameras.
-* The report window starts when the pipeline starts, so the first report
-  includes start-up effects.
+* Each line gives the sample count `n`, then p50, p99, p99.9 and max in milliseconds. p50 is the typical value, p99 the one to compare against targets. Metrics without samples are left out.
+* Percentiles are histogram bucket bounds with about 3 % resolution, which is why values repeat; `max` is exact. With about 75 batches per window at 15 fps, p99 and above are close to the single worst sample; use the whole-session report for tails.
+* Times are on the server's steady clock. `capture*` metrics start from the SDK's global timestamp mapped to the host clock and may carry a constant offset; differences between runs are still valid.
+* Per-camera metrics have one sample per camera per batch.
 
 ### Metrics [#metrics]
 
-In the order they are printed. *Per camera* metrics come from each camera's
-frame set; the others from the batch.
+| Metric                                                       | From → to                                                | Contains                                                                       |
+| ------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `capture->sdk`                                               | capture → SDK delivered the frame set                    | Per camera. Sensor, USB, SDK decode and frame sync.                            |
+| `capture->host_rx`, `capture->depth_rx`, `capture->color_rx` | capture → host received the later frame / depth / colour | Per camera. Colour arrives after depth.                                        |
+| `sdk_internal`                                               | host received → SDK delivered                            | Per camera. SDK colour conversion, frame sync, queues.                         |
+| `align`                                                      | SDK delivered → aligned frame set built                  | Per camera. Colour-to-depth alignment on the CPU.                              |
+| `arrival_skew`                                               | first camera aligned → last camera aligned               | 2+ cameras. How far apart the cameras arrive.                                  |
+| `batch_wait`                                                 | first camera aligned → batch emitted                     | Wait for the slowest camera.                                                   |
+| `upload_queue`, `upload_submit`                              | batch emitted → taken → copies enqueued                  | Upload queue, then the CPU copy into pinned memory.                            |
+| `processing_queue`, `processing`                             | upload submitted → taken → done                          | GPU processing, including waiting for the upload.                              |
+| `side_path`                                                  | processing done → encode enqueued                        | Hand-off to the encoder, plus picking preview buffers (no copy). Microseconds. |
+| `encode_queue`                                               | encode enqueued → encoder took it                        | Encode queue.                                                                  |
+| `encode_color`, `encode_bundle`                              | encoder took it → colour / depth access unit out         | Colour and depth are encoded in parallel, so the two are close.                |
+| `handoff`                                                    | depth out → bundle handed to its consumer                | Bundle assembly. The consumer is the debug recorder today.                     |
+| `sdk->handoff`                                               | last camera's SDK delivery → hand-off                    | **The part the server code controls.**                                         |
+| `capture->handoff`                                           | latest capture timestamp → hand-off                      | End to end inside the server, including the cameras.                           |
 
-| Metric              | From → to                                                                             | What it contains                                                                                                                                                                                                                        |
-| ------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `capture->sdk`      | capture timestamp → SDK delivered the frame set                                       | Per camera. Sensor, USB, SDK decode and frame sync.                                                                                                                                                                                     |
-| `capture->host_rx`  | capture → host received the later of colour/depth                                     | Per camera.                                                                                                                                                                                                                             |
-| `capture->depth_rx` | capture → host received the depth frame                                               | Per camera.                                                                                                                                                                                                                             |
-| `capture->color_rx` | capture → host received the colour frame                                              | Per camera. Colour arrives after depth; see below.                                                                                                                                                                                      |
-| `sdk_internal`      | host received → SDK delivered                                                         | Per camera. SDK colour conversion, frame sync, SDK queues.                                                                                                                                                                              |
-| `align`             | SDK delivered → aligned frame set built                                               | Per camera. Colour-to-depth alignment on the CPU.                                                                                                                                                                                       |
-| `arrival_skew`      | first camera aligned → last camera aligned                                            | Batch, only with 2+ cameras. How far apart the cameras are.                                                                                                                                                                             |
-| `batch_wait`        | first camera aligned → batch emitted                                                  | Batch. Time the batcher waited for the slowest camera.                                                                                                                                                                                  |
-| `upload_queue`      | batch emitted → upload stage took it                                                  | Time in the upload queue.                                                                                                                                                                                                               |
-| `upload_submit`     | upload taken → staging and host-to-GPU copies enqueued                                | CPU copy into pinned memory.                                                                                                                                                                                                            |
-| `processing_queue`  | upload submitted → processing stage took it                                           | Time in the processing queue.                                                                                                                                                                                                           |
-| `processing`        | processing taken → done                                                               | GPU processing, including waiting for the upload to finish.                                                                                                                                                                             |
-| `side_path`         | processing done → encode enqueued                                                     | The hand-off to the encoder. With the preview on, it includes picking the preview's three images (GPU buffer handles, no image copy); the preview itself runs on its own thread. A few microseconds.                                    |
-| `encode_queue`      | encode enqueued → encoder took it                                                     | Time in the encode queue.                                                                                                                                                                                                               |
-| `encode_color`      | encoder took it → colour access unit out of NVENC (the NVIDIA hardware video encoder) | Colour encode. Colour and depth are encoded in parallel, so this also covers converting and submitting depth and is close to `encode_bundle`.                                                                                           |
-| `encode_bundle`     | encoder took it → depth access unit out                                               | Colour and depth encode (both access units out).                                                                                                                                                                                        |
-| `handoff`           | depth out → bundle handed to its consumer                                             | Bundle assembly. A bundle is a colour and a depth access unit encoded together: one per batch in `concatenated_batch` mode, one per camera and batch in `per_camera` mode. The consumer is the debug recorder today, the network later. |
-| `sdk->handoff`      | last camera's SDK delivery → hand-off                                                 | **The part the server code controls.**                                                                                                                                                                                                  |
-| `capture->handoff`  | latest capture timestamp → hand-off                                                   | End to end inside the server, including the camera.                                                                                                                                                                                     |
-
-In `per_camera` mode each camera's bundle carries the batch stamps, so batch
-metrics are counted once per camera, `arrival_skew` is not recorded, and a
-later camera's `encode_bundle` and `handoff` include the encodes of the
-cameras before it. `concatenated_batch` mode has none of these caveats.
+In `per_camera` mode batch metrics are counted once per camera, `arrival_skew` is not recorded, and a later camera's `encode_bundle` and `handoff` include the cameras encoded before it.
 
 ## Session summary [#session-summary]
 
-When the server stops, it prints totals for the whole run. Example after
-`Ctrl+C`:
+At shutdown the server prints totals, then the whole-session latency report:
 
 ```text
 SESSION SUMMARY
@@ -277,96 +180,80 @@ CAMERA TOTALS
 camera        runtime_id                          sets      frames         MiB     avg_fps    in_color    in_depth   out_color   out_depth   dec_color   dec_depth
 orbbec:CL8K0000000Aorbbec:CL8K0000000A                   585        1170     1028.32        15.0           0           0           0           0           0           0
 orbbec:CL8K0000000Borbbec:CL8K0000000B                   595        1190     1045.90        15.0           0           0           0           0           0           0
-
-[info] pipeline latency, whole session (steady clock):
-  capture->sdk      n=1168   p50  146.801  p99  155.189  p99.9  163.578  max  164.659 ms
-  ...
 ```
 
-| Field                               | Meaning                                                                                                                            |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `captured`, `uploaded`, `processed` | Batches through each stage. Equal numbers mean no drops.                                                                           |
-| `encoded_views`                     | Camera views encoded (cameras × bundles in `concatenated_batch` mode).                                                             |
-| `encoded_bundles`                   | Colour + depth pairs handed off.                                                                                                   |
-| `encoded_AUs`                       | Access units: 2 per bundle.                                                                                                        |
-| `encoded_MiB`                       | Total encoded bytes.                                                                                                               |
-| `PIPELINE DROPS`                    | The final `dropped` totals of the rate table.                                                                                      |
-| `DEBUG RECORDING DROPS`             | Shown with recording on: dropped GPU-input batches, dropped output bundles, worker state.                                          |
-| `CAMERA TOTALS`                     | Per camera: frame sets and frames from the SDK, raw MiB, average fps, and the recorder's per-camera counts (0 with recording off). |
-| `ENCODED OUTPUT TOTALS`             | Shown with recording on in `concatenated_batch` mode: access units of the `multicam` stream.                                       |
+| Field                                                            | Meaning                                                                                                                                |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `captured`                                                       | Batches formed, at the capture rate                                                                                                    |
+| `uploaded`, `processed`                                          | Batches through each stage. At capture = stream rate, equal to `captured` when nothing dropped; at capture 30 / stream 15, about half. |
+| `encoded_views`, `encoded_bundles`, `encoded_AUs`, `encoded_MiB` | Camera views encoded, colour + depth pairs handed off, access units (2 per bundle), bytes                                              |
+| `PIPELINE DROPS`                                                 | Final `dropped` totals                                                                                                                 |
+| `CAMERA TOTALS`                                                  | Per camera: SDK frame sets and frames, raw MiB, average fps, recorder counts                                                           |
+| `DEBUG RECORDING DROPS`, `ENCODED OUTPUT TOTALS`                 | Only with recording on                                                                                                                 |
 
-With recording off, the `CAMERA TOTALS` table has a known formatting defect:
-the `camera` column shows the runtime id instead of the config id, and it runs
-into the `runtime_id` column with no space, as in the example above. The
-numbers in the other columns are correct.
+With recording off, `CAMERA TOTALS` has a known formatting defect: the `camera` column shows the runtime id and runs into `runtime_id`, as above. The numbers are correct.
 
-The whole-session latency report follows, in the same format as the 5 s
-report. Use it for tail latencies. The last two lines before `pipeline stopped
-cleanly` are totals:
+The last lines before `pipeline stopped cleanly` are totals (format shown with capture 30 / stream 15; the numbers are illustrative):
 
 ```text
-[info] frame batcher: 1029 batches, 0 stale and 0 duplicate/regressive frame sets dropped; max skew 0.57 ms, max tracked camera offset 0.22 ms
+[info] stream rate: 1029 of 2058 batches passed on (15 fps of 30 fps)
+[info] frame batcher: 2058 batches, 0 stale and 0 duplicate/regressive frame sets dropped; max skew 0.57 ms, max tracked camera offset 0.22 ms
+[info] frame batcher: 0 offset re-acquisitions (0 ambiguous), 0 frame-index mismatches refused, 0 frame-index re-learns, 0 timeline re-anchors
+[info] camera orbbec:<serial>: dropped before batching: 0 invalid timestamp, 0 align failed, 0 backwards timestamp, 0 timestamp jump; 0 timestamp re-anchors
 [info] keyframes: 0 requested, 0 forced (on-demand; periodic IDRs not counted)
 ```
 
-`stale` frame sets had no partner from every camera within the timestamp
-tolerance (a sync problem when it grows). `max skew` is the largest
-timestamp spread inside a batch, and `max tracked camera offset` the largest
-offset the batcher learned between hardware-synced cameras (see
-[Offset tracking](./how-it-works/capture-and-sync#offset-tracking)).
-`keyframes` counts on-demand
-keyframe requests and the IDRs (keyframes that a decoder can start from)
-they forced. Nothing requests keyframes until the server serves browsers, so
-both stay 0.
+* `stream rate` appears only when the capture rate is higher than the stream rate.
+* `stale` frame sets had no partner from every camera within the tolerance; a growing count is a sync problem. `max skew` is the largest timestamp spread inside a batch; `max tracked camera offset` is the largest offset the batcher learned (see [Offset tracking](./how-it-works/capture-and-sync#offset-tracking)).
+* The second `frame batcher` line and the per-camera lines count rare events; all should stay 0 in a healthy run:
+
+| Counter                                 | Meaning                                                                                                                                               |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `offset re-acquisitions`                | 8 frame sets in a row matched nothing, so a camera's tracked offset was set again from its measured error (for example after an SDK clock refit).     |
+| `ambiguous`                             | The error was too large to re-acquire safely (a neighbouring frame could match). No batch forms and the server stops with `no batch for N ms`.        |
+| `frame-index mismatches refused`        | Device frame counters disagree and the timestamps cannot vouch for the pairing: frames from different trigger slots. Never sent on; stops the server. |
+| `frame-index re-learns`                 | The counter difference changed while the timestamps still paired correctly (a lost trigger, a wrap). Learned first after 30 identical batches.        |
+| `timeline re-anchors`                   | Every camera's clock stepped back together; later capture timestamps are corrected so they keep going forward.                                        |
+| `invalid timestamp`, `align failed`     | Frame sets without a valid capture timestamp, or whose alignment returned nothing.                                                                    |
+| `backwards timestamp`, `timestamp jump` | Frame sets not later than the camera's previous one, or more than 15 frame intervals after it.                                                        |
+| `timestamp re-anchors`                  | A camera's timestamps stepped and 3 frame sets in a row agreed, so the new timeline was accepted.                                                     |
+
+* `keyframes` counts on-demand requests and the IDRs they forced. Nothing requests keyframes until serving exists, so both stay 0.
 
 ## What good looks like [#what-good-looks-like]
 
-These values come from a reference measurement of 2026-09-26
-(`server/docs/architecture/latency-review/baseline-2026-09-26.md`). Two
-hardware-synced Femto Bolts, RTX 4090, `dev-relwithdebinfo` build, depth
-640×576 and colour 1280×720 at 15 fps, colour requested as `rgb8`,
-`concatenated_batch`, `mask.backend: fill_all` (no RVM), no preview.
+Reference baseline of 2026-09-26 (`server/docs/architecture/latency-review/baseline-2026-09-26.md`): two hardware-synced Femto Bolts, RTX 4090, `dev-relwithdebinfo`, depth 640×576 and colour 1280×720 at 15 fps capture and stream, `rgb8`, `concatenated_batch`, `fill_all`, no preview.
 
-| Metric                                          | p50          | p99          |
-| ----------------------------------------------- | ------------ | ------------ |
-| `capture->depth_rx`                             | 94.4 ms      | 98.6 ms      |
-| `capture->color_rx`                             | 134.2 ms     | 146.8 ms     |
-| `sdk_internal`                                  | 8.7–10.5 ms  | 12.8–14.9 ms |
-| `align`                                         | 2.5–4.1 ms   | 6.3–7.6 ms   |
-| `arrival_skew` = `batch_wait`                   | 2.8–4.3 ms   | 15–16 ms     |
-| `upload_queue` + `upload_submit`                | 0.6–0.8 ms   | 1.7–2.0 ms   |
-| `processing` (fill_all mask + bilateral filter) | 0.25–0.48 ms | 1.0–1.2 ms   |
-| `side_path` (no preview)                        | \< 0.01 ms   | \< 0.01 ms   |
-| `encode_bundle` (both access units out)         | 1.9–2.4 ms   | 3.5–4.2 ms   |
-| `sdk->handoff`                                  | 5.4–7.7 ms   | 11.5–12.3 ms |
-| `capture->handoff`                              | 155–159 ms   | 168–172 ms   |
+| Metric                                       | p50          | p99          |
+| -------------------------------------------- | ------------ | ------------ |
+| `capture->depth_rx`                          | 94.4 ms      | 98.6 ms      |
+| `capture->color_rx`                          | 134.2 ms     | 146.8 ms     |
+| `sdk_internal`                               | 8.7–10.5 ms  | 12.8–14.9 ms |
+| `align`                                      | 2.5–4.1 ms   | 6.3–7.6 ms   |
+| `arrival_skew` = `batch_wait`                | 2.8–4.3 ms   | 15–16 ms     |
+| `upload_queue` + `upload_submit`             | 0.6–0.8 ms   | 1.7–2.0 ms   |
+| `processing` (`fill_all` + bilateral filter) | 0.25–0.48 ms | 1.0–1.2 ms   |
+| `encode_bundle`                              | 1.9–2.4 ms   | 3.5–4.2 ms   |
+| `sdk->handoff`                               | 5.4–7.7 ms   | 11.5–12.3 ms |
+| `capture->handoff`                           | 155–159 ms   | 168–172 ms   |
 
-Also healthy: every `LIVE PIPELINE` row at the configured fps (`encode` at
-cameras × fps), all `dropped` counters at 0, both cameras at the same
-`frame_sets/s`, and equal `captured`, `uploaded` and `processed` totals in the
-summary. With debug recording on the numbers are the same and nothing drops.
+At capture 30 / stream 15 (the dev config; same rig, 3-minute runs) the camera side halves: `capture->color_rx` about 67 ms and `capture->handoff` 73.4 ms p50 / 83.9 ms p99, with `arrival_skew` p99 at 7.5 ms.
 
-How to read it: the server code adds about 6–8 ms at p50 and about 12 ms at
-p99 (`sdk->handoff`). About 140 ms of the 155 ms happen before the SDK
-delivers the frames: colour arrives about 40 ms after depth, and the SDK's
-`rgb8` conversion takes about 10 ms. At 30 fps the camera side is about
-65 ms shorter. RVM segmentation, when enabled, adds to `processing`; it was
-not part of this baseline.
+Also healthy: every row at its expected rate, all `dropped` counters at 0, both cameras at the same `frame_sets/s`, and no stale frame sets after start-up. Debug recording does not change these numbers. RVM adds to `processing` and was not part of the baseline.
 
 ## Troubleshooting [#troubleshooting]
 
-| Symptom                                                                                  | Likely cause                                                                                                                          | What to do                                                                                                                                                                                      |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `upload` `dropped` rising                                                                | Capture outpaces the upload thread: CPU overload or slow pinned-memory copies. `upload_submit` is high.                               | Check host load; close other heavy processes; use the `dev-relwithdebinfo` build.                                                                                                               |
-| `process` `dropped` rising, `processing` p99 near the frame interval (66.7 ms at 15 fps) | GPU processing too slow, usually RVM or a large bilateral radius.                                                                     | Check the RVM engine matches the camera count and resolution; lower `processing.bilateral_maximum_radius_pixels`; try `mask.backend: fill_all` to confirm.                                      |
-| `encode` `dropped` rising, `encode_queue` growing                                        | NVENC cannot keep up, or another process uses the encoder.                                                                            | Check `nvidia-smi --query-gpu=encoder.stats.sessionCount,utilization.encoder --format=csv`; stop other encoders; lower resolution or fps. A larger `encoding.queue_capacity` only adds latency. |
-| `upload slots exhausted` warnings                                                        | A stage or a debug recorder holds GPU batches longer than the queues allow for.                                                       | Report it with the log: the slot count is sized for the configured queues, so this points at a bug. The server keeps running and counts the drops.                                              |
-| `encode_color` or `encode_bundle` max around 30–35 ms, p99 normal                        | Isolated slow encodes; the baseline runs show them too.                                                                               | Nothing, unless p99 rises too.                                                                                                                                                                  |
-| `capture` fps below the configured rate while each camera's `frame_sets/s` is correct    | Batches do not form: camera timestamps are further apart than `sync.timestamp_tolerance_us`.                                          | Check the sync cable and roles; run `--orbbec-live-sync-test` (it reports skew); power-cycle the cameras.                                                                                       |
-| One camera's `frame_sets/s` lower than the other's                                       | USB bandwidth, a bad cable, or the camera is not triggered.                                                                           | Move the camera to another USB controller; check the sync cable.                                                                                                                                |
-| `arrival_skew` / `batch_wait` p99 well above \~16 ms                                     | The two cameras' capture threads are delivering at different times, often because of CPU load (alignment runs on the CPU per camera). | Reduce host load. A value near one frame interval means the cameras are out of sync; see the row above.                                                                                         |
-| `sdk->handoff` p99 far above \~12 ms, with no single large stage                         | CPU contention: queues and threads wait for the scheduler.                                                                            | Check host load (`uptime`); compare with a quiet machine.                                                                                                                                       |
-| `side_path` above 1 ms                                                                   | The processing thread is being descheduled (CPU contention). A slow preview window cannot cause this: it runs on its own thread.      | Check host load (`uptime`).                                                                                                                                                                     |
-| `drops(in/out)` rising in `DEBUG RECORDING RATES`, or `worker=failed`                    | The recorder (disk, FFV1 encode or local decode) cannot keep up, or failed. The pipeline is unaffected.                               | Record fewer cameras (`debug_recording.camera_ids`), turn off `locally_decode_gpu_outputs`, or write to a faster disk.                                                                          |
-| Rate tables appear but no latency reports                                                | The in-place display overwrote them.                                                                                                  | Set `ORBBEC_STREAMER_STATUS_MODE=log`.                                                                                                                                                          |
-| No rate tables for the first seconds                                                     | Normal: rates are hidden for 5 s after start so start-up does not distort them.                                                       | Wait.                                                                                                                                                                                           |
+| Symptom                                                                                  | Likely cause                                                                                | What to do                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `upload` `dropped` rising, high `upload_submit`                                          | CPU overload or slow pinned copies                                                          | Reduce host load; use the `dev-relwithdebinfo` build.                                                                                                                                          |
+| `process` `dropped` rising, `processing` p99 near the frame interval (66.7 ms at 15 fps) | GPU processing too slow, usually RVM or a large bilateral radius                            | Check the RVM engine matches cameras and resolution; lower `processing.bilateral_maximum_radius_pixels`; try `mask.backend: fill_all`.                                                         |
+| `encode` `dropped` rising, `encode_queue` growing                                        | NVENC can't keep up, or another process uses it                                             | Check `nvidia-smi --query-gpu=encoder.stats.sessionCount,utilization.encoder --format=csv`; stop other encoders; lower resolution or stream rate. A larger `queue_capacity` only adds latency. |
+| `upload slots exhausted` warnings                                                        | A stage or recorder holds batches longer than the slot budget allows                        | Report it with the log; it points at a bug. The server keeps running.                                                                                                                          |
+| `encode_color` or `encode_bundle` max at 30–35 ms, p99 normal                            | Isolated slow encodes, also in the baseline                                                 | Nothing, unless p99 rises.                                                                                                                                                                     |
+| `capture` below the capture rate while each camera's `frame_sets/s` is correct           | Batches don't form: timestamps further apart than `sync.timestamp_tolerance_us`             | Check the sync cable and roles; run `--orbbec-live-sync-test`; power-cycle the cameras.                                                                                                        |
+| One camera's `frame_sets/s` lower than the other's                                       | USB bandwidth, a bad cable, or no trigger                                                   | Move it to another USB controller; check the sync cable.                                                                                                                                       |
+| `arrival_skew` / `batch_wait` p99 well above 16 ms                                       | CPU load delays a camera's capture thread (alignment runs on the CPU)                       | Reduce host load. Near one frame interval means the cameras are out of sync.                                                                                                                   |
+| `sdk->handoff` p99 far above 12 ms, no single large stage; `side_path` above 1 ms        | CPU contention                                                                              | Check host load (`uptime`).                                                                                                                                                                    |
+| `drops(in/out)` rising or `worker=failed`                                                | The recorder (disk, FFV1, local decode) can't keep up or failed; the pipeline is unaffected | Record fewer cameras, turn off `locally_decode_gpu_outputs`, or use a faster disk.                                                                                                             |
+| Rate tables but no latency reports                                                       | The in-place display overwrote them                                                         | Set `ORBBEC_STREAMER_STATUS_MODE=log`.                                                                                                                                                         |
+| No rate tables in the first seconds                                                      | Rates are hidden for 5 s after start                                                        | Wait.                                                                                                                                                                                          |

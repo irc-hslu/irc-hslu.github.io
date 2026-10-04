@@ -112,7 +112,7 @@ The batcher turns per-camera frame sets into batches:
    full, the oldest one is dropped.
 2. Once every camera has a waiting frame set, the batcher compares the
    oldest one of each camera. If their timestamps lie within
-   `sync.timestamp_tolerance_us` (default 2000 µs, dev config 5000 µs), they
+   `sync.timestamp_tolerance_us` (default 5000 µs), they
    become one batch.
 3. Otherwise the frame set with the earliest timestamp can never match and
    is dropped; the batcher tries again with the next one.
@@ -140,6 +140,29 @@ that misses a slot is still a whole frame interval off, and that frame set
 is dropped as before. Batches keep the cameras' own timestamps and spread.
 Free-running cameras (`sync.enabled: false`) are not tracked.
 
+If 8 frame sets in a row find no partner (the error outran the limit, or the
+SDK refitted its mapping to a new offset), the batcher re-acquires the
+offset, but only for the cameras whose offset no longer fits. It estimates
+the error from the waiting frame sets. With each camera's frame counter it
+gets the error exactly: under hardware sync the counters advance once per
+trigger, with a constant difference between cameras (measured on two Femto
+Bolts). Without the counters, it follows a gradual drift and takes a sudden
+jump only when the new error is within the limit. An error beyond the limit
+plus the tolerance is as close to the neighbouring frame as to the right
+one, so the batcher does not guess. It forms no batch and the server stops
+after 5 s with `no batch for N ms` (10 s before the first batch).
+
+The counters' difference is learned once it held for 30 batches in a row,
+because it changes while the cameras settle at start-up. If it changes
+later while the timestamps still pair the frames (a secondary lost a
+trigger, a counter wrapped), the new difference is learned. If the
+timestamps cannot vouch for the pairing either, the batch is never sent on
+and the server stops at once.
+
+If every camera's clock steps back together, the server keeps the capture
+timestamps it sends going forward: it adds the step to every later
+timestamp (`timeline re-anchors` in [the telemetry](../telemetry)).
+
 The session summary shows the largest spread and tracked offset:
 `frame batcher: ... max skew 5.18 ms, max tracked camera offset 2.24 ms`.
 
@@ -159,10 +182,10 @@ slower camera.
 
 ## Frame-set and batch numbers [#frame-set-and-batch-numbers]
 
-| Number           | Counts                                             | Starts at                                                                                                       |
-| ---------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Frame-set number | Frame sets received by one camera's capture thread | 0 per camera. It also counts frames discarded during start-up, so numbers of different cameras are not aligned. |
-| Batch number     | Batches emitted by the batcher                     | 0                                                                                                               |
+| Number           | Counts                                                                          | Starts at                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Frame-set number | Frame sets received by one camera's capture thread                              | 0 per camera. It also counts frames discarded during start-up, so numbers of different cameras are not aligned. |
+| Batch number     | Batches emitted by the batcher, including those the stream-rate filter discards | 0                                                                                                               |
 
 An encoded bundle's frame-set number is the camera's frame-set number in
 `per_camera` mode and the batch number in `concatenated_batch` mode. Colour
@@ -174,22 +197,26 @@ All cameras use the same `streams` profile
 ([Configuration](../configuration#streams)). The SDK rejects a profile the
 camera does not offer when the camera starts.
 
-|        | Supported by the server                          | Dev config                   |
-| ------ | ------------------------------------------------ | ---------------------------- |
-| Depth  | `depth_u16`, any size and rate the camera offers | 640 × 576 at 15 fps          |
-| Colour | `rgb8`, `bgr8`, `gray8`                          | 1280 × 720 at 15 fps, `rgb8` |
+|        | Supported by the server                                  | Dev config                   |
+| ------ | -------------------------------------------------------- | ---------------------------- |
+| Depth  | `depth_u16`, any size the camera offers, at 15 or 30 fps | 640 × 576 at 30 fps          |
+| Colour | `rgb8`, `bgr8`, `gray8`, at the depth rate               | 1280 × 720 at 30 fps, `rgb8` |
 
 * Encoding, RVM and the bilateral depth filter need `rgb8` colour.
-* With encoding on, colour and depth `fps` must be equal.
-* The Femto Bolt offers colour at 1280 × 720 in 5, 15, 25 and 30 fps. `rgb8`
-  and `bgr8` are converted from the camera's format by the SDK, on the CPU.
+* Colour and depth `fps` must be equal, and 15 or 30.
+* `rgb8` and `bgr8` are converted from the camera's format by the SDK, on
+  the CPU.
+* The capture rate can be a multiple of the stream rate
+  (`encoding.stream_fps`): the dev config captures at 30 and streams at 15.
+  See [Capture rate and stream rate](../configuration#capture-rate-and-stream-rate).
 
 ## Latency: frame rate and colour timing [#latency-frame-rate-and-colour-timing]
 
 Most of the end-to-end latency is on the camera side, before the SDK
-delivers a frame set. From the baseline of 2026-09-26
+delivers a frame set, and it scales with the capture frame interval. From the
+baseline of 2026-09-26
 (`server/docs/architecture/latency-review/baseline-2026-09-26.md`; two
-Femto Bolts, 15 fps, `rgb8`):
+Femto Bolts, 15 fps capture, `rgb8`):
 
 | Measured                                              | p50         | p99          |
 | ----------------------------------------------------- | ----------- | ------------ |
@@ -202,10 +229,11 @@ Femto Bolts, 15 fps, `rgb8`):
   40 ms after depth (8–13 ms at 30 fps in the SDK probe). The SDK holds depth until the
   matching colour frame is there, so every frame set waits for colour. This
   happens in the camera and USB path, not in the server.
-* **30 fps is much faster.** In a single-camera SDK probe, 30 fps cut the
-  camera-side latency by about 64–66 ms compared with 15 fps, whatever the
-  colour format. The server still runs the rig at 15 fps: 30 fps has not
-  been validated with RVM, the encoder settings and hardware sync.
+* **30 fps capture halves it.** On the same two-camera rig, capturing at 30
+  and streaming at 15 cut colour arrival from about 134 to 67 ms and
+  capture-to-hand-off from 146.8 to 73.4 ms at p50, at the same stream rate
+  and bitrate. The dev config uses this. GPU work, RVM included, runs at
+  the stream rate, so its per-frame budget does not shrink.
 * The capture timestamps come from the SDK's clock mapping, so absolute
   capture-to-host numbers may carry a constant offset. Comparisons between
   runs are valid.

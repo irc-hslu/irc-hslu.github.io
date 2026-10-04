@@ -11,19 +11,20 @@ command to check each item. The next page is [Install](./install).
 Only one configuration has been tested. Other versions may work, but nobody
 has tried them.
 
-| Component     | Tested version                                               |
-| ------------- | ------------------------------------------------------------ |
-| OS            | Ubuntu 26.04.1 LTS (x86_64)                                  |
-| GPU           | NVIDIA GeForce RTX 4090 (compute capability 8.9)             |
-| NVIDIA driver | 580.178.04                                                   |
-| CUDA toolkit  | 13.3 (`nvcc` V13.3.73), at `/usr/local/cuda`                 |
-| TensorRT      | 11.1.0.106 (`+cuda13.3` Debian packages)                     |
-| NVENC headers | `ffnvcodec` 12.1 (package `libffmpeg-nvenc-dev`)             |
-| Orbbec SDK    | 2.8.7                                                        |
-| Cameras       | 2 × Orbbec Femto Bolt, firmware 1.1.2, hardware-synchronised |
-| Compiler      | GCC 15.2 (`/usr/bin/gcc-15`, `/usr/bin/g++-15`)              |
-| CMake / Ninja | CMake 4.1.2 and 4.2.3, Ninja 1.13.2                          |
-| Python        | 3.12 or newer, only to build the RVM engine                  |
+| Component     | Tested version                                                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OS            | Ubuntu 26.04.1 LTS (x86_64)                                                                                                                       |
+| GPU           | NVIDIA GeForce RTX 4090 (compute capability 8.9)                                                                                                  |
+| NVIDIA driver | 580.178.04                                                                                                                                        |
+| CUDA toolkit  | 13.3 (`nvcc` V13.3.73), at `/usr/local/cuda`                                                                                                      |
+| TensorRT      | 11.1.0.106 (`+cuda13.3` Debian packages)                                                                                                          |
+| NVENC headers | `ffnvcodec` 12.1 (package `libffmpeg-nvenc-dev`)                                                                                                  |
+| Orbbec SDK    | 2.8.7                                                                                                                                             |
+| Cameras       | 2 × Orbbec Femto Bolt, firmware 1.1.2, hardware-synchronised                                                                                      |
+| Compiler      | GCC 15.2 (`/usr/bin/gcc-15`, `/usr/bin/g++-15`)                                                                                                   |
+| CMake / Ninja | CMake 4.1.2 and 4.2.3, Ninja 1.13.2                                                                                                               |
+| Python        | 3.12 or newer, only to build the RVM engine                                                                                                       |
+| Go            | Optional: 1.26 or newer runs `gateway_go_tests` (skipped without Go); the [WebTransport spike](./serving#try-the-webtransport-spike) needs 1.27.1 |
 
 The first four checks below are about hardware and the OS, so run them before
 you install anything. The software rows (CUDA, TensorRT, the Orbbec SDK, GCC)

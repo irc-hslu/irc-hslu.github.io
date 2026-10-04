@@ -18,11 +18,10 @@ The parser also accepts `concatenated` and `joint` for `concatenated_batch`,
 and `separate` for `per_camera`. The development config
 `server/config/dev/live.yaml` uses `concatenated_batch`.
 
-Serving to browsers over WebTransport is not yet available in the server. The
-layout already shapes the encoder output, the debug recordings, `setup.json`
-and the stream descriptors the server builds for its setup state. The wire
-contract `protocol/wire-format.md` defines what each layout means for a
-client.
+The layout already shapes the encoder output, the debug recordings, `setup.json`
+and the stream descriptors in the setup state; serving is not available yet.
+What each layout means for a client is defined in `protocol/wire-format.md`
+§5.
 
 ## What each layout produces [#what-each-layout-produces]
 
@@ -76,8 +75,9 @@ chooses the lowest HEVC level whose picture size, sample rate and Main-tier
 bitrate admit the stream, and configures the encoder with exactly that level
 and Main tier, so the codec string the browser receives describes the
 bitstream (a GPU test compares the two). It uses the whole surface and the
-whole bitrate. With the dev profile (640 × 576 at 15 fps, 12 Mbit/s colour and
-8 Mbit/s depth per camera):
+whole bitrate. With the dev profile (640 × 576 tiles streamed at 15 fps, 12 Mbit/s colour
+and 8 Mbit/s depth per camera). The level depends on the stream rate
+(`encoding.stream_fps`), not the capture rate:
 
 | Cameras | Concatenated colour | Concatenated depth | Per-camera colour | Per-camera depth |
 | ------- | ------------------- | ------------------ | ----------------- | ---------------- |
@@ -96,8 +96,8 @@ GPUs, which allows 12 tiles of 640 pixels. Browser decoders may accept less.
 
 **Keyframes.** A keyframe, or IDR frame, is a frame a decoder can start
 from without earlier frames. Every stream starts with an IDR frame and
-repeats one every `encoding.gop_length` frames (60 frames is 4 s at 15 fps; `0` disables the
-period). The encoder can also force a keyframe on request, which serving
+repeats one every `encoding.gop_length` frames (60 frames is 4 s at a
+15 fps stream rate; `0` disables the period). The encoder can also force a keyframe on request, which serving
 will use when a client joins or after it drops data for a slow client. Forced
 keyframes for one bundle are at least
 250 ms apart. Within a bundle, colour and depth are always keyframes on the

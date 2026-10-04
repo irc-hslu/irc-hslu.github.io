@@ -19,7 +19,9 @@ page shows how the parts fit together; the details are on
 camera 0 --> SDK --> capture thread 0 --+
 camera 1 --> SDK --> capture thread 1 --+
                                         v
-                                  frame batcher ---------> calibration tap (only during a run)
+                                  frame batcher
+                                        |
+                       stream-rate filter (keeps 1 of N) --> calibration tap (only during a run)
                                         |
                           upload queue (2, latest wins)
                                         v
@@ -34,12 +36,12 @@ camera 1 --> SDK --> capture thread 1 --+
                               encode thread (NVENC)
                                         |
                                         v
-     hand-off --> latency telemetry, debug output recorder, network serving (planned)
+     hand-off --> latency telemetry, debug output recorder, media fan-out (not wired)
 ```
 
-The batcher has no thread of its own: it runs on the capture thread whose
-frame set completes a batch, and that thread also pushes the batch into the
-upload queue.
+The batcher and the stream-rate filter have no thread of their own: they run
+on the capture thread whose frame set completes a batch, and that thread also
+pushes the batch into the upload queue.
 
 1. **Capture.** Each camera has one capture thread. It takes a **frame
    set** (one colour and one depth frame) from the Orbbec SDK, aligns colour
@@ -49,18 +51,22 @@ upload queue.
    whose capture timestamps lie within `sync.timestamp_tolerance_us`, then
    emits one batch. The batch always holds one frame set per camera, in
    config order.
-3. **Upload.** The upload thread copies each frame into pinned host memory
+3. **Stream rate.** When the capture rate (`streams.*.fps`) is a multiple of
+   the stream rate (`encoding.stream_fps`), only 1 of every N batches goes on;
+   the others are discarded before any GPU work. See
+   [Capture rate and stream rate](../configuration#capture-rate-and-stream-rate).
+4. **Upload.** The upload thread copies each frame into pinned host memory
    (CPU memory the GPU can copy from directly) and starts an asynchronous
    copy to the GPU.
-4. **GPU processing.** The processing thread computes the foreground mask
+5. **GPU processing.** The processing thread computes the foreground mask
    and filters depth, then hands the batch to the encoder.
-5. **Encoding.** The encode thread converts colour to NV12 and depth to
+6. **Encoding.** The encode thread converts colour to NV12 and depth to
    10-bit codes, encodes both with NVENC and builds an encoded bundle: one
    per batch in `concatenated_batch` mode, one per camera in `per_camera`
    mode ([Stream layout](../stream-layout)).
-6. **Hand-off.** The bundle is recorded for the latency telemetry and passed
+7. **Hand-off.** The bundle is recorded for the latency telemetry and passed
    to the debug recorder when output recording is on. This is where the
-   network server will take it once serving exists.
+   media fan-out will take it once serving is wired.
 
 ## Threads and ownership [#threads-and-ownership]
 
@@ -109,7 +115,9 @@ drop counters and warnings are explained in
 [Read the telemetry](../telemetry#rate-tables).
 
 A slow consumer at the end (preview, disk, and later a network client)
-cannot block capture, GPU processing or NVENC.
+cannot block capture, GPU processing or NVENC. For network clients the
+`MediaFanout` library already enforces this with per-session bounded queues;
+see [Serve to browsers](../serving#media-fan-out).
 
 ## Side paths [#side-paths]
 
@@ -139,13 +147,13 @@ yet.
 
 ## What leaves the server [#what-leaves-the-server]
 
-| Output                                                                                    | Status                                                                |
-| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Encoded bundles (colour + depth HEVC access units, camera tiles, depth quantization info) | Produced; handed to the debug recorder only                           |
-| `setup.json` in `debug_recording.directory`                                               | Written at every start. A local debug file, not the client protocol   |
-| Setup state (cameras, intrinsics, stream descriptors, calibration revision)               | Built in the process for the planned session layer                    |
-| WebTransport sessions to browsers                                                         | Not available yet; see [Serve to browsers](../serving)                |
-| On-demand keyframes for joining or recovering clients                                     | The encoder supports them; nothing requests them until serving exists |
+| Output                                                                                    | Status                                                                                                                                                     |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encoded bundles (colour + depth HEVC access units, camera tiles, depth quantization info) | Produced; handed to the debug recorder only                                                                                                                |
+| `setup.json` in `debug_recording.directory`                                               | Written at every start. A local debug file, not the client protocol                                                                                        |
+| Setup state (cameras, intrinsics, stream descriptors, calibration revision)               | Built in the process for the planned session layer                                                                                                         |
+| WebTransport sessions to browsers                                                         | Not available. Session control, media fan-out and the gateway IPC exist as tested libraries, not wired into `LiveApp`; see [Serve to browsers](../serving) |
+| On-demand keyframes for joining or recovering clients                                     | The encoder supports them; nothing requests them until serving exists                                                                                      |
 
 ## Related pages [#related-pages]
 
