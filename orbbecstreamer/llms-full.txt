@@ -926,15 +926,15 @@ The client has three command-line checks (type check, unit tests and build) and 
 
 Run these in the `client` folder, after `npm ci` (see [Run the client](/docs/client/dev-build)):
 
-| Command                   | What it does                                                                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run typecheck`       | TypeScript check, no output files                                                                                                           |
-| `npm test`                | All unit tests (Vitest): `client/src/tests/` in Node.js, and the Operator Console tests next to its code in `client/src/operator/` in jsdom |
-| `npm run test:watch`      | The unit tests in watch mode                                                                                                                |
-| `npm run build`           | Type check, then production build into `client/dist/`                                                                                       |
-| `npm run preview`         | Serve `client/dist/` at [http://localhost:4173/](http://localhost:4173/)                                                                    |
-| `npm run bench:e2e`       | Media-path benchmark in Node.js; see [Latency measurement](/docs/client/developer/latency)                                                  |
-| `npm run protocol:export` | Export the protocol schema and test vectors to `../protocol`                                                                                |
+| Command                   | What it does                                                                                                                                                                           |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`       | TypeScript check, no output files                                                                                                                                                      |
+| `npm test`                | All unit tests (Vitest 4) in two projects: `client` (`client/src/tests/`, in Node.js) and `operator` (the Operator Console tests next to its code in `client/src/operator/`, in jsdom) |
+| `npm run test:watch`      | The unit tests in watch mode                                                                                                                                                           |
+| `npm run build`           | Type check, then production build into `client/dist/`                                                                                                                                  |
+| `npm run preview`         | Serve `client/dist/` at [http://localhost:4173/](http://localhost:4173/)                                                                                                               |
+| `npm run bench:e2e`       | Media-path benchmark in Node.js; see [Latency measurement](/docs/client/developer/latency)                                                                                             |
+| `npm run protocol:export` | Export the protocol schema and test vectors to `../protocol`                                                                                                                           |
 
 Without npm, run the same tools directly in the `client` folder:
 
@@ -944,15 +944,19 @@ Without npm, run the same tools directly in the `client` folder:
 ./node_modules/.bin/vite build
 ```
 
-To run only the Operator Console tests: `./node_modules/.bin/vitest run src/operator`.
+To run one project: `./node_modules/.bin/vitest run --project client` or `./node_modules/.bin/vitest run --project operator`. The output marks each test file with its project, such as `|client|` or `|operator|`.
 
 The build has one page, `index.html`. Once `client/src/operator/main.tsx` exists, it also builds the Operator Console page, `operator/index.html`. The dev server and `npm run preview` serve that page at `/operator` and every path under it, except paths whose last segment ends in a file extension such as `.js`, `.css` or `.png`; those are served as files. This applies to GET and HEAD requests whose `Accept` header is missing, empty, or includes `text/html` or `*/*` (so `curl` gets the page too). The rule is in `client/scripts/operatorRoute.ts`.
 
-If `client/src/operator/testing/setup.ts` exists, Vitest loads it before every test file.
+If `client/src/operator/testing/setup.ts` exists, Vitest loads it before every Operator Console test file, and not before the client tests.
+
+A test fails when it runs longer than its timeout (5 seconds by default), even when it never gives way to a timer. Give a long scenario its own timeout, for example `describe('name', { timeout: 60_000 }, () => { ... })`.
 
 ## Run the fuzz tests [#run-the-fuzz-tests]
 
 The fuzz tests feed the protocol parsers hostile input: mutated test vectors, truncated and re-chunked streams, inflated length fields, huge strings and arrays, deep nesting, duplicate keys and out-of-range numbers. Every input must give a valid value or a protocol error with a code from wire-format §3a, in bounded time and memory. They also check that valid generated messages round-trip unchanged. They use [fast-check](https://fast-check.dev/) and live in `client/src/tests/fuzzWire.test.ts` (framing and media records) and `client/src/tests/fuzzControl.test.ts` (control JSON, the descriptor and snapshot validators, and the recording manifest).
+
+Time is checked so that a busy machine does not fail the tests. Each input gets a generous time limit and is re-run before it fails, which catches hangs. Separate tests check that cost grows linearly with input size: they compare one run of size n with 16 runs of size n/16 in the same process, so machine load cancels out. A linear parser scores about 1 and a quadratic one about 16; the limit is 5. The helpers are in `client/src/tests/timingGuards.ts`.
 
 `npm test` runs them with a fixed seed and a fixed number of runs, so they take a few seconds and give the same result every time. To run only the fuzz tests, in the `client` folder:
 
