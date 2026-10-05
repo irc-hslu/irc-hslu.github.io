@@ -24,6 +24,7 @@ Browsers will connect over WebTransport, a browser API for low-latency streams o
 
 * **Endpoint.** `https://<listen_address>/orbbec` (`serving.path`). The client opens the control stream: the first bidirectional stream it opens. The server resets any further client stream. These are the server's current choices, listed in CR 0024 (proposed, PR #114).
 * **Admission.** At most `serving.max_sessions` sessions, and at most 4 per source IP address. Above either cap, and while shutting down, the request is answered with HTTP 503 before the session exists. A request from an origin that is not in `serving.allowed_origins` is refused.
+* **Host check.** The `:authority` of every request must name the listener's port and one of: `localhost`, `127.0.0.1`, `::1`, a name or address in the TLS certificate, or an entry of `serving.host_names`. Anything else gets HTTP 421 before a session exists, which blocks DNS-rebinding attacks. With the development certificate (SANs `localhost`, `127.0.0.1`), a browser that connects by a LAN address needs that address in `serving.host_names`.
 * **Limits.** QUIC idle timeout 4 s with a keep-alive every 1 s. HTTP/3 idle connections are closed after 5 s and headers are capped at 16 KiB. Inbound control bytes are rate-limited per session; over the rate the server stops reading, which slows only that client.
 * **Exposure.** `config/dev/live.yaml` listens on `0.0.0.0:4443`, so any host that can reach this machine can open a session, limited only by the origin check and the caps. A non-browser client can send any `Origin` header. Use a firewall, or listen on `127.0.0.1`, when the machine is on an untrusted network.
 * **Isolation.** The gateway runs as a child process with its own process group, only its IPC socket and standard streams open, and a minimal environment. If it dies, every session ends (wire-format §17) and the server starts a new one.
@@ -164,6 +165,21 @@ The page passes the certificate's SHA-256 hash in the `serverCertificateHashes` 
 ### Production: a CA-issued certificate [#production-a-ca-issued-certificate]
 
 Use a certificate from a public CA (for example Let's Encrypt) or from a CA the client machines trust, issued for the host name the browsers use. The browser then connects without a hash, and the 14-day and ECDSA rules don't apply. Set `serving.certificate` and `serving.private_key`. The gateway refuses a key file that group or others can read (`chmod 600`).
+
+### Packaged certificates [#packaged-certificates]
+
+The Debian package's `orbbec-tls` tool keeps the certificates in `/etc/orbbec-streamer/tls/`. Set `serving.tls_directory` to that folder. Each certificate and its key live in their own folder `pairs/<id>/` (`cert.pem`, `key.pem`), and three symlinks select them:
+
+| Symlink      | Certificate                                                                                     | Used for                                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `https`      | The leaf of the per-installation local CA (90 days; host name, `.local` name and LAN addresses) | HTTPS pages, and WebTransport to any address that is not loopback                                            |
+| `wt-current` | A self-signed ECDSA P-256 certificate valid for 13 days                                         | WebTransport to `127.0.0.1` or `localhost`, pinned with `serverCertificateHashes` by a page on the server PC |
+| `wt-next`    | The next 13-day certificate                                                                     | Only its hash is published, before it is switched to                                                         |
+
+* The gateway resolves each symlink once per load and reads `cert.pem` and `key.pem` from the folder it resolved, so a rotation between the two reads cannot pair a certificate with the wrong key. A symlink that points outside the TLS folder, or into `private/`, is refused. The gateway never opens `private/`, where the CA key is kept.
+* Keys must not be readable by group or others (`orbbec-tls --key-owner` writes them with mode 600).
+* The server starts without the files (`orbbec-tls` postpones setup until the clock is synchronised). Until they appear, the gateway logs `certificates not ready`, refuses TLS handshakes, and looks for the files again every 10 s.
+* `SIGHUP` to the gateway reloads the certificates. Open sessions keep the certificate they started with. If a certificate fails to load, the previous one stays in use and the error is logged.
 
 The gateway makes its own development certificate when no CA certificate is set: ECDSA P-256, valid for 13 days, renewed one day before it expires. Each new hash is written to `serving.dev_certificate_hash_path`. You don't need the `openssl` steps above for the gateway.
 

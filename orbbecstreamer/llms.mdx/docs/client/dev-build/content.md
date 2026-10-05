@@ -56,6 +56,15 @@ These are the problems people hit most when starting the client:
   npm run dev -- --port 5174
   ```
 
+* **`Error: ENOSPC: System limit for number of file watchers reached`**: Linux limits how many files one user can watch, and every program you run shares that limit (editors, other development servers, other checkouts). The client itself watches only a few hundred files. Raise the limit, then start the server again:
+
+  ```bash
+  sudo sysctl fs.inotify.max_user_watches=524288
+  echo 'fs.inotify.max_user_watches=524288' | sudo tee /etc/sysctl.d/60-inotify.conf
+  ```
+
+  The first line takes effect now; the second keeps it after a restart. Stopping other development servers or editors also frees watchers.
+
 * **`npm: command not found`**: Node.js is installed without npm on this machine. Install npm with your Node.js distribution. Once `client/node_modules/` exists, you can also start the server without npm. In the `client` folder:
 
   ```bash
