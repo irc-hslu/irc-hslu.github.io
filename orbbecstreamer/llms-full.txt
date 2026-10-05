@@ -415,7 +415,7 @@ Some behaviour on the user pages depends on questions the protocol contract (`pr
 | Network calibration                            | 0018, proposed                                               | No network calibration stream; the setup view’s Network section shows `Network calibration is not available yet.` The card’s budget line shows whatever budget the server sends.                                                                                                                                                        | “Network calibration isn’t available yet.”                                                                                                                                      |
 | Camera-pose calibration screen                 | Not defined by the contract yet                              | The Camera pose section is exactly a red, bold, italic `TODO`, with no controls: darker red on the light theme, lighter red on the dark one, so it meets WCAG AA contrast on both.                                                                                                                                                      | “Camera-pose calibration isn’t available in the client yet.”                                                                                                                    |
 | Placement commit with an expected revision     | Contract names `expectedRevision` but not the server’s check | Sends the draft’s base revision and blocks a stale commit locally. The mock server accepts only while its placement is still at that revision, and otherwise rejects with `stale-revision`.                                                                                                                                             | [Place a server in the scene](/docs/client/placement-editing): “A server should accept the commit only while its placement is still at that revision, as the mock server does.” |
-| Coordinate handedness and pixel centre         | 0011, proposed                                               | The renderer follows the explicit axes of §9 (+X right, +Y up, +Z forward). If a server uses the other reading, every point cloud is mirrored.                                                                                                                                                                                          | [Move around the 3D view](/docs/client/viewer): “The cloud looks mirrored … report it.”                                                                                         |
+| Coordinate handedness and pixel centre         | 0011, proposed                                               | The renderer follows the explicit axes of §9 (+X right, +Y up, +Z forward). If a server uses the other reading, every point cloud is mirrored. Tile-view overlays (`tileToCss`) put a pixel's centre at its integer coordinate.                                                                                                         | [Move around the 3D view](/docs/client/viewer): “The cloud looks mirrored … report it.”                                                                                         |
 | Revision increments                            | 0007, proposed                                               | A revision that goes backwards, or an update that breaks a rule (for example a placement that isn’t rigid), isn’t shown: it triggers one snapshot resync. +1 steps aren’t enforced, so a forward gap isn’t an error.                                                                                                                    | The card’s `resynchronising` line.                                                                                                                                              |
 | Media stream lifecycle                         | 0009, proposed                                               | Media before `client.subscribe` is accepted for held bundles; subscriptions last one session and aren’t re-sent after a reconnect.                                                                                                                                                                                                      | Not visible beyond the card’s counts.                                                                                                                                           |
 
@@ -861,6 +861,90 @@ Troubleshooting:
 * **The header chip shows WebGPU although you wanted WebGL2**: WebGPU is available on the GPU even without `--enable-unsafe-webgpu`. Turn it off with `--disable-features=WebGPU,WebGPUService`.
 
 
+# Runtime options for embedding (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/runtime-options)
+
+
+
+A page that embeds the client runtime, such as the Operator Console, starts it with `startAppRuntime(container, options)` from `client/src/app/appRuntime.ts` and adds servers with `model.add(source)`. This page covers two options for that: a control-only runtime, and pinned server certificates.
+
+## Start a control-only runtime [#start-a-control-only-runtime]
+
+Use this when the page shows server state and runs setup, but draws no point clouds.
+
+```ts
+import { startAppRuntime } from '../app/appRuntime.js';
+
+const runtime = startAppRuntime(container, { media: 'none', displayName: 'Operator Console' });
+const model = await runtime.ready;
+model.add({ kind: 'webtransport', url: 'https://capture-01.local:4433/orbbec' });
+```
+
+`media` is `'full'` (the default) or `'none'`. With `'none'` the runtime:
+
+* creates no canvas, renderer, GPU device, decoders or decoder support probe, and doesn't ask for WebXR support. It doesn't touch `container`;
+* never sends `client.subscribe`. That holds after a handshake, for bundles a later snapshot adds, after a revision change and after a reconnect. `client.hello` lists no preferred bundles;
+* cancels any media stream a server opens anyway, and decodes nothing;
+* tells each server in `client.hello` that it has no WebGPU, WebGL2, WebXR or HEVC decoding. The server sees a control and setup client, and the connection refuses a manual `subscribe` with `not-decode-compatible`.
+
+On its own, the runtime sends only `client.hello`, `client.ping` (clock sync) and `client.snapshot.request` (a resync after an unexpected revision, or `refreshSnapshot()`). The setup lock, its lease heartbeat, calibration, placement commits and reconnects work as in the full runtime. They are sent only when the page asks for them.
+
+What the model reports instead of a renderer:
+
+| Member                                           | Value with `media: 'none'`                                                                                |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `renderer`                                       | `{ kind: 'none', message: 'Control only: this runtime draws nothing and receives no media.', notes: [] }` |
+| `renderSettings`                                 | `null`                                                                                                    |
+| `decoders`                                       | `{ kind: 'unavailable', message: 'Control only: nothing is decoded.' }`                                   |
+| `attachPlacementGizmo(id, …)`                    | `{ ok: false, message: 'control-only: nothing is drawn' }`                                                |
+| `pipeline(id).controlOnly`                       | `true`                                                                                                    |
+| `pipeline(id).status.bundles`, `withheldBundles` | always empty                                                                                              |
+
+Every member returns one of these values; none of them throws. Hidden-tab media suspension isn’t installed, because there is no media to pause.
+
+At a lower level, `ConnectionManager` and `ServerPipeline` take the same option: `media: 'none'` with `renderer: null`. A full pipeline without a renderer throws `a renderer is required unless media is 'none'`.
+
+## Pin a server certificate [#pin-a-server-certificate]
+
+Use this when the browser runs on the server PC and the server uses a short-lived self-signed certificate (release ADR-0004). The browser then checks the certificate against the hash you give it instead of a certificate authority. [Serve to browsers](/docs/server/serving#development-a-pinned-certificate-hash) explains the certificate rules (ECDSA P-256, valid for less than 14 days) and how to compute the hash.
+
+```ts
+import { parseCertificateHash } from '../app/serverSource.js';
+
+const hash = parseCertificateHash('8e:dd:4a:62:46:85:ea:98:17:dd:fa:1d:34:cd:39:b7:28:86:fc:b0:a1:71:a5:15:f4:d5:29:74:43:53:ce:87');
+if (!hash.ok) throw new Error(hash.issues.join('; '));
+model.add({ kind: 'webtransport', url: 'https://127.0.0.1:4433/orbbec', serverCertificateHashes: [hash.value] });
+```
+
+Replace the hash with your server certificate’s SHA-256 hash.
+
+* `serverCertificateHashes` is optional on a `webtransport` source. It has the WebTransport API’s shape: `readonly { algorithm: 'sha-256'; value: BufferSource }[]`. It is passed as `new WebTransport(url, { serverCertificateHashes })` on every connect and reconnect of that entry. Absent or empty, the constructor gets no options, and the browser uses its normal certificate check.
+* `parseCertificateHash(text)` accepts 64 hex digits, in any case, with or without `:` between the bytes: paste what `openssl x509 -fingerprint -sha256` prints after `=`, without the `sha256 Fingerprint=` prefix. It also accepts base64, standard or URL-safe, with or without padding. Anything that doesn’t decode to exactly 32 bytes is refused with an issue message.
+* Pass two hashes, the current one and the next, to survive a certificate rotation. The browser accepts a certificate that matches any of them.
+* A source with an invalid hash, for example of the wrong length, fails only that entry. Its `status.sourceIssues` names the hash, and nothing is opened.
+* The hashes are fixed for the entry. After the server rotates to a certificate you didn’t pass, remove the entry and add it again with the new hash.
+* The client doesn’t fetch hashes from anywhere. Your page gets them and passes them in.
+* The **Add server** form in the main client has no hash field yet.
+
+### Check it in a browser [#check-it-in-a-browser]
+
+On 2026-10-05 the client code was checked in headless Chromium 153. It ran against a local WebTransport server with a 13-day ECDSA P-256 certificate made with the `openssl` steps on [Serve to browsers](/docs/server/serving#development-a-pinned-certificate-hash):
+
+| Hashes passed                           | Result                                                                              |
+| --------------------------------------- | ----------------------------------------------------------------------------------- |
+| The certificate’s hash, parsed from hex | connected                                                                           |
+| The same hash, parsed from base64       | connected                                                                           |
+| A wrong hash, then the right one        | connected                                                                           |
+| None                                    | refused: `Opening handshake failed.` (the browser logs `CERTIFICATE_VERIFY_FAILED`) |
+| A wrong hash only                       | refused: `Opening handshake failed.`                                                |
+
+## Troubleshooting [#troubleshooting]
+
+* **A subscribe returns `not-decode-compatible`**: expected with `media: 'none'`. The runtime told the server it decodes nothing, so `connection.compatibility` has `renderingCompatible: false` and `clientRole(compatibility)` (`client/src/state/compatibility.ts`) returns `control-only`. Start a runtime with `media: 'full'` to draw.
+* **`Opening handshake failed.` with a hash**: the hash doesn’t match the certificate, or the certificate breaks the browser’s rules. Check that you hashed the DER bytes, not the PEM file. The certificate must be ECDSA P-256 and valid for less than 14 days.
+* **`serverCertificateHashes[0]: a SHA-256 certificate hash has 32 bytes, got N`** in `sourceIssues`: the value is not a SHA-256 digest. Build it with `parseCertificateHash`.
+* **Safari**: assume `serverCertificateHashes` isn’t supported. Use a certificate from a certificate authority the browser trusts.
+
+
 # Setup check (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/setup-check)
 
 
@@ -1002,7 +1086,7 @@ Each page sets `body[data-state]` to `done` or `failed` and puts its report on `
 Page options beyond `autorun` and `engine`:
 
 * **Decode check**: `autorun=samples` (or `autorun=bundled`) starts with the sample recordings; `color=<url>` and `depth=<url>` replace their URLs; without `autorun`, you can choose files. It needs a browser that can decode HEVC; without it, it ends `failed` with “no HEVC configuration is supported”.
-* **Render check**: `frames=N` (default 90); `debug=1` draws below-range codes blue and above-range codes red; `readback=1` paints the read-back frame into an overlay after the run. It uses a synthetic two-camera bundle and needs no files. Point options: `pointSize=N` sets the point size in device pixels (default 2); `sizeMode=world` sizes each point by its depth pixel's footprint as seen from the camera (default `sizeMode=screen`), scaled by `worldScale=F` (default 1.5) and capped by `maxSize=N` (default 16); `shape=round` draws round points (default `shape=square`); `radius=M` puts the camera M metres from its target (default 3). Blend options (WebGPU only; the defaults are those of the **View** section, see [Blend overlapping cameras](/docs/client/viewer#blend-overlapping-cameras)): `blend=0` starts with blending off; `compute=0` keeps the plain WebGPU dots without the blending path; `angularExponent=F`, `depthTolerance=M`, `depthToleranceRatio=F`, `edgeWidth=N`, `edgeStep=F`, `noiseReference=M`, `grazingFloor=F` and `kernelSharpness=F` set the tuning values; `tint=1` tints the left camera red and the right camera blue, so that the blend across their overlap is visible. A **Blend (WebGPU)** checkbox at the top right switches blending while the page runs. The status overlay and the report’s `drawPath` say how points are drawn (`compute-blend`, `compute-nearest`, `babylon-quads` or `babylon-points`). On WebGPU, `done` also needs the blending path ready, unless `compute=0`.
+* **Render check**: `frames=N` (default 90); `debug=1` draws below-range codes blue and above-range codes red; `readback=1` paints the read-back frame into an overlay after the run. It uses a synthetic two-camera bundle and needs no files. Point options: `pointSize=N` sets the point size in device pixels (default 2); `sizeMode=world` sizes each point by its depth pixel's footprint as seen from the camera (default `sizeMode=screen`), scaled by `worldScale=F` (default 1.5) and capped by `maxSize=N` (default 16); `shape=round` draws round points (default `shape=square`); `radius=M` puts the camera M metres from its target (default 3). Blend options (WebGPU only; the defaults are those of the **View** section, see [Blend overlapping cameras](/docs/client/viewer#blend-overlapping-cameras)): `blend=0` starts with blending off; `compute=0` keeps the plain WebGPU dots without the blending path; `angularExponent=F`, `depthTolerance=M`, `depthToleranceRatio=F`, `edgeWidth=N`, `edgeStep=F`, `noiseReference=M`, `grazingFloor=F` and `kernelSharpness=F` set the tuning values; `tint=1` tints the left camera red and the right camera blue, so that the blend across their overlap is visible. A **Blend (WebGPU)** checkbox at the top right switches blending while the page runs. The status overlay and the report’s `drawPath` say how points are drawn (`compute-blend`, `compute-nearest`, `babylon-quads` or `babylon-points`). On WebGPU, `done` also needs the blending path ready, unless `compute=0`. `tiles=1` (WebGPU) adds colour and depth tile views and checks them pixel by pixel; see [Tile views](/docs/client/developer/tile-views#check-tile-views-in-a-browser).
 * **Wiring check**: `readback=1`. `done` needs both recordings connected, pairs uploaded, and drawn points in both halves of the read-back.
 
 ### Sample recordings [#sample-recordings]
@@ -1056,6 +1140,115 @@ These are the common problems with the checks:
 * **The decode check reports a missing file, or the wiring or latency check fails after about 30 seconds with no pair uploaded**: the unpublished sample recordings in `client/reference/hevc-web/` are missing. See [Sample recordings](#sample-recordings).
 * **`npm: command not found`**: use the `./node_modules/.bin/…` commands above.
 * **A check page fails with `rendering-incompatible`**: the browser has no WebGPU or WebGL2. Use `?engine=webgl2` in headless Chromium with `--use-angle=swiftshader`.
+
+
+# Tile views (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/tile-views)
+
+
+
+
+
+A tile view draws one camera's **colour** or **depth** image into a canvas you provide. It reads the same decoded frames that the 3D view shows: no second decoder, no extra upload, and nothing waits for a slow view. All views of one screen share the renderer's WebGPU device. The Operator Console uses tile views (operator request R8).
+
+The design and its measurements are in `client/docs/development/r8-tile-views.md`.
+
+<img alt="Colour (left) and depth (right) tile views of the render check's two synthetic cameras" src="__img0" />
+
+## Show a tile [#show-a-tile]
+
+Each server's pipeline has a `tileViews` source. Attach a fresh canvas, one with no other context, for a camera and a channel. Give the canvas a CSS width **and** height, and an accessible name, because it is an image to assistive technology:
+
+```ts
+const canvas = document.createElement('canvas');
+canvas.style.width = '400px';
+canvas.style.height = '225px';
+canvas.setAttribute('role', 'img');
+canvas.setAttribute('aria-label', `Depth image of camera ${cameraLabel}`);
+
+const pipeline = runtime.pipeline(entryId); // AppRuntimeModel
+if (pipeline?.tileViews.support.kind === 'webgpu') {
+  const view = pipeline.tileViews.attach(canvas, cameraId, 'depth', { maxFps: 15, fit: 'contain' });
+  const offState = view.onStateChange((state) => render(state));       // live / waiting / unavailable
+  const offContent = view.onContentChange((content) => layout(content)); // where the tile sits, for overlays
+  // ... later, when the canvas unmounts:
+  offState();
+  offContent();
+  view.close();
+}
+```
+
+* Lay out the canvas with CSS only, with both width and height set (a canvas without a CSS height keeps its default 150-pixel height). The view sets the canvas's pixel size itself: CSS size × `devicePixelRatio`, but never more pixels than the tile's native resolution.
+* `maxFps` caps redraws; the default is 15 and the range is 1 to 60. A view never draws faster than frames arrive.
+* `fit` is `contain` (letterbox, the default) or `cover` (crop). The tile's aspect ratio is always kept.
+* You can attach any number of views of the same camera and channel, on one screen or several.
+* A view follows its server across reconnects and calibration changes. Attach once per mounted canvas.
+* Disposing the pipeline closes its views.
+
+On a screen with tile views but no 3D view, call `runtime.setSceneDrawing(false)`. Frames keep arriving and the tiles stay live, but the 3D scene is no longer drawn. The render loop keeps running on demand, so released GPU memory is still freed. The call is ignored while a WebXR session presents. Call `setSceneDrawing(true)` when the 3D view is shown again.
+
+## View states [#view-states]
+
+| `state.kind`  | `reason`              | Meaning                                                                                                                                                                      |
+| ------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `live`        |                       | Showing a frame. `tileWidth` and `tileHeight` give the tile's native size.                                                                                                   |
+| `waiting`     | `not-connected`       | The server isn't connected.                                                                                                                                                  |
+| `waiting`     | `no-frame`            | Connected, but no frame of this camera has arrived yet.                                                                                                                      |
+| `waiting`     | `hidden`              | The last frame can't be shown: a calibration change, a failed upload or a lost GPU device. The view goes live again with the next frame.                                     |
+| `unavailable` | `unknown-camera`      | The server's snapshot has no such camera.                                                                                                                                    |
+| `unavailable` | `bundle-incompatible` | This client can't render the camera's stream, for example because it has too many tiles.                                                                                     |
+| `unavailable` | `unsupported-engine`  | No WebGPU. In this version, tile views need WebGPU; the WebGL2 fallback has none.                                                                                            |
+| `unavailable` | `canvas-in-use`       | The canvas already has another context, or another view uses it.                                                                                                             |
+| `unavailable` | `gpu-setup-failed`    | The canvas couldn't be configured on the GPU device, or the tile couldn't be bound. A warning is logged (`[tile views]`). The view retries after the GPU device is restored. |
+| `unavailable` | `closed`              | `close()` was called or the server entry was removed. This state is final.                                                                                                   |
+
+`onStateChange` fires only when the kind, the reason or the tile size changes, never once per frame. `view.frameSetNumber` gives the frame set on screen; read it when you need it.
+
+## Depth colours [#depth-colours]
+
+Depth codes go through the server's transmitted lookup table. The colours are fixed:
+
+| Code       | Meaning                                  | Colour                                         |
+| ---------- | ---------------------------------------- | ---------------------------------------------- |
+| 0          | Invalid, or outside the foreground mask  | black `#000000`                                |
+| above 1023 | Malformed sample, shown as invalid       | black `#000000`                                |
+| 1          | Nearer than the profile's minimum depth  | blue `#2659FF`                                 |
+| 2 to 1022  | Valid depth                              | grey, from `#F2F2F2` (near) to `#404040` (far) |
+| 1023       | Farther than the profile's maximum depth | red `#FF401A`                                  |
+
+The grey ramp is linear in millimetres. Its ends are the table entries for codes 2 and 1022, which are the profile's minimum and maximum depth. Label a legend with those two values. With an adaptive profile, equal code steps aren't equal grey steps. Blue and red are the same colours that the 3D view's debug mode uses.
+
+## Draw overlays on a tile [#draw-overlays-on-a-tile]
+
+`view.content` is `null` while the view isn't live. When live, it holds `tileWidth`, `tileHeight` and `rect`: the tile's rectangle in the canvas's CSS pixels after `contain` or `cover`. With `cover`, the rectangle extends past the canvas. `onContentChange` fires when the canvas is resized, `fit` changes, the tile size changes, or the view goes live or stops being live.
+
+To place an overlay on a tile pixel, use `tileToCss`, exported from `client/src/rendering/tileViews.ts`:
+
+```ts
+const content = view.content;
+if (content !== null) {
+  const { x, y } = tileToCss(content, u, v); // CSS pixels from the canvas's top-left corner
+}
+```
+
+`(u, v)` are tile-relative logical pixels: the origin is at the top left, `v` grows downward, and a pixel's centre is at its integer coordinate. Pixel `(0, 0)` covers `-0.5` to `0.5` on each axis. This follows the client's interim convention, pending protocol change 0011.
+
+## Check tile views in a browser [#check-tile-views-in-a-browser]
+
+The render check draws a colour and a depth tile for each of its two synthetic cameras:
+
+```
+http://localhost:5173/dev/render-check.html?autorun=1&engine=webgpu&tiles=1&readback=1
+```
+
+After the run, the check reads every tile back from the GPU and compares each pixel with the expected colour. This covers the depth sentinels, both ends of the grey ramp and a malformed sample. Then it checks that one idle second has no tile draw and no GPU submit. The result is in `window.__renderCheckReport.tiles`. With `engine=webgl2` the check ends `failed` with “tile views unsupported here: webgl2”, as expected.
+
+For performance, the perf harness has two scenarios on synthetic media: `mock-media-8srv-webgpu` and `mock-media-8srv-webgpu-tiles16`, which adds 16 views at 15 fps. Run them with `node perf/run.mjs <checkout> <port> --only mock-media-8srv` in `client/scripts/qa`. The tile metrics are under `tiles` in each run's JSON.
+
+## Troubleshooting [#troubleshooting]
+
+* **The view stays `waiting` with `no-frame`.** No frame of this camera has arrived. Check that the server streams and that this browser can decode its video. Headless Chromium can't decode HEVC, so only the synthetic pages show frames there.
+* **`unavailable` with `canvas-in-use`.** Give each view its own new canvas. A canvas that has had a `2d` or `webgl` context can't be used for a tile.
+* **`unavailable` with `unsupported-engine`.** The browser runs the WebGL2 fallback, or there is no 3D view at all. Use a browser with WebGPU.
 
 
 # Use the browser client (https://irc-hslu.github.io/orbbecstreamer/docs/client)
