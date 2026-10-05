@@ -57,6 +57,7 @@ These messages appear on the server card:
 * **`connect timeout`**: the server didn’t finish connecting within 10 seconds. It may be unreachable, or it may not answer. Check the server’s logs.
 * **`Protocol version mismatch; cannot connect.`**: the server uses another major version of the protocol. Update the client or the server. The client doesn’t retry.
 * **`last close: protocol error invalid-transform: …`**, or `invalid-quantization-profile`, `invalid-bundle-descriptor` or `invalid-message`: the server sent data that breaks the protocol, for example a placement that isn’t rigid. The client closes the connection and retries. Check the server’s calibration and placement, and report the text after the code.
+* **`last close: internal error: media channel …`** or **`media stream …`**: the client hit a bug while it read that server’s video. It closes only this connection, reconnects and starts again from a fresh snapshot; other servers keep streaming. If it repeats, report the full text.
 * **`conflict: server … is already rendered by …`**: two cards reach the same server, for example once by IP address and once by host name. Select **Remove** on one of them.
 * **Streaming, but Pairs stays at 0**: a **Setup and control only** chip means your browser can’t decode the video. See [Check your browser](/docs/client/browser-requirements). Otherwise, open **Details** and look at the bundle rows under **Layout**.
 
