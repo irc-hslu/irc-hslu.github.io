@@ -24,6 +24,14 @@ The form checks the address before it connects. The address must start with `htt
 
 Your browser must also trust the server’s security certificate. The client can’t accept a certificate your browser doesn’t already trust.
 
+## Use the server that served this page [#use-the-server-that-served-this-page]
+
+When the server that served the client offers transport discovery, **Servers** also shows **Use this server**. The client checks this when the page loads. The page must come from an `https://` address, or from `http://127.0.0.1` or `http://localhost` on the server PC. Select **Use this server** to connect without typing an address.
+
+Before every connection attempt, the client asks the page’s own address where the server is and which certificate to trust. A rotated certificate is picked up on the next reconnect. The card shows the address in use, for example `webtransport https://127.0.0.1:4443/orbbec via discovery`.
+
+If the page’s server stops offering discovery before the first connection, the card shows `This page’s server offers no transport discovery: add the server by its URL`, and the client doesn’t retry. Once a connection has worked, the client keeps retrying through brief outages.
+
 ## Add the mock server instead [#add-the-mock-server-instead]
 
 The development server has a simulated capture server, the mock server. It behaves like a real server, so you can try every screen without hardware.
