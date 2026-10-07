@@ -12,6 +12,9 @@ description: > # the ">" symbol means to ignore newlines until "footer_text:"
   Immersive realities focused research at Lucerne University of Applied Sciences and Arts (HSLU).
 footer_text: > # the text that will be shown in the footer of your site (can contain HTML)
   2025 Immersive Realities Center, HSLU. All rights reserved.
+hslu_addition: # shown right of the HSLU logo (CD "Zusatz"): level 1 bold, level 2 regular
+  department: Computer Science and Information Technology
+  unit: Immersive Realities Center
 keywords: immersive-reality, virtual-reality, augmented-reality, mixed-reality, photogrammetry, 3D-reconstruction, 3D-capture, virtual-production, real-time-rendering # a list of keywords for search engines (separated by commas)
 lang: en # the language of your site (for example: en, fr, cn, ru, etc.)
 icon: 🥽 # icon.png # the emoji used as the favicon (alternatively, provide image name in /assets/img/)
@@ -44,7 +47,7 @@ repo_trophies:
 # Layout
 # -----------------------------------------------------------------------------
 
-navbar_fixed: true
+navbar_fixed: false
 footer_fixed: true
 search_enabled: true
 socials_in_search: true

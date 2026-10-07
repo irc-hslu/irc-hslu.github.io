@@ -1,0 +1,78 @@
+/*******************************************************************************
+ * HSLU corporate design: header, footer, home cover
+ ******************************************************************************/
+
+// Header: logo top-left with 1 H clear space, addition right of it, bottom-aligned.
+
+.container {
+  padding-left: $hslu-clearspace;
+  padding-right: $hslu-clearspace;
+}
+
+.hslu-brand {
+  display: flex;
+  align-items: flex-end;
+  padding-top: $hslu-clearspace;
+  padding-bottom: $hslu-clearspace;
+
+  .hslu-logo {
+    flex: 0 0 auto;
+    margin-right: $hslu-clearspace;
+
+    img {
+      display: block;
+      width: $hslu-logo-width;
+      min-width: $hslu-logo-width-min;
+      height: auto;
+    }
+  }
+
+  .navbar-toggler {
+    margin-left: auto;
+    align-self: center;
+    padding: 0.5rem 0;
+    border: 0;
+  }
+}
+
+.hslu-addition {
+  display: none;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+
+  @media (min-width: 576px) {
+    display: block;
+    margin-left: auto;
+  }
+
+  @media (min-width: 768px) {
+    margin-left: 0;
+    padding-left: calc(50% - #{$hslu-logo-width} - #{$hslu-clearspace});
+  }
+}
+
+.hslu-header .navbar {
+  padding: 0;
+  opacity: 1;
+  border-bottom: 1px solid var(--global-text-color);
+
+  .navbar-nav {
+    margin-left: -0.75rem;
+  }
+
+  .navbar-nav .nav-item .nav-link {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .navbar-nav .nav-item.active > .nav-link,
+  .navbar-nav .nav-item .nav-link:hover {
+    font-weight: 400;
+    background-color: var(--global-accent-light-color);
+  }
+}
+
+progress,
+.progress-container {
+  top: 0;
+}

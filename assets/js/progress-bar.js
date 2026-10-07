@@ -46,7 +46,8 @@ function getCurrentScrollPosition() {
 }
 
 function initializeProgressElement() {
-  let navbarHeight = $("#navbar").outerHeight(true);
+  // Only a fixed navbar overlaps the page; a static header needs no offset.
+  let navbarHeight = $("#navbar").hasClass("fixed-top") ? $("#navbar").outerHeight(true) : 0;
   $("body").css({ "padding-top": navbarHeight });
   $("progress-container").css({ "padding-top": navbarHeight });
   progressBar.css({ top: navbarHeight });
