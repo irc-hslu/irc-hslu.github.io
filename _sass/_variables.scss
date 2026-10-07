@@ -50,3 +50,26 @@ $back-to-top-right: 30px;
 $back-to-top-diameter: 40px;
 $back-to-top-height: $back-to-top-diameter;
 $back-to-top-width: $back-to-top-diameter;
+
+// HSLU corporate design (Frontify › Grundelemente). Dunkel tones are for lines only, never behind text.
+$hslu-black: #000000;
+$hslu-white: #ffffff;
+$hslu-grey: #f0f0f0;
+$hslu-blau: #77c5d8;
+$hslu-blau-hell-1: #daeef3;
+$hslu-blau-hell-2: #bae0ea;
+$hslu-blau-dunkel-1: #449dc2;
+$hslu-blau-dunkel-2: #206a8a;
+$hslu-gruen: #adca2a;
+$hslu-gruen-hell-1: #e9f0c1;
+$hslu-magenta: #ee6a87;
+$hslu-magenta-hell-1: #fbd0d3;
+$hslu-gelb: #fcc300;
+$hslu-gelb-hell-1: #fff0be;
+
+$hslu-font-family: "FS Albert Web", "FS Albert", Verdana, sans-serif;
+
+// Logo protection zone is 1 × the "H" width (26/220 of the EN logo width).
+$hslu-logo-width: 180px;
+$hslu-logo-width-min: 160px;
+$hslu-clearspace: 22px;

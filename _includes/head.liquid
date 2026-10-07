@@ -24,12 +24,6 @@
 <!-- Fonts & Icons -->
 <link defer rel="stylesheet" href="{{ '/assets/css/academicons.min.css' | relative_url | bust_file_cache }}">
 <link defer rel="stylesheet" href="{{ '/assets/css/scholar-icons.css' | relative_url | bust_file_cache }}">
-<link
-  defer
-  rel="stylesheet"
-  type="text/css"
-  href="{{ site.third_party_libraries.google_fonts.url.fonts }}"
->
 
 <!-- Code Syntax Highlighting -->
 <link
@@ -71,6 +65,11 @@
 
 <!-- Dark Mode -->
 <script src="{{ '/assets/js/theme.js' | relative_url | bust_file_cache }}"></script>
+{% unless site.enable_darkmode %}
+  <script>
+    determineComputedTheme = () => 'light';
+  </script>
+{% endunless %}
 {% if site.enable_darkmode %}
   <link
     defer
