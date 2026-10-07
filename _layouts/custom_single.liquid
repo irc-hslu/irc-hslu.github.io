@@ -5,7 +5,7 @@ layout: default
   <div class="author text-center">
     {% for author in entry.author_array %}
       {% assign last_name = author.last | regex_replace: '([*∗†‡§¶‖&^0-9]+)', '<sup>\1</sup>' %}
-      <span style="color: #1a73e8;">
+      <span>
         {{ author.first }}
         {{ last_name }}
       </span>

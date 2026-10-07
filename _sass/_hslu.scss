@@ -72,3 +72,144 @@ h1,
   overflow-wrap: anywhere;
   hyphens: auto;
 }
+
+// Links: black text, blue underline (hslu.ch pattern), visible keyboard focus.
+
+a,
+table.table a {
+  color: var(--global-text-color);
+  text-decoration: underline;
+  text-decoration-color: var(--global-link-underline-color);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+
+  &:hover {
+    color: var(--global-text-color);
+    text-decoration-color: var(--global-text-color);
+    text-decoration-thickness: 2px;
+  }
+}
+
+.navbar a,
+.projects a,
+.social a,
+.btn,
+.abbr a,
+.hslu-stoerer {
+  text-decoration: none;
+}
+
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--global-focus-color);
+  outline-offset: 2px;
+}
+
+.author-info a {
+  color: var(--global-text-color);
+}
+
+// Accent fills always carry black text.
+
+.publications ol.bibliography li .abbr abbr,
+.cv .card .list-group-item .badge,
+.pagination .page-item.active .page-link {
+  background-color: var(--global-accent-color) !important;
+  color: var(--global-text-color) !important;
+  border-radius: 0;
+
+  a {
+    color: var(--global-text-color);
+  }
+}
+
+::highlight(search) {
+  background-color: var(--global-accent-color);
+}
+
+blockquote {
+  border-left-color: var(--global-accent-color);
+}
+
+pre,
+code {
+  color: var(--global-text-color);
+  border-radius: 0;
+}
+
+progress {
+  color: var(--global-accent-color);
+}
+
+progress::-webkit-progress-value,
+.progress-bar {
+  background-color: var(--global-accent-color);
+}
+
+progress::-moz-progress-bar {
+  background-color: var(--global-accent-color);
+}
+
+// Publications
+
+.publications h2.bibliography,
+.projects h2.category {
+  color: var(--global-text-color);
+  border-color: var(--global-text-color);
+}
+
+.publications ol.bibliography li .author a {
+  border-bottom: 0;
+}
+
+.publications ol.bibliography li .links a.btn,
+.custom-single .links a.btn {
+  border-radius: 0;
+  box-shadow: none;
+
+  &:hover {
+    color: var(--global-text-color);
+    border-color: var(--global-text-color);
+    background-color: var(--global-accent-light-color);
+  }
+}
+
+.bibsearch-form-input {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+// Cards: square, flat, grey on hover.
+
+.card,
+.card img,
+.card-img-top {
+  border-radius: 0;
+}
+
+.card,
+.hoverable,
+.hoverable:hover {
+  box-shadow: none;
+}
+
+.projects a:hover {
+  .card {
+    background-color: $hslu-grey;
+  }
+
+  .card-title {
+    color: var(--global-text-color);
+  }
+}
+
+.card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.card .card-body .card-text {
+  color: var(--global-text-color);
+}
