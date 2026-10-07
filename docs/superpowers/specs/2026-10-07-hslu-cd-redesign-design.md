@@ -8,20 +8,20 @@ Status: approved in conversation, pending written-spec review
 Restyle the IRC al-folio site so it follows the HSLU corporate design (CD) while the
 Immersive Realities Center stays the visible identity ("HSLU-aligned, IRC-led").
 
-Authority: HSLU Frontify brand portal, *Grundelemente*, local copy at
+Authority: HSLU Frontify brand portal, _Grundelemente_, local copy at
 `~/agent_references/hslu_frontify/HSLU-Brand-Reference/` (captured 2026-10-07).
 Where the capture has gaps (type sizes, grid), the live hslu.ch implementation is the reference.
 
 ## Decisions (from the user)
 
-| Topic | Decision |
-|---|---|
-| Brand depth | HSLU-aligned, IRC-led |
-| Dark mode | Removed (light only) |
-| Scope | Header/nav, footer, home page, project cards, publications |
-| Typeface | Verdana now; stack prepared for FS Albert Web if M&K approves hosting |
+| Topic         | Decision                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| Brand depth   | HSLU-aligned, IRC-led                                                                                     |
+| Dark mode     | Removed (light only)                                                                                      |
+| Scope         | Header/nav, footer, home page, project cards, publications                                                |
+| Typeface      | Verdana now; stack prepared for FS Albert Web if M&K approves hosting                                     |
 | Logo addition | Two levels: **Computer Science and Information Technology** (Bold) / Immersive Realities Center (Regular) |
-| Approach | Token remap + two small override partials + targeted template edits (keep al-folio upstream-mergeable) |
+| Approach      | Token remap + two small override partials + targeted template edits (keep al-folio upstream-mergeable)    |
 
 ## CD rules that apply
 

@@ -45,60 +45,73 @@ Paths: `S=/private/tmp/claude-501/-Users-philipp-projects-irc-hslu-github-io/3ab
 ```js
 async (page) => {
   const check = () => {
-    const SKIP = 'pre, code, .highlight, svg, mjx-container, ninja-keys, script, style, noscript';
-    const WEIGHTS = new Set(['400', '700']);
-    const colour = [], weight = [];
-    for (const el of document.querySelectorAll('body *')) {
+    const SKIP = "pre, code, .highlight, svg, mjx-container, ninja-keys, script, style, noscript";
+    const WEIGHTS = new Set(["400", "700"]);
+    const colour = [],
+      weight = [];
+    for (const el of document.querySelectorAll("body *")) {
       if (el.closest(SKIP)) continue;
-      if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+      if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
       const cs = getComputedStyle(el);
-      if (!el.getClientRects().length || cs.visibility === 'hidden') continue;
-      const cls = typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+      if (!el.getClientRects().length || cs.visibility === "hidden") continue;
+      const cls = typeof el.className === "string" && el.className.trim() ? "." + el.className.trim().split(/\s+/).join(".") : "";
       const label = `${el.tagName.toLowerCase()}${cls} "${el.textContent.trim().slice(0, 30)}"`;
-      if (cs.color !== 'rgb(0, 0, 0)') colour.push(`${label} -> ${cs.color}`);
+      if (cs.color !== "rgb(0, 0, 0)") colour.push(`${label} -> ${cs.color}`);
       if (!WEIGHTS.has(cs.fontWeight)) weight.push(`${label} -> ${cs.fontWeight}`);
     }
-    const logo = document.querySelector('.hslu-logo img');
-    const progress = document.querySelector('progress');
-    const footer = document.querySelector('footer');
+    const logo = document.querySelector(".hslu-logo img");
+    const progress = document.querySelector("progress");
+    const footer = document.querySelector("footer");
     return {
-      url: location.pathname, width: innerWidth,
-      colourCount: colour.length, colour: colour.slice(0, 15),
-      weightCount: weight.length, weight: weight.slice(0, 15),
+      url: location.pathname,
+      width: innerWidth,
+      colourCount: colour.length,
+      colour: colour.slice(0, 15),
+      weightCount: weight.length,
+      weight: weight.slice(0, 15),
       bodyFont: getComputedStyle(document.body).fontFamily,
       logoWidth: logo ? Math.round(logo.getBoundingClientRect().width) : null,
-      additionVisible: !!document.querySelector('.hslu-addition')?.getClientRects().length,
+      additionVisible: !!document.querySelector(".hslu-addition")?.getClientRects().length,
       horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
-      computedTheme: typeof determineComputedTheme === 'function' ? determineComputedTheme() : null,
-      fhZentralschweiz: document.body.innerText.includes('FH Zentralschweiz'),
+      computedTheme: typeof determineComputedTheme === "function" ? determineComputedTheme() : null,
+      fhZentralschweiz: document.body.innerText.includes("FH Zentralschweiz"),
       footerPosition: footer ? getComputedStyle(footer).position : null,
       progressTop: progress ? getComputedStyle(progress).top : null,
     };
   };
-  const urls = ['/', '/projects/', '/publications/', '/impressum/', '/RedirectedWalking/',
-    '/RedirectedWalkingAuditory/', '/SubjectiveQualityAssessment/', '/VVCaptureAndReconstruction/',
-    '/GSvsPhotogrammetry/', '/UXGuidelines/'];
+  const urls = [
+    "/",
+    "/projects/",
+    "/publications/",
+    "/impressum/",
+    "/RedirectedWalking/",
+    "/RedirectedWalkingAuditory/",
+    "/SubjectiveQualityAssessment/",
+    "/VVCaptureAndReconstruction/",
+    "/GSvsPhotogrammetry/",
+    "/UXGuidelines/",
+  ];
   const results = [];
   for (const width of [1280, 375, 320]) {
     await page.setViewportSize({ width, height: 900 });
     for (const u of urls) {
-      await page.goto('http://localhost:4100' + u);
+      await page.goto("http://localhost:4100" + u);
       results.push(await page.evaluate(check));
     }
   }
-  await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('http://localhost:4100/');
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("http://localhost:4100/");
   const darkOs = await page.evaluate(() => determineComputedTheme());
-  await page.emulateMedia({ colorScheme: 'light' });
+  await page.emulateMedia({ colorScheme: "light" });
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto('http://localhost:4100/');
-  await page.keyboard.press('Tab');
+  await page.goto("http://localhost:4100/");
+  await page.keyboard.press("Tab");
   const focus = await page.evaluate(() => {
     const cs = getComputedStyle(document.activeElement);
     return { tag: document.activeElement.tagName, outlineStyle: cs.outlineStyle, outlineColor: cs.outlineColor };
   });
   return { darkOs, focus, results };
-}
+};
 ```
 
 "Run check" in a task means: build, then run the harness, then compare the fields named in that task's **Expected**.
@@ -108,6 +121,7 @@ async (page) => {
 ### Task 0: Branch, exclude docs, harness, baseline
 
 **Files:**
+
 - Modify: `_config.yml:125-144` (exclude list)
 - Create (scratchpad, not committed): `$S/cd-check.js`
 
@@ -120,7 +134,7 @@ git switch -c hslu-cd-redesign
 - [ ] **Step 2: Stop publishing the spec/plan** — add to `exclude:` in `_config.yml`, after `- vendor`:
 
 ```yaml
-  - docs/superpowers/
+- docs/superpowers/
 ```
 
 - [ ] **Step 3: Save harness** — write the harness code above to `$S/cd-check.js`.
@@ -141,6 +155,7 @@ git commit -m "Add HSLU CD redesign spec and plan; exclude them from the site bu
 ### Task 1: Tokens, typography, light-only
 
 **Files:**
+
 - Modify: `_sass/_variables.scss` (append palette)
 - Modify: `_sass/_themes.scss` (replace whole file)
 - Create: `_sass/_hslu.scss`
@@ -149,6 +164,7 @@ git commit -m "Add HSLU CD redesign spec and plan; exclude them from the site bu
 - Modify: `_config.yml` (`enable_darkmode: false`)
 
 **Interfaces:**
+
 - Produces SCSS variables: `$hslu-black, $hslu-white, $hslu-grey, $hslu-blau, $hslu-blau-hell-1, $hslu-blau-hell-2, $hslu-blau-dunkel-1, $hslu-blau-dunkel-2, $hslu-gruen, $hslu-gruen-hell-1, $hslu-magenta, $hslu-magenta-hell-1, $hslu-gelb, $hslu-gelb-hell-1, $hslu-font-family, $hslu-logo-width, $hslu-logo-width-min, $hslu-clearspace`.
 - Produces CSS custom properties: `--global-accent-color`, `--global-accent-light-color`, `--global-link-underline-color`, `--global-focus-color` (plus all existing `--global-*`).
 
@@ -351,6 +367,7 @@ git commit -m "Apply HSLU colour tokens and typography; make the site light-only
 ### Task 2: Component overrides (links, fills, cards, publications)
 
 **Files:**
+
 - Modify: `_sass/_hslu.scss` (append)
 - Modify: `_data/venues.yml` (remove `color:` keys)
 
@@ -519,6 +536,7 @@ git commit -m "Restyle links, badges, buttons and cards to HSLU black-on-accent 
 ### Task 3: Header with HSLU logo and addition
 
 **Files:**
+
 - Create: `assets/img/hslu/HSLU_Logo_EN_Schwarz_rgb.svg` (copy, unmodified)
 - Modify: `_includes/header.liquid` (brand row + nav row)
 - Create: `_sass/_hslu-layout.scss`
@@ -526,6 +544,7 @@ git commit -m "Restyle links, badges, buttons and cards to HSLU black-on-accent 
 - Modify: `_config.yml` (`navbar_fixed: false`, new `hslu_addition`)
 
 **Interfaces:**
+
 - Produces config keys `site.hslu_addition.department`, `site.hslu_addition.unit`.
 - Produces classes `.hslu-header`, `.hslu-brand`, `.hslu-logo`, `.hslu-addition`, used by the harness.
 
@@ -590,7 +609,7 @@ hslu_addition: # shown right of the HSLU logo (CD "Zusatz"): level 1 bold, level
 Everything after (nav items, search, darkmode toggle, closing tags, progress bar) stays unchanged.
 
 - [ ] **Step 5: Create `_sass/_hslu-layout.scss` and import it** — in `assets/css/main.scss` change `"hslu",` to `"hslu",
-  "hslu-layout",`. File content:
+"hslu-layout",`. File content:
 
 ```scss
 /*******************************************************************************
@@ -689,6 +708,7 @@ git commit -m "Add HSLU logo header with department and IRC addition"
 ### Task 4: Footer with FH Zentralschweiz
 
 **Files:**
+
 - Modify: `_includes/footer.liquid` (replace whole file)
 - Modify: `_sass/_hslu-layout.scss` (append)
 - Modify: `_config.yml` (`footer_fixed: false`, `footer_text`, new `footer_address`)
@@ -718,7 +738,9 @@ footer_address: # IRC postal address, one line per entry (matches the Impressum)
       <div class="col-sm-6">
         <ul class="hslu-footer-links">
           {% if site.data.socials.email %}
-            <li><a href="mailto:{{ site.data.socials.email }}">{{ site.data.socials.email }}</a></li>
+            <li>
+              <a href="mailto:{{ site.data.socials.email }}">{{ site.data.socials.email }}</a>
+            </li>
           {% endif %}
           {% if site.data.socials.linkedin_company %}
             <li><a href="https://www.linkedin.com/company/{{ site.data.socials.linkedin_company }}">LinkedIn</a></li>
@@ -790,6 +812,7 @@ git commit -m "Replace fixed footer with HSLU footer including FH Zentralschweiz
 ### Task 5: Home page cover with Störer
 
 **Files:**
+
 - Modify: `_layouts/about.liquid:4-17` (post-header)
 - Modify: `_pages/about.md` (front matter: `subtitle`, `cover_badge`)
 - Modify: `_sass/_hslu-layout.scss` (append)
@@ -905,6 +928,7 @@ git commit -m "Add HSLU cover layout and Störer badge to the home page"
 ### Task 6: Docs, visual review, code review
 
 **Files:**
+
 - Modify: `README.md` (short section after the badge block)
 
 - [ ] **Step 1: README** — insert after the closing `</div>` of the header block:
@@ -921,6 +945,7 @@ only, HSLU logo unmodified top-left. FS Albert Web may replace Verdana only once
 - [ ] **Step 2: Final check** — full harness; all expectations from Tasks 1–5 hold. `wc -l _sass/_hslu.scss _sass/_hslu-layout.scss` each < 300.
 
 - [ ] **Step 3: Screenshots for the user** — with Playwright MCP, full-page screenshots of `/`, `/projects/`, `/RedirectedWalking/`, `/publications/` at 1280 and 375 into `$S/screens/`. Hand them to the user with this checklist (user judges, not the agent):
+
   1. Logo top-left, unmodified, enough breathing room?
   2. Addition reads as department + IRC, aligned to the logo's bottom?
   3. Page feels white-dominant with only sparse blue accents?

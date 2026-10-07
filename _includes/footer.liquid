@@ -8,7 +8,9 @@
       <div class="col-sm-6">
         <ul class="hslu-footer-links">
           {% if site.data.socials.email %}
-            <li><a href="mailto:{{ site.data.socials.email }}">{{ site.data.socials.email }}</a></li>
+            <li>
+              <a href="mailto:{{ site.data.socials.email }}">{{ site.data.socials.email }}</a>
+            </li>
           {% endif %}
           {% if site.data.socials.linkedin_company %}
             <li><a href="https://www.linkedin.com/company/{{ site.data.socials.linkedin_company }}">LinkedIn</a></li>
