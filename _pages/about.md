@@ -2,7 +2,11 @@
 layout: about
 title: About
 permalink: /
-subtitle:
+subtitle: Research in virtual, augmented and mixed reality
+cover_badge:
+  lead: More at
+  link_text: sites.hslu.ch/<wbr>immersive-realities
+  url: https://sites.hslu.ch/immersive-realities/en/
 
 profile:
   #align: right

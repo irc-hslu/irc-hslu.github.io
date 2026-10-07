@@ -2,19 +2,22 @@
 layout: default
 ---
 <div class="post">
-  <header class="post-header">
-    {% if page.teaser_image %}
-      <img class="teaser-image" src="{{ page.teaser_image | relative_url }}" alt="Teaser image for {{ page.title }}">
+  <header class="post-header hslu-cover">
+    <h1 class="post-title">{{ site.title }}</h1>
+    {% if page.subtitle %}
+      <p class="hslu-cover-subline">{{ page.subtitle }}</p>
     {% endif %}
-    <h1 class="post-title">
-      {% if site.title == 'blank' %}
-        <span class="font-weight-bold">{{ site.first_name }}</span> {{ site.middle_name }}
-        {{ site.last_name }}
-      {% else %}
-        {{ site.title }}
-      {% endif %}
-    </h1>
-    <p class="desc">{{ page.subtitle }}</p>
+    {% if page.teaser_image %}
+      <div class="hslu-cover-media">
+        <img class="teaser-image" src="{{ page.teaser_image | relative_url }}" alt="Teaser image for {{ page.title }}">
+        {% if page.cover_badge %}
+          <a class="hslu-stoerer" href="{{ page.cover_badge.url }}">
+            <span>{{ page.cover_badge.lead }}</span>
+            <strong>{{ page.cover_badge.link_text }}</strong>
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
   </header>
 
   <article>

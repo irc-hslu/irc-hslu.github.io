@@ -105,3 +105,63 @@ progress,
     margin-bottom: 0;
   }
 }
+
+// Home cover: large Regular headline, Bold subline, image block, round accent badge.
+
+.hslu-cover {
+  .post-title {
+    margin-bottom: 0.5rem;
+
+    @media (min-width: 768px) {
+      font-size: 3rem;
+      line-height: 1.15;
+    }
+  }
+
+  .hslu-cover-subline {
+    font-weight: 700;
+    margin-bottom: 0;
+
+    // Keep the text clear of the Störer: right offset + diameter + gap.
+    @media (min-width: 576px) {
+      padding-right: 14rem;
+    }
+  }
+
+  .hslu-cover-media {
+    position: relative;
+    margin-top: 2rem;
+
+    @media (min-width: 576px) {
+      margin-top: 4rem;
+    }
+  }
+
+  .teaser-image {
+    display: block;
+    margin-bottom: 1.5rem;
+  }
+}
+
+.hslu-stoerer {
+  display: none;
+
+  @media (min-width: 576px) {
+    position: absolute;
+    top: 0;
+    right: 2rem;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 11rem;
+    height: 11rem;
+    padding: 1rem;
+    border-radius: 50%;
+    background-color: var(--global-accent-color);
+    color: var(--global-text-color);
+    font-size: 0.75rem;
+    line-height: 1.3;
+    text-align: center;
+  }
+}
