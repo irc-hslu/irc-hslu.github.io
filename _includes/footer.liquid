@@ -1,30 +1,31 @@
-{% capture footer_contents %}
-  &copy; Copyright {{ site.time | date: '%Y' }}
-  {{ site.first_name }}
-  {{ site.middle_name }}
-  {{ site.last_name }}. {{ site.footer_text }}
-  {% if site.impressum_path %}
-    <a href="{{ site.url }}{{ site.baseurl }}{{ site.impressum_path }}">Impressum</a>.
-  {% endif %}
-  {% if site.last_updated %}
-    Last updated: {{ 'now' | date: '%B %d, %Y' }}.
-  {% endif %}
-{% endcapture %}
-
-{% if site.footer_fixed %}
-  <footer class="fixed-bottom" role="contentinfo">
-    <div class="container mt-0">
-      {{ footer_contents }}
+<footer class="hslu-footer" role="contentinfo">
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-6">
+        <p><strong>FH Zentralschweiz</strong></p>
+        <address>{{ site.footer_address | join: '<br>' }}</address>
+      </div>
+      <div class="col-sm-6">
+        <ul class="hslu-footer-links">
+          {% if site.data.socials.email %}
+            <li><a href="mailto:{{ site.data.socials.email }}">{{ site.data.socials.email }}</a></li>
+          {% endif %}
+          {% if site.data.socials.linkedin_company %}
+            <li><a href="https://www.linkedin.com/company/{{ site.data.socials.linkedin_company }}">LinkedIn</a></li>
+          {% endif %}
+          <li><a href="https://sites.hslu.ch/immersive-realities/en/">IRC on hslu.ch</a></li>
+          {% if site.impressum_path %}
+            <li><a href="{{ site.impressum_path | relative_url }}">Impressum</a></li>
+          {% endif %}
+        </ul>
+      </div>
     </div>
-  </footer>
-{% else %}
-  <footer class="sticky-bottom mt-5" role="contentinfo">
-    {% if site.newsletter.enabled %}
-      {% include newsletter.liquid %}
-    {% endif %}
-
-    <div class="container">
-      {{ footer_contents }}
-    </div>
-  </footer>
-{% endif %}
+    <p class="hslu-footer-copyright">
+      &copy; {{ site.time | date: '%Y' }}
+      {{ site.footer_text }}
+      {% if site.last_updated %}
+        Last updated: {{ 'now' | date: '%B %d, %Y' }}.
+      {% endif %}
+    </p>
+  </div>
+</footer>

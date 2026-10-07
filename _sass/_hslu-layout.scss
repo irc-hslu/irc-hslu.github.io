@@ -76,3 +76,32 @@ progress,
 .progress-container {
   top: 0;
 }
+
+// Footer
+
+.hslu-footer {
+  margin-top: 4rem;
+  padding: 2rem 0;
+  border-top: 2px solid var(--global-text-color);
+  background-color: var(--global-footer-bg-color);
+  font-size: 0.875rem;
+
+  p,
+  address,
+  .hslu-footer-links {
+    margin-bottom: 1rem;
+  }
+
+  address {
+    font-style: normal;
+  }
+
+  .hslu-footer-links {
+    list-style: none;
+    padding: 0;
+  }
+
+  .hslu-footer-copyright {
+    margin-bottom: 0;
+  }
+}
