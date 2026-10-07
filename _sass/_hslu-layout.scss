@@ -57,6 +57,12 @@
   opacity: 1;
   border-bottom: 1px solid var(--global-text-color);
 
+  // Bootstrap drops container padding below sm inside .navbar-expand-sm; keep the logo axis.
+  > .container {
+    padding-left: $hslu-clearspace;
+    padding-right: $hslu-clearspace;
+  }
+
   .navbar-nav {
     margin-left: -0.75rem;
   }

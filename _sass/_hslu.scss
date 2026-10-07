@@ -129,6 +129,17 @@ input:focus-visible {
   background-color: var(--global-accent-color);
 }
 
+// Search modal (ninja-keys renders in shadow DOM and only reads its own variables).
+ninja-keys {
+  --ninja-font-family: #{$hslu-font-family};
+  --ninja-text-color: #{$hslu-black};
+  --ninja-secondary-text-color: #{$hslu-black};
+  --ninja-group-text-color: #{$hslu-black};
+  --ninja-keys-text-color: #{$hslu-black};
+  --ninja-selected-text-color: #{$hslu-black};
+  --ninja-selected-background: #{$hslu-grey};
+}
+
 blockquote {
   border-left-color: var(--global-accent-color);
 }
