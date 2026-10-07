@@ -22,6 +22,13 @@
 
 </div>
 
+## IRC site design
+
+This fork follows the HSLU corporate design (logo, colours, typography). Rules and decisions are in
+`docs/superpowers/specs/2026-10-07-hslu-cd-redesign-design.md`; overrides live in `_sass/_hslu.scss` and `_sass/_hslu-layout.scss`.
+Key rules: text is always black, accents (`#77c5d8` etc.) only as fills with black text, Regular/Bold
+only, HSLU logo unmodified top-left. FS Albert Web may replace Verdana only once HSLU M&K approves hosting.
+
 ## User community
 
 The vibrant community of **al-folio** users is growing!
