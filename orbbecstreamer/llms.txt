@@ -51,4 +51,6 @@
     - [Placement check](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/placement-check): A dev page that drives placement editing and world anchors through a scripted scenario with two clients of one mock server.
     - [Latency measurement](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/latency): Measure where the client spends time between the network and the screen, in the browser and in Node.
     - [Tile views](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/tile-views): Show one camera's decoded colour or depth image in a 2D canvas, from the frames the 3D view already has.
+- Operator Console
+  - [Operator Console](https://irc-hslu.github.io/orbbecstreamer/docs/operator): Open the read-only Operator Console on the server PC and read a server's status at a glance.
 - [Troubleshooting & FAQ](https://irc-hslu.github.io/orbbecstreamer/docs/troubleshooting-faq): Cross-team questions and where to find every build and run failure.
