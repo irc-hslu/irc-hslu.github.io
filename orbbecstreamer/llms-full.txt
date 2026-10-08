@@ -2328,11 +2328,196 @@ depth quantization or camera pose next, see
 [Calibration](/docs/guides/calibration).
 
 
-# Install the server (https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server)
+# Install the release package (https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-package)
 
 
 
-This is the minimal path. The [Server](/docs/server) section has the full
+The release package installs the server, the browser client and the
+[Operator Console](/docs/operator) on one Ubuntu PC, as systemd services.
+Nothing is built from source. To build from source instead, see
+[Build the server from source](/docs/getting-started/install-server).
+
+<Callout type="warn">
+  v0.1.0-poc.3 is a non-commercial proof of concept. Browsers on the server
+  PC get status and setup, but no video yet (see
+  [Serve to browsers](/docs/server/serving#status)). Other computers on the
+  network can't connect yet.
+</Callout>
+
+<Steps>
+  <Step>
+    ## Check your machine [#check-your-machine]
+
+    * **Ubuntu 26.04.** The package is built against its C library and FFmpeg 8;
+      other releases aren't supported yet.
+    * **An NVIDIA GPU** with compute capability 7.5 or newer.
+    * **The NVIDIA driver 580 or newer, installed by you**, for example
+      `sudo apt install nvidia-open` from NVIDIA's apt repository, then a reboot.
+      The package neither contains nor installs a driver.
+    * **One or more Orbbec cameras** on USB 3.
+
+    Check the driver:
+
+    ```bash
+    nvidia-smi --query-gpu=name,driver_version,compute_cap --format=csv
+    ```
+
+    **Expected result:** your GPU, a driver version of 580 or higher, and a
+    compute capability of 7.5 or higher.
+  </Step>
+
+  <Step>
+    ## Add NVIDIA's apt repository [#add-nvidias-apt-repository]
+
+    The package pulls the CUDA runtime and TensorRT (about 2 GB) from NVIDIA's
+    repository:
+
+    ```bash
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
+    sudo dpkg -i cuda-keyring_1.1-1_all.deb && sudo apt update
+    ```
+  </Step>
+
+  <Step>
+    ## Install the package [#install-the-package]
+
+    Download `orbbec-streamer_0.1.0.poc3-1_amd64.deb` from the
+    [v0.1.0-poc.3 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.3),
+    then, in the download folder:
+
+    ```bash
+    sudo apt install ./orbbec-streamer_0.1.0.poc3-1_amd64.deb
+    ```
+
+    The package version inside the file is `0.1.0~poc3-1`. The install:
+
+    * creates the system user `orbbec-streamer`, the state folder
+      `/var/lib/orbbec-streamer` and the TLS certificates in
+      `/etc/orbbec-streamer/tls`;
+    * installs the udev rules for the cameras;
+    * runs the machine check (below), which only reports and never stops the
+      install;
+    * enables and starts `orbbec-streamer`, `orbbec-streamer-web` and the
+      certificate renewal timer `orbbec-tls-renew.timer`.
+  </Step>
+
+  <Step>
+    ## Check the machine [#check-the-machine]
+
+    ```bash
+    orbbec-streamer-preflight
+    ```
+
+    **Expected result** on a ready machine, ending with `preflight: OK`:
+
+    ```text
+    PASS  nvidia-driver                driver 580.178.04 (minimum 580)
+    PASS  gpu-compute-capability       NVIDIA GeForce RTX 4090 sm_89 (minimum sm_75)
+    PASS  driver-libraries             libcuda.so.1 and libnvidia-encode.so.1 (NVENC) present
+    PASS  cuda-runtime                 libcudart.so.13 at /usr/local/cuda/targets/x86_64-linux/lib/libcudart.so.13 (cuda-cudart-13-4 13.4.92-1)
+    PASS  tensorrt                     libnvinfer.so.11 and libnvonnxparser.so.11 present (libnvinfer11 11.3.0.99-1+cuda13.4)
+    PASS  usb3:2-6                     Orbbec Femto Bolt 3D Camera (066b) negotiated 5000 Mbit/s
+    PASS  udev-rules                   /usr/lib/udev/rules.d/99-orbbec-streamer.rules installed
+    PASS  service-account              system user 'orbbec-streamer' exists
+    preflight: OK (0 FAIL, 0 WARN)
+    ```
+
+    Every `FAIL` or `WARN` line is followed by a `fix:` line that says what to
+    do. `--json` prints the same results as JSON.
+  </Step>
+
+  <Step>
+    ## Connect the cameras and wait for the first start [#connect-the-cameras-and-wait-for-the-first-start]
+
+    With the cameras connected, the server starts capturing. **The first start
+    builds the segmentation engine for your GPU**: about 3 minutes, once. Until
+    it's ready, frames pass through without background removal. Follow it with:
+
+    ```bash
+    journalctl -u orbbec-streamer -f
+    ```
+
+    The engine is cached in `/var/lib/orbbec-streamer/engines` and rebuilt only
+    when the GPU, TensorRT, the model or the number of cameras changes.
+  </Step>
+
+  <Step>
+    ## Open the client [#open-the-client]
+
+    In Chrome or Edge **on the server PC**, open [http://127.0.0.1:8080](http://127.0.0.1:8080). The
+    page finds the server and its certificate by itself, so you don't enter an
+    address or trust a certificate. The certificate rotates about every 6 days
+    with no action from you.
+
+    The read-only Operator Console is at [http://127.0.0.1:8080/operator](http://127.0.0.1:8080/operator). See
+    [Operator Console](/docs/operator).
+  </Step>
+</Steps>
+
+## Files and services [#files-and-services]
+
+| Path                                           | What it is                                                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `/etc/orbbec-streamer/live.yaml`               | The server's config. Your edits survive upgrades. See [Configuration](/docs/server/configuration). |
+| `/etc/orbbec-streamer/tls/`, `tls.conf`        | Certificates and their settings                                                                    |
+| `/var/lib/orbbec-streamer/`                    | Engine cache and calibration                                                                       |
+| `/usr/lib/orbbec-streamer/bin/orbbec_streamer` | The server, also `orbbec-streamer` on the `PATH`                                                   |
+| `/usr/share/orbbec-streamer/client/`           | The browser client and, in `operator/`, the Operator Console                                       |
+| `/usr/share/doc/orbbec-streamer/`              | Licences and notices                                                                               |
+
+| Service                  | Does                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `orbbec-streamer`        | Capture, GPU processing, encoding and the WebTransport gateway on `127.0.0.1:4443` |
+| `orbbec-streamer-web`    | Serves the client on `http://127.0.0.1:8080`, on this PC only                      |
+| `orbbec-tls-renew.timer` | Renews the certificates                                                            |
+
+Check them with `systemctl status orbbec-streamer orbbec-streamer-web`.
+
+## Upgrade [#upgrade]
+
+Install the newer package the same way:
+
+```bash
+sudo apt install ./orbbec-streamer_<version>_amd64.deb
+```
+
+Replace `<version>` with the new file's version. The service restarts. Your
+edits to `live.yaml` and `tls.conf`, the certificates and the engine cache
+are kept. If the new package changes a config file you also edited, `apt`
+asks which one to keep.
+
+## Uninstall [#uninstall]
+
+* `sudo apt remove orbbec-streamer` removes the programs and services and
+  keeps your config, certificates and `/var/lib/orbbec-streamer`.
+* `sudo apt purge orbbec-streamer` also deletes `/etc/orbbec-streamer` and
+  `/var/lib/orbbec-streamer`, including the engine cache and calibration.
+
+Both keep the `orbbec-streamer` user and group. The NVIDIA packages stay
+installed; `sudo apt autoremove` offers to remove them.
+
+## Troubleshooting [#troubleshooting]
+
+| Symptom                                                             | Cause and fix                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preflight` shows `FAIL  nvidia-driver` or `FAIL  driver-libraries` | No NVIDIA driver 580 or newer. Install it (for example `sudo apt install nvidia-open`), reboot, and run `orbbec-streamer-preflight` again.                                                                                          |
+| `preflight` shows `FAIL  cuda-runtime` or `FAIL  tensorrt`          | NVIDIA's apt repository is missing. Add it (step 2), then run the `sudo apt install` command in the `fix:` line.                                                                                                                    |
+| `WARN  orbbec-cameras`                                              | No camera is connected. Connect it to a USB 3 port.                                                                                                                                                                                 |
+| The log repeats `No configured cameras are active`                  | No camera was found at start. The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`. |
+| The log shows `error while loading shared libraries: libcuda.so.1`  | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                |
+| The Femto Bolt doesn't start; the log shows depth engine error 204  | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                        |
+| The page at `http://127.0.0.1:8080` loads, but nothing connects     | The gateway starts only once a camera is active, and the first start may still be building the engine. Check `journalctl -u orbbec-streamer -f`.                                                                                    |
+| The page doesn't load                                               | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                               |
+| Another computer can't open the page                                | Expected in this release: open it on the server PC.                                                                                                                                                                                 |
+
+
+# Build the server from source (https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server)
+
+
+
+This is the minimal path for developers. To run OrbbecStreamer without
+building it, use [Install the release package](/docs/getting-started/install-package)
+instead. The [Server](/docs/server) section has the full
 detail for every step, including every package, every troubleshooting
 message, and how to build for a GPU other than the tested one.
 
@@ -2409,22 +2594,35 @@ client too? See [Run the client](/docs/client/dev-build).
 
 
 
-There are three calibration kinds. Each one is a server-side state with an
-optional client-side workspace to run it from. Today the server and client
-cannot talk to each other at all (see [Serve to browsers](/docs/server/serving)),
-so every client-side calibration in this table works only against the
-client's own built-in mock server, not against a real `orbbec_streamer`.
+There are three calibration kinds. Each one is a server-side state; a client
+can show it and, for some kinds, run it over a browser session. A browser
+session to a real server carries status and setup commands but no video yet
+(see [Serve to browsers](/docs/server/serving#status)).
 
-| Kind               | Server                                                                                               | Client                                                                                                                                                                            |
-| ------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Camera pose        | Works, from the local console. [Camera pose calibration](/docs/server/camera-calibration).           | Placeholder screen only; no controls. [Calibrate depth](/docs/client/calibration#camera-pose).                                                                                    |
-| Depth quantization | Works, from a CLI tool. [Depth quantization calibrator](/docs/server/depth-quantization-calibrator). | Start, watch, cancel and commit a run against the mock server. [Calibrate depth](/docs/client/calibration#depth-quantization), [Mock server](/docs/client/developer/mock-server). |
-| Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.     | Not available.                                                                                                                                                                    |
+| Kind               | On the server                                                                                           | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Camera pose        | Works from the local console. See [Camera pose calibration](/docs/server/camera-calibration).           | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid; a missing pose must be calibrated on the server. The client has no camera-pose controls yet: its section shows a placeholder. See [Calibrate depth](/docs/client/calibration#camera-pose). |
+| Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator). | Not yet. The client's workspace can start, watch, cancel and commit a run, but a real server refuses it with `calibration-kind-unsupported`. It works against the client's mock server: see [Calibrate depth](/docs/client/calibration#depth-quantization) and [Mock server](/docs/client/developer/mock-server).                                                           |
+| Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.        | Not available.                                                                                                                                                                                                                                                                                                                                                              |
 
-Once WebTransport serving exists, the client's depth-quantization workspace
-is expected to work the same way against a real server. Until then, run
-camera pose and depth quantization calibration on the server console: see
-[First stream](/docs/getting-started/first-stream) for a config already set
+The read-only [Operator Console](/docs/operator) shows each kind's state
+under **Calibration** on its Overview, and changes nothing.
+
+## Run calibration today [#run-calibration-today]
+
+Run camera pose and depth quantization on the server:
+
+1. Calibrate the camera pose from the server console with
+   `--calibrate-camera-pose`. See
+   [Camera pose calibration](/docs/server/camera-calibration).
+2. Optionally, build a depth quantization profile with the calibrator. See
+   [Depth quantization calibrator](/docs/server/depth-quantization-calibrator).
+   Without one, the server uses a linear depth range.
+3. Start the server. A browser connected to it sees the committed result:
+   the server card's **Pose** and **Depth** chips, or the console's
+   Overview.
+
+[First stream](/docs/getting-started/first-stream) has a config already set
 up for your cameras.
 
 
@@ -2455,17 +2653,20 @@ This is separate from a **world anchor**, which is where an anchor sits in
 
 ## What the server does with a commit today [#what-the-server-does-with-a-commit-today]
 
-The server's setup-state machine accepts a placement commit and tracks its
-revision, but reaching it needs the network layer that carries client
-commands to the server, which does not exist yet (see
-[Setup state](/docs/server/how-it-works/setup-state#what-works-today)). Even once that
-exists, a placement is kept in memory only and is not saved to disk, so it
-resets on every server restart.
+A real server accepts a placement commit over a browser session from the
+client that holds the setup lock, as long as the placement is still at the
+revision the draft started from. It saves the new placement to
+`calibration.placement_path` before any client sees it, and restores it at
+the next start (see the [`calibration` keys](/docs/server/configuration#calibration)).
+With `placement_path: ""`, the placement is kept in memory only and resets
+at every restart.
 
-Until then, the flow above works only against the client's own built-in
-mock server: see [Mock server](/docs/client/developer/mock-server) and
-[Placement check](/docs/client/developer/placement-check). A real
-`orbbec_streamer` server has no way to receive a commit yet.
+The server sends no video to browsers yet, so you edit the placement
+without seeing your own camera's point cloud (see
+[Serve to browsers](/docs/server/serving#status)). To try the editor without
+a server, use the client's built-in mock server: see
+[Mock server](/docs/client/developer/mock-server) and
+[Placement check](/docs/client/developer/placement-check).
 
 
 # Introduction (https://irc-hslu.github.io/orbbecstreamer/docs)
@@ -2493,7 +2694,7 @@ process and encode in real time: see [First stream](/docs/getting-started/first-
 ## Across both [#across-both]
 
 <Cards>
-  <Card title="Getting started" href="/docs/getting-started/install-server" description="Install the server, and reach a first stream." />
+  <Card title="Getting started" href="/docs/getting-started/install-package" description="Install the release package, or build from source, and reach a first stream." />
 
   <Card title="Guides" href="/docs/guides/calibration" description="Calibration and placement, across the server and the client." />
 
@@ -2577,15 +2778,15 @@ System.
 Some rows read **Not reported** or **Not measured**: the server can't send
 that information yet. Each row names the protocol change it waits for.
 
-| Not shown yet                                                       | Waits for            |
-| ------------------------------------------------------------------- | -------------------- |
-| Live images. The console receives no video by design.               | A later release      |
-| Camera model, serial, firmware and USB link                         | Protocol change 0027 |
-| Hardware sync status                                                | Protocol change 0029 |
-| License state and activation                                        | Protocol change 0031 |
-| Setup task progress, such as the first-run engine build             | Protocol change 0032 |
-| Network quality                                                     | Protocol change 0018 |
-| Sensor settings, stream profiles, calibration and placement editing | Later phases         |
+| Not shown yet                                                                                        | Waits for                                          |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Live images. The console receives no video by design, and the server sends no video to browsers yet. | Protocol change 0009, then a later console release |
+| Camera model, serial, firmware and USB link                                                          | Protocol change 0027                               |
+| Hardware sync status                                                                                 | Protocol change 0029                               |
+| License state and activation                                                                         | Protocol change 0031                               |
+| Setup task progress, such as the first-run engine build                                              | Protocol change 0032                               |
+| Network quality                                                                                      | Protocol change 0018                               |
+| Sensor settings, stream profiles, calibration and placement editing                                  | Later phases                                       |
 
 Opening the address of a panel that isn't built yet, such as
 `/operator/colour`, shows **Not built yet** and the phase it
@@ -2602,7 +2803,10 @@ a server** form:
 2. In **Certificate hash (SHA-256)**, paste the certificate's SHA-256 hash.
    Hex, colon-separated hex and Base64 are accepted. From `openssl x509
    -fingerprint -sha256`, paste only the part after `=`. With the package,
-   `sudo orbbec-tls status` prints the hash.
+   run `sudo orbbec-tls status`: it prints JSON with several hashes. Use the
+   `sha256Hex` of the `webtransport` entry whose `role` is `current` (64 hex
+   characters). The `ca.sha256` value is the local CA's fingerprint and
+   doesn't work here.
 3. Select **Connect**.
 
 The console remembers this server in the browser. To switch, select
@@ -2893,14 +3097,14 @@ You need:
 
 What is available today:
 
-| Feature                                                       | Status                                                                                                                |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Print the board (`--print-charuco-board`)                     | Available                                                                                                             |
-| Calibrate from the server console (`--calibrate-camera-pose`) | Available. Tested with synthetic cameras; not yet validated with a printed board on hardware.                         |
-| Load and check the saved calibration at startup               | Available                                                                                                             |
-| Save the result safely, with a revision number                | Available                                                                                                             |
-| Start, follow and commit a calibration from a browser client  | Not yet available. The server logic exists, but the network listener that carries client commands is not implemented. |
-| `calibration.autocalibrate: true`                             | Read and reported, but has no practical effect until clients can connect. Keep it `false`.                            |
+| Feature                                                                  | Status                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Print the board (`--print-charuco-board`)                                | Available                                                                                                                                                                                                                                                                                                                     |
+| Calibrate from the server console (`--calibrate-camera-pose`)            | Available. Tested with synthetic cameras; not yet validated with a printed board on hardware.                                                                                                                                                                                                                                 |
+| Load and check the saved calibration at startup                          | Available                                                                                                                                                                                                                                                                                                                     |
+| Save the result safely, with a revision number                           | Available                                                                                                                                                                                                                                                                                                                     |
+| Start, follow and commit a camera-pose calibration from a browser client | Available over the control stream when `serving.enabled: true` (see [Serve to browsers](./serving) and the [`serving` keys](./configuration#serving)). Camera-pose only: other calibration kinds are rejected with `calibration-kind-unsupported`. The browser gets no video yet, because media waits for CR 0009 (proposed). |
+| `calibration.autocalibrate: true`                                        | With serving enabled and a missing or stale pose, a client that holds the setup lease may start a calibration. With `false`, only the local operator console can start one. It is forced to `false` when no calibration engine is available.                                                                                  |
 
 ## Print the board [#print-the-board]
 
@@ -3397,7 +3601,7 @@ Camera-pose calibration with a printed ChArUco board; see [Camera pose calibrati
 | ------------------------------------ | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `camera_pose_path`                   | path      | `config/dev/camera-pose.json` | Saved poses. A missing file means "needs setup", not an error.                                                                                                                                                                                                                        |
 | `placement_path`                     | path      | `config/dev/placement.json`   | Persisted placement (where the server frame sits in the client anchor), saved on every placement commit before clients see it. A missing file means the default placement. Empty (`""`): placement is kept in memory only and resets at restart. Must differ from `camera_pose_path`. |
-| `autocalibrate`                      | bool      | `false`                       | With a missing or stale pose: `true` lets a client holding the setup lease start calibration; `false` needs an operator. Has no client to wait for until serving exists.                                                                                                              |
+| `autocalibrate`                      | bool      | `false`                       | With a missing or stale pose: `true` lets a client holding the setup lease start calibration; `false` needs an operator. Clients can only act on it when [`serving.enabled`](#serving) is `true`; the server forces it to `false` when no calibration engine is available.            |
 | `board.squares_x`, `board.squares_y` | integer   | `7`, `5`                      | Squares across and down, at least 2.                                                                                                                                                                                                                                                  |
 | `board.square_length_m`              | float (m) | `0.08`                        | Printed square size. Measure the print.                                                                                                                                                                                                                                               |
 | `board.marker_length_m`              | float (m) | `0.06`                        | Printed marker size, smaller than the square.                                                                                                                                                                                                                                         |
@@ -3630,8 +3834,8 @@ profile") otherwise. Either way the server is ready: only the camera pose is
 required (see [Camera pose calibration](./camera-calibration)).
 
 The profile and its table are part of the setup metadata that clients
-receive. The network listener that delivers it to browsers is not
-implemented yet. A client cannot start a depth-quantization calibration: the
+receive. With `serving.enabled: true`, the control stream delivers it to
+browsers (see [Serve to browsers](./serving)). A client cannot start a depth-quantization calibration: the
 server rejects that calibration kind.
 
 ## Options [#options]
@@ -4639,7 +4843,7 @@ so absolute capture-relative numbers may carry a constant offset;
 differences and everything after the SDK are exact.
 
 Not in the baseline: RVM segmentation (adds to GPU processing), the preview
-window, and the network (serving is not implemented yet; see
+window, and the network (serving sends no media yet; see
 [Serve to browsers](../serving)).
 
 ## Targets [#targets]
@@ -4749,7 +4953,7 @@ The full plan is in `server/docs/development/ROADMAP.md` (Performance).
 * [Read the telemetry](../telemetry): the latency report and healthy values
 * [Encoding](./encoding): encoder settings and keyframes
 * [Stream layout](../stream-layout): per-camera vs concatenated
-* [Serve to browsers](../serving): the network part, not yet available
+* [Serve to browsers](../serving): the network part; the control plane works, media is not sent yet
 
 
 # Setup state (https://irc-hslu.github.io/orbbecstreamer/docs/server/how-it-works/setup-state)
@@ -4758,15 +4962,16 @@ The full plan is in `server/docs/development/ROADMAP.md` (Performance).
 
 The server keeps one authoritative setup state: whether the rig is
 calibrated, whether media may flow, who holds the setup lock, and the
-revisions clients need to interpret the media. A client will get the full
-state in a **snapshot** when it connects, then follow the updates. Today you
-see the state in the server log. The wire form is defined in the wire
+revisions clients need to interpret the media. A client gets the full
+state in a **snapshot** when it connects (with `serving.enabled: true`), then
+follows the updates. You also see the state in the server log. The wire form is defined in the wire
 contract, `protocol/wire-format.md`.
 
 The state machine (`server/src/control/SetupController`) and the session layer
-that will carry it to clients (`server/src/session/SessionHub`) are implemented
-and tested. No network listener feeds the session layer yet; see
-[What works today](#what-works-today).
+that carries it to clients (`server/src/session/SessionHub`) are implemented
+and tested. With `serving.enabled: true`, the Go gateway feeds the session layer
+with every browser's control stream; see [What works today](#what-works-today)
+and [Serve to browsers](../serving).
 
 ## Phases and readiness [#phases-and-readiness]
 
@@ -4913,15 +5118,15 @@ It does not contain camera poses, revisions or the setup phase. Poses are in
 
 ## What works today [#what-works-today]
 
-| Part                                                                                | Status                                                                                                   |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Setup state, readiness and revisions, built at start                                | Available (needs `streams.alignment: color_to_depth`)                                                    |
-| Loading and checking the saved camera pose                                          | Available                                                                                                |
-| Local calibration with the console lease (`--calibrate-camera-pose`)                | Available                                                                                                |
-| `setup.json`                                                                        | Available                                                                                                |
-| Snapshot and updates per client, lease commands, calibration and placement commands | Implemented in `SessionHub` and tested with loopback clients; needs the network listener (not available) |
-| `autocalibrate: true` in practice                                                   | Needs the network listener                                                                               |
-| Placement persistence                                                               | Implemented: a committed placement is saved before clients see it and restored at start                  |
+| Part                                                                                | Status                                                                                                                                 |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup state, readiness and revisions, built at start                                | Available (needs `streams.alignment: color_to_depth`)                                                                                  |
+| Loading and checking the saved camera pose                                          | Available                                                                                                                              |
+| Local calibration with the console lease (`--calibrate-camera-pose`)                | Available                                                                                                                              |
+| `setup.json`                                                                        | Available                                                                                                                              |
+| Snapshot and updates per client, lease commands, calibration and placement commands | Available over the control stream when `serving.enabled: true`. Camera-pose calibration only. No media is sent yet (CR 0009, proposed) |
+| `autocalibrate: true` in practice                                                   | Available with serving enabled: a client holding the lease may start a calibration                                                     |
+| Placement persistence                                                               | Implemented: a committed placement is saved before clients see it and restored at start                                                |
 
 Without `streams.alignment: color_to_depth` the server logs
 `setup state not built: client-facing setup requires streams.alignment=color_to_depth`
@@ -4932,7 +5137,7 @@ and runs the pipeline without a setup state.
 * [Camera pose calibration](../camera-calibration): calibrate, validity rules, troubleshooting
 * [Configuration](../configuration#calibration): `camera_pose_path`, `autocalibrate`
 * [Stream layout](../stream-layout): the bundles and descriptors the state describes
-* [Serve to browsers](../serving): status of the network layer
+* [Serve to browsers](../serving): control plane status and setup
 
 
 # Server (https://irc-hslu.github.io/orbbecstreamer/docs/server)
@@ -5506,7 +5711,7 @@ Step 6 ends with `NVENC capability test passed` (full output in
 
 
 
-`orbbec_streamer --live <config>` runs the full pipeline: capture from the configured Orbbec cameras, GPU processing, NVENC HEVC encoding and terminal telemetry. The other flags check the hardware and the SDKs. The live pipeline does not serve browsers yet; encoded bundles go to the debug recorder only (see [Serve to browsers](./serving)).
+`orbbec_streamer --live <config>` runs the full pipeline: capture from the configured Orbbec cameras, GPU processing, NVENC HEVC encoding and terminal telemetry. The other flags check the hardware and the SDKs. The live pipeline serves browsers the control plane only, and only with `serving.enabled: true`; it sends no media yet, and encoded bundles go to the debug recorder only (see [Serve to browsers](./serving)).
 
 ## Before you start [#before-you-start]
 
@@ -5709,6 +5914,8 @@ Browsers will connect over WebTransport, a browser API for low-latency streams o
 
 **Control plane only, off by default.** With `serving.enabled: true` (see [Configuration](./configuration#serving)), `--live` starts the Go WebTransport gateway, supervises it and serves the control stream of every browser session: `client.hello`, snapshots, pings, the setup lease and calibration commands. **No media is sent yet.** When the server may open a bundle's colour and depth streams for a session is change request CR 0009, which is still proposed, so no session receives media.
 
+**The real endpoint** is `https://<listen_address><path>` (`serving.listen_address`, `serving.path`). The development config listens on `0.0.0.0:4443`, so the endpoint is `https://<host>:4443/orbbec`; the packaged config listens on `127.0.0.1:4443`, so it is `https://127.0.0.1:4443/orbbec`. The `127.0.0.1:4433/session` address further down belongs to the throwaway spike only.
+
 | Part                      | Code                                                                                      | State                                                                                                                          |
 | ------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Transport choice          | `server/docs/architecture/adr/0002-webtransport-server.md`                                | Accepted: a Go gateway on `webtransport-go` (v0.13.0, quic-go v0.63.0) in front of the C++ server                              |
@@ -5724,7 +5931,7 @@ Browsers will connect over WebTransport, a browser API for low-latency streams o
 ### Gateway [#gateway]
 
 * **Endpoint.** `https://<listen_address>/orbbec` (`serving.path`). The client opens the control stream: the first bidirectional stream it opens. The server resets any further client stream. These are the server's current choices, listed in CR 0024 (proposed, PR #114).
-* **Admission.** At most `serving.max_sessions` sessions, and at most 4 per source IP address. Above either cap, and while shutting down, the request is answered with HTTP 503 before the session exists. A request from an origin that is not in `serving.allowed_origins` is refused.
+* **Admission.** At most `serving.max_sessions` sessions, and at most 4 per source IP address. Above either cap, and while shutting down, the request is answered with HTTP 503 before the session exists. A request from an origin that is not in `serving.allowed_origins` is refused with HTTP 400. See [Why a connection is refused](#why-a-connection-is-refused).
 * **Host check.** The `:authority` of every request must name the listener's port and one of: `localhost`, `127.0.0.1`, `::1`, a name or address in the TLS certificate, or an entry of `serving.host_names`. Anything else gets HTTP 421 before a session exists, which blocks DNS-rebinding attacks. With the development certificate (SANs `localhost`, `127.0.0.1`), a browser that connects by a LAN address needs that address in `serving.host_names`.
 * **Limits.** QUIC idle timeout 4 s with a keep-alive every 1 s. HTTP/3 idle connections are closed after 5 s and headers are capped at 16 KiB. Inbound control bytes are rate-limited per session; over the rate the server stops reading, which slows only that client.
 * **Exposure.** `config/dev/live.yaml` listens on `0.0.0.0:4443`, so any host that can reach this machine can open a session, limited only by the origin check and the caps. A non-browser client can send any `Origin` header. Use a firewall, or listen on `127.0.0.1`, when the machine is on an untrusted network.
@@ -5781,7 +5988,21 @@ Tests: `gateway_ipc_contract_tests`, `gateway_ipc_fuzz_tests`, `gateway_transpor
 
 4. Point the page at `https://<host>:4443/orbbec`, passing the hash in `serverCertificateHashes`.
 
+## Why a connection is refused [#why-a-connection-is-refused]
+
+| What the client sees                                             | Cause                                                                                                                                                            |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| QUIC connection closed with code `0x10b` (`H3_REQUEST_REJECTED`) | More QUIC connections at once than the gateway allows (twice `serving.max_sessions` plus 16, sessions and handshakes together)                                   |
+| HTTP 421                                                         | The request's `Host` (`:authority`) is not `localhost`, `127.0.0.1`, `::1`, a name in the certificate or an entry of `serving.host_names`, or names another port |
+| HTTP 503                                                         | `serving.max_sessions` or the per-address cap (4) is reached, or the gateway is stopping                                                                         |
+| HTTP 400                                                         | The `Origin` is not in `serving.allowed_origins`, or the WebTransport upgrade failed for another reason                                                          |
+| No answer; the QUIC handshake times out                          | No gateway is listening: `serving.enabled` is `false`, the core is not up, or a firewall blocks the UDP port                                                     |
+
+Browsers do not expose the status to JavaScript. `WebTransport.ready` rejects with a generic "Opening handshake failed" error whatever the cause. The gateway logs upgrade failures, at most once every 10 seconds, so look in the server log.
+
 ## Try the WebTransport spike [#try-the-webtransport-spike]
+
+This section is about the throwaway spike in `server/spike/webtransport`, not the real server. It listens on `https://127.0.0.1:4433/session`, not on `serving.listen_address`. For the real endpoint see [Status](#status).
 
 The spike is a small Go WebTransport server that sends synthetic colour and depth records shaped like the wire format, plus a test page. It uses neither cameras nor the C++ server. It needs Go 1.27.1 or newer on your `PATH` (check with `go version`).
 

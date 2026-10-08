@@ -108,8 +108,8 @@ profile") otherwise. Either way the server is ready: only the camera pose is
 required (see [Camera pose calibration](./camera-calibration)).
 
 The profile and its table are part of the setup metadata that clients
-receive. The network listener that delivers it to browsers is not
-implemented yet. A client cannot start a depth-quantization calibration: the
+receive. With `serving.enabled: true`, the control stream delivers it to
+browsers (see [Serve to browsers](./serving)). A client cannot start a depth-quantization calibration: the
 server rejects that calibration kind.
 
 ## Options [#options]

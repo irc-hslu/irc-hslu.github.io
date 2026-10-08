@@ -72,15 +72,15 @@ System.
 Some rows read **Not reported** or **Not measured**: the server can't send
 that information yet. Each row names the protocol change it waits for.
 
-| Not shown yet                                                       | Waits for            |
-| ------------------------------------------------------------------- | -------------------- |
-| Live images. The console receives no video by design.               | A later release      |
-| Camera model, serial, firmware and USB link                         | Protocol change 0027 |
-| Hardware sync status                                                | Protocol change 0029 |
-| License state and activation                                        | Protocol change 0031 |
-| Setup task progress, such as the first-run engine build             | Protocol change 0032 |
-| Network quality                                                     | Protocol change 0018 |
-| Sensor settings, stream profiles, calibration and placement editing | Later phases         |
+| Not shown yet                                                                                        | Waits for                                          |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Live images. The console receives no video by design, and the server sends no video to browsers yet. | Protocol change 0009, then a later console release |
+| Camera model, serial, firmware and USB link                                                          | Protocol change 0027                               |
+| Hardware sync status                                                                                 | Protocol change 0029                               |
+| License state and activation                                                                         | Protocol change 0031                               |
+| Setup task progress, such as the first-run engine build                                              | Protocol change 0032                               |
+| Network quality                                                                                      | Protocol change 0018                               |
+| Sensor settings, stream profiles, calibration and placement editing                                  | Later phases                                       |
 
 Opening the address of a panel that isn't built yet, such as
 `/operator/colour`, shows **Not built yet** and the phase it
@@ -97,7 +97,10 @@ a server** form:
 2. In **Certificate hash (SHA-256)**, paste the certificate's SHA-256 hash.
    Hex, colon-separated hex and Base64 are accepted. From `openssl x509
    -fingerprint -sha256`, paste only the part after `=`. With the package,
-   `sudo orbbec-tls status` prints the hash.
+   run `sudo orbbec-tls status`: it prints JSON with several hashes. Use the
+   `sha256Hex` of the `webtransport` entry whose `role` is `current` (64 hex
+   characters). The `ca.sha256` value is the local CA's fingerprint and
+   doesn't work here.
 3. Select **Connect**.
 
 The console remembers this server in the browser. To switch, select

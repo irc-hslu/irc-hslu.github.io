@@ -48,7 +48,7 @@ so absolute capture-relative numbers may carry a constant offset;
 differences and everything after the SDK are exact.
 
 Not in the baseline: RVM segmentation (adds to GPU processing), the preview
-window, and the network (serving is not implemented yet; see
+window, and the network (serving sends no media yet; see
 [Serve to browsers](../serving)).
 
 ## Targets [#targets]
@@ -158,4 +158,4 @@ The full plan is in `server/docs/development/ROADMAP.md` (Performance).
 * [Read the telemetry](../telemetry): the latency report and healthy values
 * [Encoding](./encoding): encoder settings and keyframes
 * [Stream layout](../stream-layout): per-camera vs concatenated
-* [Serve to browsers](../serving): the network part, not yet available
+* [Serve to browsers](../serving): the network part; the control plane works, media is not sent yet

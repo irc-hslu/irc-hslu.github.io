@@ -23,7 +23,7 @@ process and encode in real time: see [First stream](/docs/getting-started/first-
 ## Across both [#across-both]
 
 <Cards>
-  <Card title="Getting started" href="/docs/getting-started/install-server" description="Install the server, and reach a first stream." />
+  <Card title="Getting started" href="/docs/getting-started/install-package" description="Install the release package, or build from source, and reach a first stream." />
 
   <Card title="Guides" href="/docs/guides/calibration" description="Calibration and placement, across the server and the client." />
 

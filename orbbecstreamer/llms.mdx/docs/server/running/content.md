@@ -4,7 +4,7 @@
 
 
 
-`orbbec_streamer --live <config>` runs the full pipeline: capture from the configured Orbbec cameras, GPU processing, NVENC HEVC encoding and terminal telemetry. The other flags check the hardware and the SDKs. The live pipeline does not serve browsers yet; encoded bundles go to the debug recorder only (see [Serve to browsers](./serving)).
+`orbbec_streamer --live <config>` runs the full pipeline: capture from the configured Orbbec cameras, GPU processing, NVENC HEVC encoding and terminal telemetry. The other flags check the hardware and the SDKs. The live pipeline serves browsers the control plane only, and only with `serving.enabled: true`; it sends no media yet, and encoded bundles go to the debug recorder only (see [Serve to browsers](./serving)).
 
 ## Before you start [#before-you-start]
 

@@ -8,6 +8,8 @@ Browsers will connect over WebTransport, a browser API for low-latency streams o
 
 **Control plane only, off by default.** With `serving.enabled: true` (see [Configuration](./configuration#serving)), `--live` starts the Go WebTransport gateway, supervises it and serves the control stream of every browser session: `client.hello`, snapshots, pings, the setup lease and calibration commands. **No media is sent yet.** When the server may open a bundle's colour and depth streams for a session is change request CR 0009, which is still proposed, so no session receives media.
 
+**The real endpoint** is `https://<listen_address><path>` (`serving.listen_address`, `serving.path`). The development config listens on `0.0.0.0:4443`, so the endpoint is `https://<host>:4443/orbbec`; the packaged config listens on `127.0.0.1:4443`, so it is `https://127.0.0.1:4443/orbbec`. The `127.0.0.1:4433/session` address further down belongs to the throwaway spike only.
+
 | Part                      | Code                                                                                      | State                                                                                                                          |
 | ------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Transport choice          | `server/docs/architecture/adr/0002-webtransport-server.md`                                | Accepted: a Go gateway on `webtransport-go` (v0.13.0, quic-go v0.63.0) in front of the C++ server                              |
@@ -23,7 +25,7 @@ Browsers will connect over WebTransport, a browser API for low-latency streams o
 ### Gateway [#gateway]
 
 * **Endpoint.** `https://<listen_address>/orbbec` (`serving.path`). The client opens the control stream: the first bidirectional stream it opens. The server resets any further client stream. These are the server's current choices, listed in CR 0024 (proposed, PR #114).
-* **Admission.** At most `serving.max_sessions` sessions, and at most 4 per source IP address. Above either cap, and while shutting down, the request is answered with HTTP 503 before the session exists. A request from an origin that is not in `serving.allowed_origins` is refused.
+* **Admission.** At most `serving.max_sessions` sessions, and at most 4 per source IP address. Above either cap, and while shutting down, the request is answered with HTTP 503 before the session exists. A request from an origin that is not in `serving.allowed_origins` is refused with HTTP 400. See [Why a connection is refused](#why-a-connection-is-refused).
 * **Host check.** The `:authority` of every request must name the listener's port and one of: `localhost`, `127.0.0.1`, `::1`, a name or address in the TLS certificate, or an entry of `serving.host_names`. Anything else gets HTTP 421 before a session exists, which blocks DNS-rebinding attacks. With the development certificate (SANs `localhost`, `127.0.0.1`), a browser that connects by a LAN address needs that address in `serving.host_names`.
 * **Limits.** QUIC idle timeout 4 s with a keep-alive every 1 s. HTTP/3 idle connections are closed after 5 s and headers are capped at 16 KiB. Inbound control bytes are rate-limited per session; over the rate the server stops reading, which slows only that client.
 * **Exposure.** `config/dev/live.yaml` listens on `0.0.0.0:4443`, so any host that can reach this machine can open a session, limited only by the origin check and the caps. A non-browser client can send any `Origin` header. Use a firewall, or listen on `127.0.0.1`, when the machine is on an untrusted network.
@@ -80,7 +82,21 @@ Tests: `gateway_ipc_contract_tests`, `gateway_ipc_fuzz_tests`, `gateway_transpor
 
 4. Point the page at `https://<host>:4443/orbbec`, passing the hash in `serverCertificateHashes`.
 
+## Why a connection is refused [#why-a-connection-is-refused]
+
+| What the client sees                                             | Cause                                                                                                                                                            |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| QUIC connection closed with code `0x10b` (`H3_REQUEST_REJECTED`) | More QUIC connections at once than the gateway allows (twice `serving.max_sessions` plus 16, sessions and handshakes together)                                   |
+| HTTP 421                                                         | The request's `Host` (`:authority`) is not `localhost`, `127.0.0.1`, `::1`, a name in the certificate or an entry of `serving.host_names`, or names another port |
+| HTTP 503                                                         | `serving.max_sessions` or the per-address cap (4) is reached, or the gateway is stopping                                                                         |
+| HTTP 400                                                         | The `Origin` is not in `serving.allowed_origins`, or the WebTransport upgrade failed for another reason                                                          |
+| No answer; the QUIC handshake times out                          | No gateway is listening: `serving.enabled` is `false`, the core is not up, or a firewall blocks the UDP port                                                     |
+
+Browsers do not expose the status to JavaScript. `WebTransport.ready` rejects with a generic "Opening handshake failed" error whatever the cause. The gateway logs upgrade failures, at most once every 10 seconds, so look in the server log.
+
 ## Try the WebTransport spike [#try-the-webtransport-spike]
+
+This section is about the throwaway spike in `server/spike/webtransport`, not the real server. It listens on `https://127.0.0.1:4433/session`, not on `serving.listen_address`. For the real endpoint see [Status](#status).
 
 The spike is a small Go WebTransport server that sends synthetic colour and depth records shaped like the wire format, plus a test page. It uses neither cameras nor the C++ server. It needs Go 1.27.1 or newer on your `PATH` (check with `go version`).
 

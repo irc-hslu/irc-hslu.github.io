@@ -4,15 +4,16 @@
 
 The server keeps one authoritative setup state: whether the rig is
 calibrated, whether media may flow, who holds the setup lock, and the
-revisions clients need to interpret the media. A client will get the full
-state in a **snapshot** when it connects, then follow the updates. Today you
-see the state in the server log. The wire form is defined in the wire
+revisions clients need to interpret the media. A client gets the full
+state in a **snapshot** when it connects (with `serving.enabled: true`), then
+follows the updates. You also see the state in the server log. The wire form is defined in the wire
 contract, `protocol/wire-format.md`.
 
 The state machine (`server/src/control/SetupController`) and the session layer
-that will carry it to clients (`server/src/session/SessionHub`) are implemented
-and tested. No network listener feeds the session layer yet; see
-[What works today](#what-works-today).
+that carries it to clients (`server/src/session/SessionHub`) are implemented
+and tested. With `serving.enabled: true`, the Go gateway feeds the session layer
+with every browser's control stream; see [What works today](#what-works-today)
+and [Serve to browsers](../serving).
 
 ## Phases and readiness [#phases-and-readiness]
 
@@ -159,15 +160,15 @@ It does not contain camera poses, revisions or the setup phase. Poses are in
 
 ## What works today [#what-works-today]
 
-| Part                                                                                | Status                                                                                                   |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Setup state, readiness and revisions, built at start                                | Available (needs `streams.alignment: color_to_depth`)                                                    |
-| Loading and checking the saved camera pose                                          | Available                                                                                                |
-| Local calibration with the console lease (`--calibrate-camera-pose`)                | Available                                                                                                |
-| `setup.json`                                                                        | Available                                                                                                |
-| Snapshot and updates per client, lease commands, calibration and placement commands | Implemented in `SessionHub` and tested with loopback clients; needs the network listener (not available) |
-| `autocalibrate: true` in practice                                                   | Needs the network listener                                                                               |
-| Placement persistence                                                               | Implemented: a committed placement is saved before clients see it and restored at start                  |
+| Part                                                                                | Status                                                                                                                                 |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup state, readiness and revisions, built at start                                | Available (needs `streams.alignment: color_to_depth`)                                                                                  |
+| Loading and checking the saved camera pose                                          | Available                                                                                                                              |
+| Local calibration with the console lease (`--calibrate-camera-pose`)                | Available                                                                                                                              |
+| `setup.json`                                                                        | Available                                                                                                                              |
+| Snapshot and updates per client, lease commands, calibration and placement commands | Available over the control stream when `serving.enabled: true`. Camera-pose calibration only. No media is sent yet (CR 0009, proposed) |
+| `autocalibrate: true` in practice                                                   | Available with serving enabled: a client holding the lease may start a calibration                                                     |
+| Placement persistence                                                               | Implemented: a committed placement is saved before clients see it and restored at start                                                |
 
 Without `streams.alignment: color_to_depth` the server logs
 `setup state not built: client-facing setup requires streams.alignment=color_to_depth`
@@ -178,4 +179,4 @@ and runs the pipeline without a setup state.
 * [Camera pose calibration](../camera-calibration): calibrate, validity rules, troubleshooting
 * [Configuration](../configuration#calibration): `camera_pose_path`, `autocalibrate`
 * [Stream layout](../stream-layout): the bundles and descriptors the state describes
-* [Serve to browsers](../serving): status of the network layer
+* [Serve to browsers](../serving): control plane status and setup

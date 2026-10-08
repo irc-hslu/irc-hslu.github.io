@@ -2,11 +2,12 @@
 
 - [Introduction](https://irc-hslu.github.io/orbbecstreamer/docs): Stream live RGB-D from Orbbec cameras to the browser, GPU-encoded end to end.
 - Getting started
-  - [Install the server](https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server): The shortest path to a built server, linking out to the full server documentation for every detail.
+  - [Install the release package](https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-package): Install OrbbecStreamer from the Debian package on Ubuntu 26.04, check the machine, and open the client on the server PC.
+  - [Build the server from source](https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server): The shortest path to a server built from source, linking out to the full server documentation for every detail.
   - [First stream](https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/first-stream): Capture your own camera through the full server pipeline today; stream it to a browser once serving lands.
 - Guides
-  - [Calibration](https://irc-hslu.github.io/orbbecstreamer/docs/guides/calibration): What each calibration kind does, what works today on the server and the client, and why they can't yet be chained into one flow.
-  - [Placement](https://irc-hslu.github.io/orbbecstreamer/docs/guides/placement): Move a server's point cloud into position and commit it, and what happens on the server side today.
+  - [Calibration](https://irc-hslu.github.io/orbbecstreamer/docs/guides/calibration): What each calibration kind does, and where you can run it today against a real server.
+  - [Placement](https://irc-hslu.github.io/orbbecstreamer/docs/guides/placement): Move a server's point cloud into position and commit it, and what the server does with the commit.
 - Server
   - [Server](https://irc-hslu.github.io/orbbecstreamer/docs/server): The C++/CUDA server that captures, encodes and will stream Orbbec camera data.
   - [Requirements](https://irc-hslu.github.io/orbbecstreamer/docs/server/requirements): The hardware, operating system, drivers and SDKs the server needs, and how to check each one.

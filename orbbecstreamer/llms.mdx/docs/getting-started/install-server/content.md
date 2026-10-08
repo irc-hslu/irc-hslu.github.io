@@ -1,8 +1,10 @@
-# Install the server (https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server)
+# Build the server from source (https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server)
 
 
 
-This is the minimal path. The [Server](/docs/server) section has the full
+This is the minimal path for developers. To run OrbbecStreamer without
+building it, use [Install the release package](/docs/getting-started/install-package)
+instead. The [Server](/docs/server) section has the full
 detail for every step, including every package, every troubleshooting
 message, and how to build for a GPU other than the tested one.
 

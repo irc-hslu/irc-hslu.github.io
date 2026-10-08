@@ -25,14 +25,17 @@ This is separate from a **world anchor**, which is where an anchor sits in
 
 ## What the server does with a commit today [#what-the-server-does-with-a-commit-today]
 
-The server's setup-state machine accepts a placement commit and tracks its
-revision, but reaching it needs the network layer that carries client
-commands to the server, which does not exist yet (see
-[Setup state](/docs/server/how-it-works/setup-state#what-works-today)). Even once that
-exists, a placement is kept in memory only and is not saved to disk, so it
-resets on every server restart.
+A real server accepts a placement commit over a browser session from the
+client that holds the setup lock, as long as the placement is still at the
+revision the draft started from. It saves the new placement to
+`calibration.placement_path` before any client sees it, and restores it at
+the next start (see the [`calibration` keys](/docs/server/configuration#calibration)).
+With `placement_path: ""`, the placement is kept in memory only and resets
+at every restart.
 
-Until then, the flow above works only against the client's own built-in
-mock server: see [Mock server](/docs/client/developer/mock-server) and
-[Placement check](/docs/client/developer/placement-check). A real
-`orbbec_streamer` server has no way to receive a commit yet.
+The server sends no video to browsers yet, so you edit the placement
+without seeing your own camera's point cloud (see
+[Serve to browsers](/docs/server/serving#status)). To try the editor without
+a server, use the client's built-in mock server: see
+[Mock server](/docs/client/developer/mock-server) and
+[Placement check](/docs/client/developer/placement-check).
