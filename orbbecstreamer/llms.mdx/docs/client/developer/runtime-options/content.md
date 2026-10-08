@@ -13,7 +13,7 @@ import { startAppRuntime } from '../app/appRuntime.js';
 
 const runtime = startAppRuntime(container, { media: 'none', displayName: 'Operator Console' });
 const model = await runtime.ready;
-model.add({ kind: 'webtransport', url: 'https://capture-01.local:4433/orbbec' });
+model.add({ kind: 'webtransport', url: 'https://capture-01.local:4443/orbbec' });
 ```
 
 `media` is `'full'` (the default) or `'none'`. With `'none'` the runtime:
@@ -72,7 +72,7 @@ import { parseCertificateHash } from '../app/serverSource.js';
 
 const hash = parseCertificateHash('8e:dd:4a:62:46:85:ea:98:17:dd:fa:1d:34:cd:39:b7:28:86:fc:b0:a1:71:a5:15:f4:d5:29:74:43:53:ce:87');
 if (!hash.ok) throw new Error(hash.issues.join('; '));
-model.add({ kind: 'webtransport', url: 'https://127.0.0.1:4433/orbbec', serverCertificateHashes: [hash.value] });
+model.add({ kind: 'webtransport', url: 'https://127.0.0.1:4443/orbbec', serverCertificateHashes: [hash.value] });
 ```
 
 Replace the hash with your server certificate’s SHA-256 hash.

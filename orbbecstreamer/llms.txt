@@ -33,7 +33,7 @@
   - [What you can tweak](https://irc-hslu.github.io/orbbecstreamer/docs/client/what-you-can-tweak): Every control in the client, one table per area, with what it changes, its range and default, and when to change it.
   - [Run the client](https://irc-hslu.github.io/orbbecstreamer/docs/client/dev-build): Install the browser client, start it on your machine and open it in your browser.
   - [Check your browser](https://irc-hslu.github.io/orbbecstreamer/docs/client/browser-requirements): Find out whether your browser can connect, decode and draw point clouds, and what the client does when it can't.
-  - [Add a server](https://irc-hslu.github.io/orbbecstreamer/docs/client/add-a-server): Connect the client to a capture server by its address, or add the built-in mock server to try the client without hardware.
+  - [Add a server](https://irc-hslu.github.io/orbbecstreamer/docs/client/add-a-server): Connect the client to a capture server from the server PC’s page or by its address and certificate hash, or add the built-in mock server to try the client without hardware.
   - [Read a server card](https://irc-hslu.github.io/orbbecstreamer/docs/client/server-card): What each part of a server card means, what its buttons do, and how to fix a refused lock, stale data or a lost connection.
   - [Move around the 3D view](https://irc-hslu.github.io/orbbecstreamer/docs/client/viewer): What the 3D view shows, how to orbit, pan and zoom, how overlapping cameras are blended, and what to do when nothing is drawn.
   - [Play a recording](https://irc-hslu.github.io/orbbecstreamer/docs/client/playback): Play a recorded colour and depth video pair in the client, without a server or a camera.
