@@ -116,14 +116,26 @@ Results go to `client/scripts/qa/.out/`, which git ignores. The perf media and t
 
 ## Browsers tested so far [#browsers-tested-so-far]
 
-These are the recorded results so far. Other browsers haven’t been tested yet.
+These are the recorded results so far. Other browsers, and Windows and macOS, haven’t been tested yet.
 
 * **Headless Chromium 153 on Linux, 2026-09-23**:
   * WebCodecs works; H.264, VP9 and AV1 decode in software.
   * No hardware video decoding is available.
   * HEVC is reported unsupported for colour and depth in every hardware-acceleration mode, even with the VA-API flags.
   * The client connects and stays control-only. That’s why the wiring and latency checks use a synthetic decoder. The decode check uses real WebCodecs, so it reports the missing support.
-* **Real HEVC decoding in a browser hasn’t been verified yet.** The next test is desktop Chrome or Edge with GPU video decoding, or Safari. It’s tracked in `client/docs/development/ROADMAP.md` as “Check with real decoded HEVC frames in a browser”, under Phase 2.
+* **Desktop Google Chrome 155 on Ubuntu 26.04, NVIDIA RTX 4090, 2026-10-08**, on a secure page:
+  * `VideoDecoder.isConfigSupported` at 1920×1088 reports HEVC unsupported for `hev1.1.6.L120.B0` (Main, colour), `hev1.2.4.L120.B0` (Main10, depth) and `hvc1.1.6.L120.B0`, with `hardwareAcceleration` set to `no-preference`, `prefer-hardware` and `prefer-software`.
+  * H.264 (`avc1.640028`), AV1 10-bit (`av01.0.08M.10`) and VP9 profile 2 (`vp09.02.40.10`) are supported.
+  * WebGPU has an adapter (NVIDIA, Lovelace) and WebGL2 is available.
+  * Likely cause, not confirmed: Chrome on Linux decodes HEVC only through VA-API, and this PC has no VA-API driver for NVIDIA. The community nvidia-vaapi-driver isn’t installed, and the team hasn’t tried it.
+  * Headless Google Chrome 155 gives the same HEVC answer.
+  * So with Chrome’s default settings on a Linux PC with an NVIDIA GPU the client shows the cards and setup but no point cloud (**Setup and control only**). With the nvidia-vaapi-driver package and Chrome started with `--enable-features=VaapiOnNvidiaGPUs`, Chrome 155 decodes HEVC in hardware, but the depth frames can't be read (the decoded 10-bit frames are opaque to the page), so the point cloud still doesn't appear. Tested 2026-10-08 on Ubuntu 26.04, RTX 4090, driver 580. Ubuntu's Chromium snap can't use the driver at all.
+  * Details of that test:
+    * `VideoFrame.format` is `null` for Main10 frames.
+    * `copyTo` throws `NotSupportedError`.
+    * An 8-bit NV12 readback differs from the reference by up to 26 levels.
+    * An ffmpeg VA-API control decode on the same machine is bit-exact.
+* **Real HEVC decoding in a browser hasn’t been verified yet.** Windows and macOS viewers are expected to decode it but haven’t been tested. The next test is desktop Chrome or Edge on Windows, or Safari. It’s tracked in `client/docs/development/ROADMAP.md` as “Check with real decoded HEVC frames in a browser”, under Phase 2.
 * **Rendering in headless Chromium with SwiftShader**: WebGL2 works. WebGPU works with `--enable-unsafe-webgpu`, and the wiring check passed on it on 2026-09-24. Headless WebGPU on SwiftShader can lose its device when the machine is under heavy load; rerun on an idle machine.
 * **Blending, 2026-10-03**: the render check passed in headless Chromium 153 on Linux on a real GPU (NVIDIA GeForce RTX 4090 through Vulkan, flags as in [Placement check](/docs/client/developer/placement-check#run-headless-on-a-real-gpu)) with `engine=webgpu`: `compute-blend`, and `compute-nearest` with `blend=0`, both with no WebGPU validation errors; the **Blend (WebGPU)** checkbox switched between them; `engine=webgl2` still drew `babylon-points`.
 * **Placement handle drags, 2026-09-28**: real mouse drags in headless Chromium 153 on Linux moved the draft on WebGL2 and WebGPU, with SwiftShader and on a real GPU (NVIDIA GeForce RTX 4090 through Vulkan). Dragging a translate arrow moved x to 0.104 m; dragging a rotate ring turned yaw to about −45°. Nothing was sent to the server. See [Placement check](/docs/client/developer/placement-check#run-headless-on-a-real-gpu).

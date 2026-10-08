@@ -33,7 +33,12 @@ With WebGL2, the **View** section reads `Blending needs WebGPU; with WebGL2 the 
 
 ## Browsers tested so far [#browsers-tested-so-far]
 
-Nobody has confirmed HEVC decoding in any browser yet. The only browser the team has tested is headless Chromium 153 on Linux, and it reports no HEVC decoding. The next test is desktop Chrome or Edge with GPU video decoding, or Safari. The detailed results are on [Test the client](/docs/client/developer/test-the-client#browsers-tested-so-far).
+Nobody has confirmed HEVC decoding in any browser yet. Two browsers have been tested, and both report no HEVC decoding:
+
+* Headless Chromium 153 on Linux.
+* Desktop Google Chrome 155 on Ubuntu 26.04 with an NVIDIA RTX 4090 (2026-10-08). WebGPU and WebGL2 work, and H.264, VP9 and AV1 decode, but HEVC colour and Main10 depth do not. Chrome on Linux decodes HEVC through VA-API, and by default there is no VA-API driver for NVIDIA.
+
+With Chrome's default settings on a Linux PC with an NVIDIA GPU, Chrome shows the cards and the setup workspace but no point cloud (**Setup and control only**). Use a Windows or macOS viewer instead. HEVC decoding is expected there, but the team hasn't tested it, nor whether the depth frames can be read. With the nvidia-vaapi-driver package and Chrome started with `--enable-features=VaapiOnNvidiaGPUs`, Chrome 155 decodes HEVC in hardware, but the depth frames can't be read (the decoded 10-bit frames are opaque to the page), so the point cloud still doesn't appear. Tested 2026-10-08 on Ubuntu 26.04, RTX 4090, driver 580. Ubuntu's Chromium snap can't use the driver at all. The next test is Chrome or Edge on Windows, or Safari on macOS. The detailed results are on [Test the client](/docs/client/developer/test-the-client#browsers-tested-so-far).
 
 ## Fix browser problems [#fix-browser-problems]
 

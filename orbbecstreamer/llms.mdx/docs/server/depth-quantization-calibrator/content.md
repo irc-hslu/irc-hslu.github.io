@@ -103,14 +103,84 @@ When you restart the live server, it logs one of these lines:
 ### What the live server does with it [#what-the-live-server-does-with-it]
 
 The server's setup state reports the depth-quantization calibration as
-`valid` when the file was loaded, and as `missing` ("using the linear default
-profile") otherwise. Either way the server is ready: only the camera pose is
-required (see [Camera pose calibration](./camera-calibration)).
+`valid` when the file was loaded, as `missing` ("using the linear default
+profile") when there is no file, and as `stale` when a file exists but could
+not be used. Either way the server is ready: only the camera pose is required
+(see [Camera pose calibration](./camera-calibration)).
+
+A file that cannot be used never stops the live server. This covers an
+unknown `schema_version`, a file that does not parse, a table that fails the
+checks below, and a range that differs from `minimum_depth_mm` and
+`maximum_depth_mm`. The server logs one error that names the file and the
+reason, falls back to the linear profile for the configured range, and reports
+the calibration as `stale` with the same text. Recalibrate from the browser or
+with this tool to replace the file. The tool itself stays strict: it refuses a
+mismatched existing file unless you pass `--force`.
 
 The profile and its table are part of the setup metadata that clients
 receive. With `serving.enabled: true`, the control stream delivers it to
-browsers (see [Serve to browsers](./serving)). A client cannot start a depth-quantization calibration: the
-server rejects that calibration kind.
+browsers (see [Serve to browsers](./serving)).
+
+## Calibrate from the browser [#calibrate-from-the-browser]
+
+A client that holds the setup lock can run the same calibration against the
+running server, with no restart and no second process. The client sends
+`client.calibration.start` with `kind: "depth-quantization"`. This is the path
+the Operator Console's depth range screen uses.
+
+1. **Take the setup lock.** Only the lock owner can start, cancel or commit.
+2. **Start.** Have one person walk through the whole capture volume, near and
+   far. The run uses the live pipeline: the same masked, filtered depth that
+   the encoder sees, so the profile matches what is streamed.
+3. **Watch the progress.** Only the lock owner receives
+   `server.calibration.progress`, at most twice a second: `elapsedMs`,
+   `validSampleCount`, `observedRangeMm`, `depthHistogram` (1024 bins, one per
+   code of the profile in force) and `reconstructionErrorMm`. A field the
+   server has not measured yet is `null`. The first `setup.warmup_seconds`
+   collect nothing. The run ends by itself after `setup.maximum_duration_seconds`.
+4. **Solved, awaiting commit.** The calibration stays `running` and its
+   `message` reads `solved; awaiting commit`. No `server.calibration.result` is
+   sent yet, and nothing is changed or saved.
+5. **Commit.** The server writes the profile to
+   `encoding.depth.quantization_profile_path` (atomically), raises the depth
+   quantization revision and the calibration revision, and publishes in this
+   order: `server.calibration.state` (`valid`), `server.calibration.result`
+   with `accepted: true` and the new revision, then
+   `server.metadata.revision-changed` and the new stream descriptors that
+   carry the new profile.
+
+Cancel, releasing the lock, a disconnect and an expired lease all abandon the
+run: the calibration returns to the state it had before, nothing is written,
+and no result is sent. A run that fails (for example, no depth was seen)
+ends with `accepted: false` and a message; the profile in force is kept.
+
+If the encoder ever refuses a committed profile (it checks what the server checked before saving, so this should not happen), the server keeps running, logs one error and reports the depth-quantization calibration as `stale` with the reason.
+
+The commit takes effect on the live stream. The encoder switches to the new
+table at the next frame set and starts that frame set with a keyframe, so a
+viewer never decodes new codes with the old table. Handing the new streams
+to viewers (wire-format §18 stream rotation) is not implemented yet, and no
+session receives media until CR 0009, so today only the encoder and the
+setup metadata change.
+
+The server refuses to start a run with `calibration-unavailable` and a message
+that says what to do when any of these hold:
+
+| Reason                                                                                         | Fix                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mask.backend: rvm` and the mask engine is still being prepared or failed                      | Wait until the mask status is `ready` (see [Configuration](./configuration)), or fix the engine. Masks pass every pixel while the engine is not ready, which would put the background into the profile. `mask.backend: fill_all` is allowed: it counts all depth on purpose. |
+| `mask.backend: none` or `processing.depth_filter_backend: none`                                | The run reads the mask and the filtered depth. Set `mask.backend` to `rvm` or `fill_all`, and the depth filter to anything but `none`, then restart. The server logs this once at startup, and a start gets the same text.                                                   |
+| No capture is active                                                                           | The cameras are not delivering frames. Start the cameras first.                                                                                                                                                                                                              |
+| The server was not started with `streams.alignment: color_to_depth`, or the GPU is unavailable | The client-facing setup plane is off. See the server log.                                                                                                                                                                                                                    |
+
+The depth range is fixed by `encoding.depth.minimum_depth_mm` and
+`maximum_depth_mm`. The profile keeps it, so a committed profile never
+mismatches the configuration at the next start.
+
+Collecting costs the stream nothing: the frame path only passes references to
+the masks and depths of the current batch to a separate thread, drops a sample
+rather than wait, and takes no GPU call. A run that is not collecting costs
+nothing.
 
 ## Options [#options]
 
@@ -205,15 +275,17 @@ the GPU, so encoding stays one lookup per pixel.
 
 ## Troubleshooting [#troubleshooting]
 
-| Message or symptom                                                                                           | Cause and fix                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--config: File does not exist: config/dev/live.yaml`                                                        | You are not in the `server/` folder. Change to it, or pass an absolute `--config` path.                                                                                                                                                                                                                                                 |
-| `Existing depth profile range does not match live config; use --force to recalibrate`                        | You changed `minimum_depth_mm` or `maximum_depth_mm`. Run again with `--force`.                                                                                                                                                                                                                                                         |
-| Live server exits with `Depth quantization profile range does not match live config: <path>`                 | Same cause, seen by the live server; it does not fall back to linear. Recalibrate with `--force`, or delete the file to use the linear profile.                                                                                                                                                                                         |
-| `Required camera is unavailable: cam0` or `No configured cameras are available for depth calibration`        | Check USB and power, the `serial_number` values in `cameras`, and that no other process holds the cameras. Raise `run.camera_wait_timeout_ms` if the cameras take long to appear.                                                                                                                                                       |
-| `Depth calibration collected no valid masked in-range samples`                                               | Nothing in the foreground mask was inside the range. Put a person in view, check the depth range, lower `processing.bilateral_mask_threshold`, or make the run longer than the warm-up.                                                                                                                                                 |
-| `Calibration duration must be in [1, 60] seconds` or `Calibration duration must exceed setup.warmup_seconds` | Fix `--duration-s` or the `setup` section.                                                                                                                                                                                                                                                                                              |
-| `Adaptive uniform mix must be in [0, 1]`                                                                     | Fix `--uniform-mix` or `encoding.depth.adaptive_uniform_mix`.                                                                                                                                                                                                                                                                           |
-| Error while loading or building the RVM engine                                                               | `mask.backend: rvm` needs the ONNX at `mask.rvm_onnx_path` (the tool builds a missing engine before it starts, 3 to 4 minutes the first time) or the `mask.rvm_engine_path` override. Fix the path, or calibrate with `mask.backend: fill_all` (then background pixels are counted too).                                                |
-| `selected=linear` after a run                                                                                | The adaptive table was not better on your data, for example with a nearly even depth spread or `--uniform-mix 1`. Nothing to fix.                                                                                                                                                                                                       |
-| `config/dev/depth-quantization.json` appears in `git status`                                                 | `server/.gitignore` ignores `config/*/depth-quantization.json`, so the file shows up only if someone committed it. It is specific to one room and camera setup. To stop tracking it, run `git rm --cached config/dev/depth-quantization.json`. To commit a new version on purpose, run `git add -f config/dev/depth-quantization.json`. |
+| Message or symptom                                                                                                                     | Cause and fix                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--config: File does not exist: config/dev/live.yaml`                                                                                  | You are not in the `server/` folder. Change to it, or pass an absolute `--config` path.                                                                                                                                                                                                                                                 |
+| `Existing depth profile range does not match live config; use --force to recalibrate`                                                  | You changed `minimum_depth_mm` or `maximum_depth_mm`. Run again with `--force`.                                                                                                                                                                                                                                                         |
+| Live server logs `depth quantization profile <path> ... covers 500..5000 mm but the configuration says ...` or `... is unusable (...)` | The live server does not stop: it uses the linear profile for the configured range and reports the depth-quantization calibration as `stale`. Recalibrate from the browser or with `--force`, or delete the file.                                                                                                                       |
+| A browser start is refused with `calibration-unavailable`                                                                              | The message names the cause; see [Calibrate from the browser](#calibrate-from-the-browser).                                                                                                                                                                                                                                             |
+| A browser run fails with `no masked depth between ... was seen`                                                                        | Nobody was in view, or the mask found no one. Have a person walk through the volume and check the mask status.                                                                                                                                                                                                                          |
+| `Required camera is unavailable: cam0` or `No configured cameras are available for depth calibration`                                  | Check USB and power, the `serial_number` values in `cameras`, and that no other process holds the cameras. Raise `run.camera_wait_timeout_ms` if the cameras take long to appear.                                                                                                                                                       |
+| `Depth calibration collected no valid masked in-range samples`                                                                         | Nothing in the foreground mask was inside the range. Put a person in view, check the depth range, lower `processing.bilateral_mask_threshold`, or make the run longer than the warm-up.                                                                                                                                                 |
+| `Calibration duration must be in [1, 60] seconds` or `Calibration duration must exceed setup.warmup_seconds`                           | Fix `--duration-s` or the `setup` section.                                                                                                                                                                                                                                                                                              |
+| `Adaptive uniform mix must be in [0, 1]`                                                                                               | Fix `--uniform-mix` or `encoding.depth.adaptive_uniform_mix`.                                                                                                                                                                                                                                                                           |
+| Error while loading or building the RVM engine                                                                                         | `mask.backend: rvm` needs the ONNX at `mask.rvm_onnx_path` (the tool builds a missing engine before it starts, 3 to 4 minutes the first time) or the `mask.rvm_engine_path` override. Fix the path, or calibrate with `mask.backend: fill_all` (then background pixels are counted too).                                                |
+| `selected=linear` after a run                                                                                                          | The adaptive table was not better on your data, for example with a nearly even depth spread or `--uniform-mix 1`. Nothing to fix.                                                                                                                                                                                                       |
+| `config/dev/depth-quantization.json` appears in `git status`                                                                           | `server/.gitignore` ignores `config/*/depth-quantization.json`, so the file shows up only if someone committed it. It is specific to one room and camera setup. To stop tracking it, run `git rm --cached config/dev/depth-quantization.json`. To commit a new version on purpose, run `git add -f config/dev/depth-quantization.json`. |
