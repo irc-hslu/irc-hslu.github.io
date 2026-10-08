@@ -33,7 +33,7 @@ if (pipeline?.tileViews.support.kind === 'webgpu') {
 }
 ```
 
-* Lay out the canvas with CSS only, with both width and height set (a canvas without a CSS height keeps its default 150-pixel height). The view sets the canvas's pixel size itself: CSS size × `devicePixelRatio`, but never more pixels than the tile's native resolution.
+* Lay out the canvas with CSS only, with both width and height set (a canvas without a CSS height keeps its default 150-pixel height). The view sets the canvas's pixel size itself: CSS size × `devicePixelRatio`, but never more pixels than the tile's native resolution. It follows a change of `devicePixelRatio` too, for example when you move the window to a monitor with another scale.
 * `maxFps` caps redraws; the default is 15 and the range is 1 to 60. A view never draws faster than frames arrive.
 * `fit` is `contain` (letterbox, the default) or `cover` (crop). The tile's aspect ratio is always kept.
 * You can attach any number of views of the same camera and channel, on one screen or several.
