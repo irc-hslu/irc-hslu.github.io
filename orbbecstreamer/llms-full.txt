@@ -556,7 +556,7 @@ To measure real decode, network and display time, use a real server and a real b
 
 ### Use the probe in your own code [#use-the-probe-in-your-own-code]
 
-Set `latencyProbe: true` in the `ConnectionManager` options. The manager passes it to every `ServerPipeline`. Then read the report:
+Set `latencyProbe: true` in the `ConnectionManager` options, or in the options of `startAppRuntime` for a whole runtime (ignored with `media: 'none'`). The manager passes it to every `ServerPipeline`. Then read the report:
 
 ```ts
 // `options`: your usual ConnectionManager options.
@@ -919,6 +919,29 @@ What the model reports instead of a renderer:
 Every member returns one of these values; none of them throws. Hidden-tab media suspension isn’t installed, because there is no media to pause.
 
 At a lower level, `ConnectionManager` and `ServerPipeline` take the same option: `media: 'none'` with `renderer: null`. A full pipeline without a renderer throws `a renderer is required unless media is 'none'`.
+
+## Read per-bundle stats [#read-per-bundle-stats]
+
+Use this when the page shows how each camera bundle is doing, for example a live preview strip. `model.pipeline(id)` returns the entry's `EntryPipeline`; ask it for one bundle, or for all of them:
+
+```ts
+const stats = model.pipeline(id)?.bundleStats(bundleId);   // BundleStats | null
+const all = model.pipeline(id)?.allBundleStats();          // ReadonlyMap<BundleId, BundleStats>
+```
+
+| Field                | Meaning                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fps`                | Completed frame sets per second over the last 2 s. Until a bundle has been streaming for 2 s, it counts intervals over the time observed, so a new bundle isn't under-reported.                                                                                                                                                                                |
+| `decodeLatencyMs`    | `{ p50, p95 }` from decoder submit to decoder output over the last 5 s. For a frame set it is the slower of the colour and depth frames. `null` when the latency probe is off, or when no sample is in the window.                                                                                                                                             |
+| `droppedFrameSets`   | Count of lost frame sets by reason. The synchroniser's `missingColor`, `missingDepth`, `revisionMismatch`, `timestampMismatch` and `discarded`, and the render feed's `no-target`, `revision-mismatch`, `geometry-mismatch`, `colour-unmappable`, `depth-unreadable`, `target-changed`, `upload-failed`, `superseded` and `disposed`. Every reason is present. |
+| `lastFrameSetNumber` | The last completed frame set as a `bigint`, or `null` before the first one.                                                                                                                                                                                                                                                                                    |
+
+* Before the first frame set of a session, `bundleStats` already returns an object for a bundle the connection has: `fps` is 0 and `lastFrameSetNumber` is `null`. Show "Waiting for frames" while `lastFrameSetNumber` is `null`.
+* Everything counts from the start of the current session. A reconnect, or a bundle removed from the snapshot, starts that bundle over, and `bundleStats` returns `null` for a bundle the connection doesn't have. A control-only runtime returns `null` for every bundle. For a removed entry, `model.pipeline(id)` is already `null`, so `model.pipeline(id)?.bundleStats(bundleId)` gives `undefined`.
+* The stats are plain reads: poll at 1 Hz. The media path writes into preallocated ring buffers and allocates nothing per frame. The window is only sorted when you read.
+* `decodeLatencyMs` needs the latency probe, which is off by default. Turn it on for a runtime with `startAppRuntime(container, { latencyProbe: true })`. Per frame set it costs about a dozen `performance.now()` calls (arrival, receive, submit and output of each channel, pairing, depth read, upload) and writes into preallocated rings, with no allocation. `pipeline.latencyReport()` then returns the [per-stage percentiles](/docs/client/developer/latency). With the option off, no clock is read for the probe and `decodeLatencyMs` stays `null`.
+* `dispose()` on a `media: 'full'` runtime also releases the GPU: the WebGPU device is destroyed and the WebGL2 context is lost, so a page can mount and dispose runtimes repeatedly without hitting the browser's context limit.
+* `EntryPipeline` does not give out the decoding sink or the render feed. `bundleStats` is the way to see a bundle's counters.
 
 ## Pin a server certificate [#pin-a-server-certificate]
 

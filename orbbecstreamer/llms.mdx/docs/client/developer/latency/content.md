@@ -104,7 +104,7 @@ To measure real decode, network and display time, use a real server and a real b
 
 ### Use the probe in your own code [#use-the-probe-in-your-own-code]
 
-Set `latencyProbe: true` in the `ConnectionManager` options. The manager passes it to every `ServerPipeline`. Then read the report:
+Set `latencyProbe: true` in the `ConnectionManager` options, or in the options of `startAppRuntime` for a whole runtime (ignored with `media: 'none'`). The manager passes it to every `ServerPipeline`. Then read the report:
 
 ```ts
 // `options`: your usual ConnectionManager options.
