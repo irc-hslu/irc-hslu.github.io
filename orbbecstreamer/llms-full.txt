@@ -1202,6 +1202,8 @@ npm ci
 node a11y.mjs 5213
 ```
 
+The render check and the perf harness report the compute path's measured numbers (WebGPU only): `vertexInvocations` with `vertexInvocationsSource` (`measured` from the GPU's draw arguments, or `estimated` from the tiled pixel count), and `gpuPassMs` per pass (compaction, visibility, accumulation or nearest; the resolve is not measurable). The perf harness adds the scenarios `large-8x1920x576-*` (compute-blend, compute-nearest, babylon-quads) and a `computePath` block with p50 and p95 per pass. The pass times need a GPU with `timestamp-query` and are sampled about twice a second. Chrome coarsens timestamps by default; for unrounded pass times start the harness with `QA_CHROMIUM_ARGS=--enable-webgpu-developer-features`. When the count is `estimated`, `vertexInvocationsNote` says why.
+
 Results go to `client/scripts/qa/.out/`, which git ignores. The perf media and the test recording are synthetic and made with ffmpeg on first use. Usage, outputs and limits are in `client/scripts/qa/README.md`.
 
 ## Browsers tested so far [#browsers-tested-so-far]
