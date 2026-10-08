@@ -36,12 +36,13 @@ cmake --build --preset relwithdebinfo
 
 The build produces, in `build/<preset>/`:
 
-| Program                                         | What it is                                                           |
-| ----------------------------------------------- | -------------------------------------------------------------------- |
-| `orbbec_streamer`                               | The server, with built-in smoke tests                                |
-| `orbbec_streamer_depth_quantization_calibrator` | The [depth quantization calibrator](./depth-quantization-calibrator) |
-| `orbbec_streamer_rvm_engine_smoke_test`         | Loads an RVM TensorRT engine and runs one frame                      |
-| `orbbec_streamer_*_tests`, `*_test`             | Test programs run by CTest                                           |
+| Program                                         | What it is                                                                                                                   |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `orbbec_streamer`                               | The server, with built-in smoke tests                                                                                        |
+| `orbbec_streamer_depth_quantization_calibrator` | The [depth quantization calibrator](./depth-quantization-calibrator)                                                         |
+| `orbbec_streamer_rvm_engine_smoke_test`         | Loads an RVM TensorRT engine and runs one frame                                                                              |
+| `orbbec_streamer_rvm_engine_first_run_tests`    | Builds an RVM engine from the ONNX into a scratch cache, then checks the cache hit, a manifest mismatch and a corrupt engine |
+| `orbbec_streamer_*_tests`, `*_test`             | Test programs run by CTest                                                                                                   |
 
 ## Run the tests [#run-the-tests]
 
@@ -202,7 +203,8 @@ For a longer run, pass the input folder, iterations and a seed, preferably in th
 ### Tests with special needs [#tests-with-special-needs]
 
 * **Hardware** (label `hardware`): `orbbec_live_sync_integration_test`, `smoke_orbbec_provider` and `smoke_orbbec_capture` open the cameras in `config/dev/live.yaml`; edit the serials to match. `nvenc_hevc_round_trip_integration_test` has the label but needs only a GPU with NVENC.
-* **RVM** (`smoke_rvm_engine_b1`, `smoke_rvm_engine_b2`, label `rvm`) need the engines in `models/rvm/generated/` ([Install](./install#rvm-segmentation-engine-optional)). Without them CTest reports `Not Run` and the run fails; the code is not broken.
+* **RVM smoke** (`smoke_rvm_engine_b1`, `smoke_rvm_engine_b2`, label `rvm`) need engines prebuilt with `scripts/setup_rvm.py` (without `--skip-engine-build`) in `models/rvm/generated/` ([Install](./install#rvm-segmentation-engine-optional)). Without them CTest reports `Not Run` and the run fails; the code is not broken.
+* **RVM first run** (`rvm_engine_first_run_tests`, labels `integration` and `rvm`) builds the batch-1 engine from the ONNX, so it takes several minutes (its timeout is 25 minutes). Configure with `-DORBBEC_RVM_ONNX_DIR=<folder with the exported .onnx files>`; without it, or without a GPU, it exits 77 and CTest lists it as `Skipped`.
 * **No device**: the CUDA and NVENC tests, `smoke_cuda`, `smoke_orbbec_provider` and `smoke_orbbec_capture` exit with code 77 when there is no CUDA device or no camera, and CTest lists them as `Skipped`, never as `Passed`. A skip is not a pass: run them on a machine with the device before you rely on them. To see the skip path, run with `CUDA_VISIBLE_DEVICES=""`. A failure on present hardware (an SDK error, no frames) fails the test. A new test with a skip path uses `tests/support/Skip.hpp` and needs `SKIP_RETURN_CODE 77` in `CMakeLists.txt`.
 * **Go** (`gateway_go_tests`) runs `go test -race` on `server/gateway/` when `go` is on `PATH` or in `~/.local/go/bin`, and is skipped otherwise.
 * **Protocol conformance** (`protocol_conformance_tests`) checks the server against `../protocol`. For a contract elsewhere, configure with `-DORBBEC_STREAMER_PROTOCOL_CONTRACT_DIR=/path/to/protocol` (the folder with `wire-format.md`, `schema/` and `vectors/`).
@@ -232,7 +234,7 @@ CLion reads `CMakePresets.json`. In **Settings → Build, Execution, Deployment 
 | `No CMAKE_CUDA_COMPILER could be found`, or `/usr/local/cuda/bin/nvcc` missing                        | Install the CUDA toolkit at `/usr/local/cuda` ([Install](./install#cuda-toolkit-and-driver)).                                                                  |
 | vcpkg fails building `at-spi2-core`, `gtk3` or another OpenCV dependency                              | A build tool or X11 header is missing. Install the [system packages](./install#system-packages) and configure again; the vcpkg log path is in the error.       |
 | `no kernel image is available for execution on the device`                                            | The GPU is below compute capability 8.9. See [Build for a different GPU](#build-for-a-different-gpu).                                                          |
-| `smoke_rvm_engine_b1` and `smoke_rvm_engine_b2` are `Not Run`                                         | Build the RVM engines, or exclude them with `-LE rvm`.                                                                                                         |
+| `smoke_rvm_engine_b1` and `smoke_rvm_engine_b2` are `Not Run`                                         | Prebuild the RVM engines with `setup_rvm.py`, or exclude them with `-LE rvm`.                                                                                  |
 | `protocol_conformance_tests` fails after updating from `main`                                         | The contract in `protocol/` changed and the server doesn't match it yet. A failing conformance test is how the server team learns of a contract change.        |
 | `orbbec_live_sync_integration_test` fails with `propertyId: 1038`                                     | A camera rejected the multi-device sync settings: check the sync cable and roles, then power-cycle the cameras. The SDK log is in `Log/OrbbecSDK.log.txt`.     |
 | An NVENC test fails with `NvEncOpenEncodeSessionEx failed with NVENC status 21`                       | Another program holds NVENC sessions (a running server, OBS, a second `ctest`). CTest runs the NVENC tests one at a time, so stop the other encoder and rerun. |

@@ -28,12 +28,27 @@ An unavailable button stays visible. Hover over it, or focus it with the keyboar
 
 ## View section [#view-section]
 
-<img alt="The View section: the Blend switch on, the status line Blending overlapping cameras., and Blend tuning open with its eight fields at their defaults and Reset tuning" src="__img1" />
+<img alt="The View section: the Blend switch on, the status line Blending overlapping cameras., Points open with its five settings and Reset points, and Blend tuning open with its eight fields at their defaults and Reset tuning" src="__img1" />
 
 | Control          | What it changes                                                                                                                                       | Default | When to change it                                                    |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
 | **Blend**        | On: where cameras overlap, their colours mix smoothly. Off: the dot nearest to you wins. Needs WebGPU; with WebGL2 the switch is off and unavailable. | On      | Turn it off when the view is slow: blending draws every point twice. |
-| **Reset tuning** | Sets the eight fields below back to their defaults. **Blend** stays as it is.                                                                         |         | After experimenting                                                  |
+| **Reset tuning** | Sets the eight **Blend tuning** fields below back to their defaults. **Blend** stays as it is.                                                        |         | After experimenting                                                  |
+
+### Points [#points]
+
+Open **Points** for how each dot is drawn. These settings work with both WebGPU and WebGL2, and change the view at once. With WebGL2, some graphics cards can't draw dots as large as 64 pixels; there, large dots stay smaller than the value you set. Type a value, then press **Enter** or leave the field; a value out of range is set to the nearest allowed one.
+
+| Control             | What it does                                                                                                                  | Range           | Default | When to change it                                   |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------- | ------- | --------------------------------------------------- |
+| **Size mode**       | **Screen**: every dot has the same size on screen. **World**: dots are sized like the scene, so they grow as you move closer. | Screen or World | Screen  | Choose World when gaps open between dots up close   |
+| **Point size (px)** | The size of every dot in screen mode. Unavailable in World mode.                                                              | 1 to 64         | 2       | Raise it to fill gaps; lower it for fine detail     |
+| **World scale**     | In World mode, how many depth pixels wide each dot is. Above 1, neighbours overlap. Unavailable in Screen mode.               | 0 or more       | 1.5     | Raise it when gaps show on slanted surfaces         |
+| **Max size (px)**   | In World mode, the largest a dot may get when you are close. Unavailable in Screen mode.                                      | 1 to 64         | 16      | Lower it when the view gets slow close to a surface |
+| **Shape**           | **Square** or **Round** dots                                                                                                  | Square or Round | Square  | Round looks softer; square is the fastest           |
+| **Reset points**    | Sets the five settings above back to their defaults                                                                           |                 |         | After experimenting                                 |
+
+Sizes are in screen pixels of the drawn picture. At 200 % display scaling, 2 px is one CSS pixel. The settings stay in this browser tab only and go back to the defaults when you reload the page.
 
 ### Blend tuning [#blend-tuning]
 

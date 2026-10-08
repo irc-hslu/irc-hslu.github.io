@@ -150,7 +150,7 @@ needs its C++ SDK, which comes from the same NVIDIA repository. The Python
 sudo apt install -y tensorrt-dev libnvinfer-bin
 ```
 
-`libnvinfer-bin` provides `trtexec`, which only the RVM engine build needs.
+`libnvinfer-bin` provides `trtexec`, which only `scripts/setup_rvm.py` uses to prebuild development engines. The server itself builds its RVM engine with the TensorRT library and does not need `trtexec`.
 
 The tested version is TensorRT `11.1.0.106-1+cuda13.3`. Plain `tensorrt-dev`
 installs the newest build, currently `11.3.0.99-1+cuda13.4`, which targets
@@ -216,20 +216,27 @@ Compare the output with [Expected result](#expected-result).
 
 ## RVM segmentation engine (optional) [#rvm-segmentation-engine-optional]
 
-Skip this step unless you want `mask.backend: rvm` in the config file, or want
-to run the RVM smoke tests. The other mask backends (`none`, `fill_all`,
-`rgb_luma_threshold`) need no engine. You can come back to this step after the
+Skip this step unless you want `mask.backend: rvm` from a source checkout, or
+want to run the RVM smoke tests. The other mask backends (`none`, `fill_all`,
+`rgb_luma_threshold`) need no model. You can come back to this step after the
 build.
 
-The engine is a TensorRT file built from the RVM (Robust Video Matting)
-network, which separates people from the background. `scripts/setup_rvm.py`
-builds it:
+The RVM (Robust Video Matting) network separates people from the background.
+The server needs its fixed-shape FP16 ONNX model, one file per batch size, and
+builds the TensorRT engine from it by itself on first use, in 3 to 4 minutes
+per batch size; see [The RVM engine cache](./configuration#the-rvm-engine-cache).
+A packaged install ships the ONNX files and needs nothing else. From a source
+checkout, `scripts/setup_rvm.py` exports them:
 
 1. updates the RVM fork checkout in `external/RobustVideoMatting`, or clones
    it if the folder does not exist
 2. downloads the official `rvm_mobilenetv3.pth` checkpoint to `models/rvm/`
 3. exports a fixed-shape FP16 ONNX model on the CPU
-4. builds one TensorRT engine per batch size with `trtexec`
+
+Pass `--skip-engine-build` so the script stops after the export. Without that
+flag it also prebuilds one TensorRT engine per batch size with `trtexec`; use
+those engines for the RVM smoke tests or as the `mask.rvm_engine_path`
+development override.
 
 The script needs PyTorch, torchvision, ONNX and NVIDIA ModelOpt.
 `pyproject.toml` and `uv.lock` pin their versions.
@@ -249,7 +256,7 @@ To run it with [uv](https://docs.astral.sh/uv/), a Python package manager:
 
    ```bash
    uv sync
-   uv run python scripts/setup_rvm.py
+   uv run python scripts/setup_rvm.py --skip-engine-build
    ```
 
 Without uv, create a virtual environment and let the script install what is
@@ -258,20 +265,18 @@ missing. From the `server/` folder:
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python scripts/setup_rvm.py --install-python-deps
+python scripts/setup_rvm.py --install-python-deps --skip-engine-build
 ```
 
-The defaults build batch sizes 1 and 2 at 640 × 576 with downsample ratio 0.5.
-This matches the depth resolution in `config/dev/live.yaml`. The engine's
-batch size must equal the number of active cameras: batch 1 for one camera,
-batch 2 for two. Set `mask.rvm_engine_path` in the config to the matching
-engine. For other values, see `uv run python scripts/setup_rvm.py --help`.
-
-A TensorRT engine works only with the GPU model and TensorRT version that
-built it. Run `setup_rvm.py` again after you change either one.
+The defaults export batch sizes 1 and 2 at 640 × 576 with downsample ratio 0.5.
+This matches the depth resolution in `config/dev/live.yaml`, whose
+`mask.rvm_onnx_path` already points at the exported files. The batch size must
+equal the number of active cameras: batch 1 for one camera, batch 2 for two;
+the server picks the file with `{batch}` in the path. For other values, see
+`uv run python scripts/setup_rvm.py --help`.
 
 The RVM model and weights are GPL-3.0. Confirm that this licence suits you
-before you distribute the engine.
+before you distribute the model or an engine built from it.
 
 ## Expected result [#expected-result]
 
@@ -304,13 +309,14 @@ ls /usr/local/lib/OrbbecSDKConfig.cmake /etc/udev/rules.d/99-obsensor-libusb.rul
 After the optional RVM step, `models/rvm/generated/` contains:
 
 ```text
-rvm_mobilenetv3_b1_640x576_ds0.5_float16.engine
-rvm_mobilenetv3_b2_640x576_ds0.5_float16.engine
+rvm_mobilenetv3_b1_640x576_ds0.5_float16.onnx
+rvm_mobilenetv3_b2_640x576_ds0.5_float16.onnx
 ```
 
-It also contains an `.onnx` model and a `.json` manifest for each batch size,
-and a timing cache. None of these files are committed. The script ends with
-`RVM setup complete.`
+None of these files are committed. Without `--skip-engine-build` the folder
+also holds the prebuilt `.engine` files with a `.json` manifest and a timing
+cache for each, and the script ends with `RVM setup complete.` The engines the
+server builds itself go to `mask.rvm_engine_cache_dir`, not here.
 
 ## Troubleshooting [#troubleshooting]
 
@@ -324,7 +330,7 @@ and a timing cache. None of these files are committed. The script ends with
 | Configure fails with a pkg-config error that names `ffnvcodec`                                          | Install `libffmpeg-nvenc-dev`.                                                                                                                                                                                                                                                                                                                                         |
 | Configure fails on `libavcodec`, `libavformat`, `libavutil` or `libswscale`                             | Install the matching `-dev` package from [System packages](#system-packages).                                                                                                                                                                                                                                                                                          |
 | `dpkg -l tensorrt-dev` shows a `+cuda13.4` version                                                      | apt installed the newest TensorRT, which targets CUDA 13.4 and is not tested. To stay on the tested stack, pin every TensorRT package to `11.1.0.106-1+cuda13.3` with `sudo apt install <package>=11.1.0.106-1+cuda13.3` for `tensorrt-dev` and each `libnvinfer*` and `libnvonnxparsers*` package it depends on. This pinning has not been tested on a fresh machine. |
-| `setup_rvm.py` fails with `trtexec not found; install libnvinfer-bin or pass --trtexec`                 | Install `libnvinfer-bin`, or pass `--trtexec /path/to/trtexec`.                                                                                                                                                                                                                                                                                                        |
+| `setup_rvm.py` fails with `trtexec not found; install libnvinfer-bin or pass --trtexec`                 | You did not pass `--skip-engine-build`. Pass it (the server builds its own engine), or install `libnvinfer-bin`, or pass `--trtexec /path/to/trtexec`.                                                                                                                                                                                                                 |
 | `setup_rvm.py` fails with `missing Python packages: ...`                                                | Run it with `uv run`, or add `--install-python-deps` inside a virtual environment.                                                                                                                                                                                                                                                                                     |
 | `setup_rvm.py` fails with `not an orbbec-streamer repository root`                                      | Run it from `server/`, or pass `--repo-root <path to server/>`.                                                                                                                                                                                                                                                                                                        |
 | A camera works as root but not as your user                                                             | The udev rule is missing. Run `sudo /opt/OrbbecSDK_v2.8.7/shared/install_udev_rules.sh`, then replug the camera.                                                                                                                                                                                                                                                       |

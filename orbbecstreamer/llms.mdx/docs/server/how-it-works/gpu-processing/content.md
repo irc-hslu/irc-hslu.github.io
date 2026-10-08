@@ -75,17 +75,19 @@ the segmenter, but no current backend uses them.
 
 ### The RVM engine [#the-rvm-engine]
 
-The engine is built by `scripts/setup_rvm.py` for a fixed batch size,
-image size and downsample ratio, all in its file name, for example
-`rvm_mobilenetv3_b2_640x576_ds0.5_float16.engine`: batch 2, 640 × 576,
-ratio 0.5. At start-up the server checks the engine's tensors against:
+The engine is built from a fixed-shape ONNX model (batch size, image size and
+downsample ratio are in its file name, for example
+`rvm_mobilenetv3_b2_640x576_ds0.5_float16.onnx`: batch 2, 640 × 576, ratio
+0.5). The server builds it on first use and caches it; see
+[The RVM engine cache](../configuration#the-rvm-engine-cache). The server checks the engine's tensors when the engine loads: at start-up if the engine is cached, otherwise when the background build finishes. It checks them against:
 
 * the number of **active** cameras (the batch size),
 * the depth size (colour is aligned to it),
 * `mask.rvm_downsample_ratio`.
 
-A mismatch stops the server before the pipeline starts, after the cameras
-are opened. If a configured camera is missing, the active count drops and
+A mismatch stops the server, after the cameras are opened (with a cached
+engine, before the pipeline starts; after a first-run build, at the first
+batch after the build fails to load). If a configured camera is missing, the active count drops and
 the batch-2 engine no longer fits.
 
 RVM's recurrent state carries over from one batch to the next. It is not
@@ -165,13 +167,13 @@ when the cameras capture at 30.
 
 ## Troubleshooting [#troubleshooting]
 
-| Message or symptom                                                                                                                                                             | Fix                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `orbbec-streamer failed: Resolved bilateral radius exceeds maximum_radius_pixels`                                                                                              | Lower `bilateral_radius_ratio` or raise `bilateral_maximum_radius_pixels`.                                                |
-| `orbbec-streamer failed: Unexpected static TensorRT shape for ...`                                                                                                             | The engine does not match the active cameras or the depth size. Build the matching engine and set `mask.rvm_engine_path`. |
-| `RVM requires exactly one usable RGB8 color frame per synchronized camera`, `Bilateral RGB input pointer is null` or `NVENC frame set is missing RGB8 color or DepthU16 input` | Set `streams.color.format: rgb8`.                                                                                         |
-| `Selected foreground mask backend is not implemented`                                                                                                                          | `tensorrt` or `onnxruntime`. Use `rvm` or `fill_all`.                                                                     |
-| `process` drops rising in the telemetry                                                                                                                                        | See [Read the telemetry](../telemetry#troubleshooting).                                                                   |
+| Message or symptom                                                                                                                                                             | Fix                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orbbec-streamer failed: Resolved bilateral radius exceeds maximum_radius_pixels`                                                                                              | Lower `bilateral_radius_ratio` or raise `bilateral_maximum_radius_pixels`.                                                                                          |
+| `orbbec-streamer failed: Unexpected static TensorRT shape for ...`                                                                                                             | The engine does not match the active cameras or the depth size. Point `mask.rvm_onnx_path` at the matching ONNX model (or fix the `mask.rvm_engine_path` override). |
+| `RVM requires exactly one usable RGB8 color frame per synchronized camera`, `Bilateral RGB input pointer is null` or `NVENC frame set is missing RGB8 color or DepthU16 input` | Set `streams.color.format: rgb8`.                                                                                                                                   |
+| `Selected foreground mask backend is not implemented`                                                                                                                          | `tensorrt` or `onnxruntime`. Use `rvm` or `fill_all`.                                                                                                               |
+| `process` drops rising in the telemetry                                                                                                                                        | See [Read the telemetry](../telemetry#troubleshooting).                                                                                                             |
 
 ## Related pages [#related-pages]
 

@@ -99,6 +99,10 @@ The settings stay in this browser tab only. They aren’t sent to any server, an
 
 Open **Blend tuning** in the **View** section to change how cameras are weighed. [What you can tweak](/docs/client/what-you-can-tweak#blend-tuning) lists the eight fields, their ranges and defaults, and when to change each. **Reset tuning** restores every default.
 
+## Change how dots look [#change-how-dots-look]
+
+Open **Points** in the **View** section to change the dot size, switch between screen-sized and scene-sized dots (**Size mode**), and choose square or round dots (**Shape**). These work with both WebGPU and WebGL2, and the view changes at once. [What you can tweak](/docs/client/what-you-can-tweak#points) lists every field, its range and its default. **Reset points** restores the defaults. The settings stay in this browser tab only.
+
 ## Fix drawing problems [#fix-drawing-problems]
 
 | What you see                                                                           | Why                                                                                                                                                     | What to do                                                                                                                                                         |

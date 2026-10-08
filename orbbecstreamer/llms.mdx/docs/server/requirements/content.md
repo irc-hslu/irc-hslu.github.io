@@ -130,9 +130,9 @@ What each item is for:
 * **TensorRT** (`tensorrt-dev`) is required to build the server. Every server
   program links it, and CMake stops with an error if it cannot find the
   TensorRT headers and `libnvinfer`.
-* **`trtexec`** (`libnvinfer-bin`) is needed only to build the RVM engine. You
-  need that engine only if the config uses `mask.backend: rvm` or you run the
-  two RVM smoke tests.
+* **`trtexec`** (`libnvinfer-bin`) is optional. The server builds its RVM
+  engine itself; only `scripts/setup_rvm.py` without `--skip-engine-build`
+  uses `trtexec`, to prebuild the engines for the two RVM smoke tests.
 * **Orbbec SDK** (`orbbecsdk`) talks to the cameras.
 * **`ffnvcodec`** (`libffmpeg-nvenc-dev`) provides the NVENC API headers.
 * **GCC 15** compiles the C++ code and is the host compiler for CUDA.

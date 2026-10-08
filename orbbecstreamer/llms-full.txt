@@ -2056,6 +2056,10 @@ The settings stay in this browser tab only. They aren’t sent to any server, an
 
 Open **Blend tuning** in the **View** section to change how cameras are weighed. [What you can tweak](/docs/client/what-you-can-tweak#blend-tuning) lists the eight fields, their ranges and defaults, and when to change each. **Reset tuning** restores every default.
 
+## Change how dots look [#change-how-dots-look]
+
+Open **Points** in the **View** section to change the dot size, switch between screen-sized and scene-sized dots (**Size mode**), and choose square or round dots (**Shape**). These work with both WebGPU and WebGL2, and the view changes at once. [What you can tweak](/docs/client/what-you-can-tweak#points) lists every field, its range and its default. **Reset points** restores the defaults. The settings stay in this browser tab only.
+
 ## Fix drawing problems [#fix-drawing-problems]
 
 | What you see                                                                           | Why                                                                                                                                                     | What to do                                                                                                                                                         |
@@ -2111,12 +2115,27 @@ An unavailable button stays visible. Hover over it, or focus it with the keyboar
 
 ## View section [#view-section]
 
-<img alt="The View section: the Blend switch on, the status line Blending overlapping cameras., and Blend tuning open with its eight fields at their defaults and Reset tuning" src="__img1" />
+<img alt="The View section: the Blend switch on, the status line Blending overlapping cameras., Points open with its five settings and Reset points, and Blend tuning open with its eight fields at their defaults and Reset tuning" src="__img1" />
 
 | Control          | What it changes                                                                                                                                       | Default | When to change it                                                    |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
 | **Blend**        | On: where cameras overlap, their colours mix smoothly. Off: the dot nearest to you wins. Needs WebGPU; with WebGL2 the switch is off and unavailable. | On      | Turn it off when the view is slow: blending draws every point twice. |
-| **Reset tuning** | Sets the eight fields below back to their defaults. **Blend** stays as it is.                                                                         |         | After experimenting                                                  |
+| **Reset tuning** | Sets the eight **Blend tuning** fields below back to their defaults. **Blend** stays as it is.                                                        |         | After experimenting                                                  |
+
+### Points [#points]
+
+Open **Points** for how each dot is drawn. These settings work with both WebGPU and WebGL2, and change the view at once. With WebGL2, some graphics cards can't draw dots as large as 64 pixels; there, large dots stay smaller than the value you set. Type a value, then press **Enter** or leave the field; a value out of range is set to the nearest allowed one.
+
+| Control             | What it does                                                                                                                  | Range           | Default | When to change it                                   |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------- | ------- | --------------------------------------------------- |
+| **Size mode**       | **Screen**: every dot has the same size on screen. **World**: dots are sized like the scene, so they grow as you move closer. | Screen or World | Screen  | Choose World when gaps open between dots up close   |
+| **Point size (px)** | The size of every dot in screen mode. Unavailable in World mode.                                                              | 1 to 64         | 2       | Raise it to fill gaps; lower it for fine detail     |
+| **World scale**     | In World mode, how many depth pixels wide each dot is. Above 1, neighbours overlap. Unavailable in Screen mode.               | 0 or more       | 1.5     | Raise it when gaps show on slanted surfaces         |
+| **Max size (px)**   | In World mode, the largest a dot may get when you are close. Unavailable in Screen mode.                                      | 1 to 64         | 16      | Lower it when the view gets slow close to a surface |
+| **Shape**           | **Square** or **Round** dots                                                                                                  | Square or Round | Square  | Round looks softer; square is the fastest           |
+| **Reset points**    | Sets the five settings above back to their defaults                                                                           |                 |         | After experimenting                                 |
+
+Sizes are in screen pixels of the drawn picture. At 200 % display scaling, 2 px is one CSS pixel. The settings stay in this browser tab only and go back to the defaults when you reload the page.
 
 ### Blend tuning [#blend-tuning]
 
@@ -2383,11 +2402,14 @@ Nothing is built from source. To build from source instead, see
 
     Download `orbbec-streamer_0.1.0.poc3-1_amd64.deb` from the
     [v0.1.0-poc.3 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.3),
-    then, in the download folder:
+    or from the release link you were given, then, in the download folder:
 
     ```bash
     sudo apt install ./orbbec-streamer_0.1.0.poc3-1_amd64.deb
     ```
+
+    The release page is in a private repository, so only people with access to
+    it can download from there. There is no public download yet.
 
     The package version inside the file is `0.1.0~poc3-1`. The install:
 
@@ -2456,14 +2478,14 @@ Nothing is built from source. To build from source instead, see
 
 ## Files and services [#files-and-services]
 
-| Path                                           | What it is                                                                                         |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `/etc/orbbec-streamer/live.yaml`               | The server's config. Your edits survive upgrades. See [Configuration](/docs/server/configuration). |
-| `/etc/orbbec-streamer/tls/`, `tls.conf`        | Certificates and their settings                                                                    |
-| `/var/lib/orbbec-streamer/`                    | Engine cache and calibration                                                                       |
-| `/usr/lib/orbbec-streamer/bin/orbbec_streamer` | The server, also `orbbec-streamer` on the `PATH`                                                   |
-| `/usr/share/orbbec-streamer/client/`           | The browser client and, in `operator/`, the Operator Console                                       |
-| `/usr/share/doc/orbbec-streamer/`              | Licences and notices                                                                               |
+| Path                                           | What it is                                                                                                                                                 |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/etc/orbbec-streamer/live.yaml`               | The server's config. On upgrade, `apt` asks whether to keep your edited version; see [Upgrade](#upgrade). See [Configuration](/docs/server/configuration). |
+| `/etc/orbbec-streamer/tls/`, `tls.conf`        | Certificates and their settings                                                                                                                            |
+| `/var/lib/orbbec-streamer/`                    | Engine cache and calibration                                                                                                                               |
+| `/usr/lib/orbbec-streamer/bin/orbbec_streamer` | The server, also `orbbec-streamer` on the `PATH`                                                                                                           |
+| `/usr/share/orbbec-streamer/client/`           | The browser client and, in `operator/`, the Operator Console                                                                                               |
+| `/usr/share/doc/orbbec-streamer/`              | Licences and notices                                                                                                                                       |
 
 | Service                  | Does                                                                               |
 | ------------------------ | ---------------------------------------------------------------------------------- |
@@ -2481,10 +2503,19 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version. The service restarts. Your
-edits to `live.yaml` and `tls.conf`, the certificates and the engine cache
-are kept. If the new package changes a config file you also edited, `apt`
-asks which one to keep.
+Replace `<version>` with the new file's version. The service restarts. The
+certificates and the engine cache are kept. If you edited `live.yaml` or
+`tls.conf` and the new package changes that file too, `apt` asks which
+version to keep.
+
+<Callout type="warn">
+  **Upgrading from poc.1 or poc.2 with an edited `live.yaml`:** keeping your
+  version keeps the old `mask.rvm_engine_path`. The server then loads only
+  that engine file and never builds one, so it fails at start if the file is
+  missing, was built for another GPU or TensorRT, or the rig has two
+  cameras. Take the package's version and re-apply your edits, or fix the
+  `mask:` section as in [Troubleshooting](#troubleshooting).
+</Callout>
 
 ## Uninstall [#uninstall]
 
@@ -2498,17 +2529,18 @@ installed; `sudo apt autoremove` offers to remove them.
 
 ## Troubleshooting [#troubleshooting]
 
-| Symptom                                                             | Cause and fix                                                                                                                                                                                                                       |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `preflight` shows `FAIL  nvidia-driver` or `FAIL  driver-libraries` | No NVIDIA driver 580 or newer. Install it (for example `sudo apt install nvidia-open`), reboot, and run `orbbec-streamer-preflight` again.                                                                                          |
-| `preflight` shows `FAIL  cuda-runtime` or `FAIL  tensorrt`          | NVIDIA's apt repository is missing. Add it (step 2), then run the `sudo apt install` command in the `fix:` line.                                                                                                                    |
-| `WARN  orbbec-cameras`                                              | No camera is connected. Connect it to a USB 3 port.                                                                                                                                                                                 |
-| The log repeats `No configured cameras are active`                  | No camera was found at start. The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`. |
-| The log shows `error while loading shared libraries: libcuda.so.1`  | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                |
-| The Femto Bolt doesn't start; the log shows depth engine error 204  | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                        |
-| The page at `http://127.0.0.1:8080` loads, but nothing connects     | The gateway starts only once a camera is active, and the first start may still be building the engine. Check `journalctl -u orbbec-streamer -f`.                                                                                    |
-| The page doesn't load                                               | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                               |
-| Another computer can't open the page                                | Expected in this release: open it on the server PC.                                                                                                                                                                                 |
+| Symptom                                                                                                                               | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preflight` shows `FAIL  nvidia-driver` or `FAIL  driver-libraries`                                                                   | No NVIDIA driver 580 or newer. Install it (for example `sudo apt install nvidia-open`), reboot, and run `orbbec-streamer-preflight` again.                                                                                                                                                                                                                                                                                                                            |
+| `preflight` shows `FAIL  cuda-runtime` or `FAIL  tensorrt`                                                                            | NVIDIA's apt repository is missing. Add it (step 2), then run the `sudo apt install` command in the `fix:` line.                                                                                                                                                                                                                                                                                                                                                      |
+| `WARN  orbbec-cameras`                                                                                                                | No camera is connected. Connect it to a USB 3 port.                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| The log repeats `No configured cameras are active`                                                                                    | No camera was found at start. The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`.                                                                                                                                                                                                                                   |
+| After an upgrade, the log shows `Cannot open TensorRT engine: …` or an engine deserialisation error, and the service keeps restarting | You kept an edited `live.yaml` from poc.1 or poc.2, which names a fixed engine file. In the `mask:` section of `/etc/orbbec-streamer/live.yaml`, delete `rvm_engine_path` and set `rvm_onnx_path: "/usr/share/orbbec-streamer/models/rvm/rvm_mobilenetv3_b{batch}_640x576_ds0.5_float16.onnx"` and `rvm_engine_cache_dir: "/var/lib/orbbec-streamer/engines"`. Then run `sudo systemctl restart orbbec-streamer`; the first start builds the engine (3 to 4 minutes). |
+| The log shows `error while loading shared libraries: libcuda.so.1`                                                                    | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| The Femto Bolt doesn't start; the log shows depth engine error 204                                                                    | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                                                                                                                                                                                                                                                          |
+| The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                       | The gateway starts only once a camera is active, and the first start may still be building the engine. Check `journalctl -u orbbec-streamer -f`.                                                                                                                                                                                                                                                                                                                      |
+| The page doesn't load                                                                                                                 | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                 |
+| Another computer can't open the page                                                                                                  | Expected in this release: open it on the server PC.                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 
 # Build the server from source (https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server)
@@ -2868,12 +2900,13 @@ cmake --build --preset relwithdebinfo
 
 The build produces, in `build/<preset>/`:
 
-| Program                                         | What it is                                                           |
-| ----------------------------------------------- | -------------------------------------------------------------------- |
-| `orbbec_streamer`                               | The server, with built-in smoke tests                                |
-| `orbbec_streamer_depth_quantization_calibrator` | The [depth quantization calibrator](./depth-quantization-calibrator) |
-| `orbbec_streamer_rvm_engine_smoke_test`         | Loads an RVM TensorRT engine and runs one frame                      |
-| `orbbec_streamer_*_tests`, `*_test`             | Test programs run by CTest                                           |
+| Program                                         | What it is                                                                                                                   |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `orbbec_streamer`                               | The server, with built-in smoke tests                                                                                        |
+| `orbbec_streamer_depth_quantization_calibrator` | The [depth quantization calibrator](./depth-quantization-calibrator)                                                         |
+| `orbbec_streamer_rvm_engine_smoke_test`         | Loads an RVM TensorRT engine and runs one frame                                                                              |
+| `orbbec_streamer_rvm_engine_first_run_tests`    | Builds an RVM engine from the ONNX into a scratch cache, then checks the cache hit, a manifest mismatch and a corrupt engine |
+| `orbbec_streamer_*_tests`, `*_test`             | Test programs run by CTest                                                                                                   |
 
 ## Run the tests [#run-the-tests]
 
@@ -3034,7 +3067,8 @@ For a longer run, pass the input folder, iterations and a seed, preferably in th
 ### Tests with special needs [#tests-with-special-needs]
 
 * **Hardware** (label `hardware`): `orbbec_live_sync_integration_test`, `smoke_orbbec_provider` and `smoke_orbbec_capture` open the cameras in `config/dev/live.yaml`; edit the serials to match. `nvenc_hevc_round_trip_integration_test` has the label but needs only a GPU with NVENC.
-* **RVM** (`smoke_rvm_engine_b1`, `smoke_rvm_engine_b2`, label `rvm`) need the engines in `models/rvm/generated/` ([Install](./install#rvm-segmentation-engine-optional)). Without them CTest reports `Not Run` and the run fails; the code is not broken.
+* **RVM smoke** (`smoke_rvm_engine_b1`, `smoke_rvm_engine_b2`, label `rvm`) need engines prebuilt with `scripts/setup_rvm.py` (without `--skip-engine-build`) in `models/rvm/generated/` ([Install](./install#rvm-segmentation-engine-optional)). Without them CTest reports `Not Run` and the run fails; the code is not broken.
+* **RVM first run** (`rvm_engine_first_run_tests`, labels `integration` and `rvm`) builds the batch-1 engine from the ONNX, so it takes several minutes (its timeout is 25 minutes). Configure with `-DORBBEC_RVM_ONNX_DIR=<folder with the exported .onnx files>`; without it, or without a GPU, it exits 77 and CTest lists it as `Skipped`.
 * **No device**: the CUDA and NVENC tests, `smoke_cuda`, `smoke_orbbec_provider` and `smoke_orbbec_capture` exit with code 77 when there is no CUDA device or no camera, and CTest lists them as `Skipped`, never as `Passed`. A skip is not a pass: run them on a machine with the device before you rely on them. To see the skip path, run with `CUDA_VISIBLE_DEVICES=""`. A failure on present hardware (an SDK error, no frames) fails the test. A new test with a skip path uses `tests/support/Skip.hpp` and needs `SKIP_RETURN_CODE 77` in `CMakeLists.txt`.
 * **Go** (`gateway_go_tests`) runs `go test -race` on `server/gateway/` when `go` is on `PATH` or in `~/.local/go/bin`, and is skipped otherwise.
 * **Protocol conformance** (`protocol_conformance_tests`) checks the server against `../protocol`. For a contract elsewhere, configure with `-DORBBEC_STREAMER_PROTOCOL_CONTRACT_DIR=/path/to/protocol` (the folder with `wire-format.md`, `schema/` and `vectors/`).
@@ -3064,7 +3098,7 @@ CLion reads `CMakePresets.json`. In **Settings → Build, Execution, Deployment 
 | `No CMAKE_CUDA_COMPILER could be found`, or `/usr/local/cuda/bin/nvcc` missing                        | Install the CUDA toolkit at `/usr/local/cuda` ([Install](./install#cuda-toolkit-and-driver)).                                                                  |
 | vcpkg fails building `at-spi2-core`, `gtk3` or another OpenCV dependency                              | A build tool or X11 header is missing. Install the [system packages](./install#system-packages) and configure again; the vcpkg log path is in the error.       |
 | `no kernel image is available for execution on the device`                                            | The GPU is below compute capability 8.9. See [Build for a different GPU](#build-for-a-different-gpu).                                                          |
-| `smoke_rvm_engine_b1` and `smoke_rvm_engine_b2` are `Not Run`                                         | Build the RVM engines, or exclude them with `-LE rvm`.                                                                                                         |
+| `smoke_rvm_engine_b1` and `smoke_rvm_engine_b2` are `Not Run`                                         | Prebuild the RVM engines with `setup_rvm.py`, or exclude them with `-LE rvm`.                                                                                  |
 | `protocol_conformance_tests` fails after updating from `main`                                         | The contract in `protocol/` changed and the server doesn't match it yet. A failing conformance test is how the server team learns of a contract change.        |
 | `orbbec_live_sync_integration_test` fails with `propertyId: 1038`                                     | A camera rejected the multi-device sync settings: check the sync cable and roles, then power-cycle the cameras. The SDK log is in `Log/OrbbecSDK.log.txt`.     |
 | An NVENC test fails with `NvEncOpenEncodeSessionEx failed with NVENC status 21`                       | Another program holds NVENC sessions (a running server, OBS, a second `ctest`). CTest runs the NVENC tests one at a time, so stop the other encoder and rerun. |
@@ -3365,7 +3399,7 @@ server/config/dev/
 
 When the JSON files are missing the server still starts: it uses a linear depth mapping and reports that camera-pose calibration is needed. Git ignores these files and the folder `config/local/`.
 
-Every relative path (`rvm_engine_path`, `quantization_profile_path`, `camera_pose_path`, `placement_path`, `debug_recording.directory`, `serving.dev_certificate_hash_path`) resolves against the working directory, so run the server from `server/`. The exception is `serving.gateway_executable`, which resolves against the config file's directory.
+Every relative path (`rvm_onnx_path`, `rvm_engine_cache_dir`, `rvm_engine_path`, `quantization_profile_path`, `camera_pose_path`, `placement_path`, `debug_recording.directory`, `serving.dev_certificate_hash_path`) resolves against the working directory, so run the server from `server/`. The exception is `serving.gateway_executable`, which resolves against the config file's directory.
 
 ## Point the server at a config [#point-the-server-at-a-config]
 
@@ -3538,23 +3572,62 @@ The cameras' own delay grows with their frame interval: colour reaches the host 
 
 Foreground segmentation. Depth outside the mask is encoded as invalid.
 
-| Key                    | Type                                  | Default                                                                | Description                                                     |
-| ---------------------- | ------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `backend`              | see below                             | `sam3`                                                                 | Mask generator. Set it explicitly.                              |
-| `prompt_type`          | `text`, `bbox` (alias `bounding_box`) | `text`                                                                 | Parsed; no current backend uses it.                             |
-| `text_prompt`          | string                                | `person`                                                               | Non-empty when `prompt_type: text`.                             |
-| `bbox_xywh`            | `[x, y, w, h]`                        | `[0, 0, 0, 0]`                                                         | Exactly four integers. Unused.                                  |
-| `rvm_engine_path`      | path                                  | `models/rvm/generated/rvm_mobilenetv3_b2_640x576_ds0.5_float16.engine` | TensorRT engine for `rvm`. Non-empty when `backend: rvm`.       |
-| `rvm_downsample_ratio` | float                                 | `0.5`                                                                  | In (0, 1]. Must match the `ds` value the engine was built with. |
+| Key                    | Type                                  | Default                                                                    | Description                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend`              | see below                             | `sam3`                                                                     | Mask generator. Set it explicitly.                                                                                                                                                                                                       |
+| `prompt_type`          | `text`, `bbox` (alias `bounding_box`) | `text`                                                                     | Parsed; no current backend uses it.                                                                                                                                                                                                      |
+| `text_prompt`          | string                                | `person`                                                                   | Non-empty when `prompt_type: text`.                                                                                                                                                                                                      |
+| `bbox_xywh`            | `[x, y, w, h]`                        | `[0, 0, 0, 0]`                                                             | Exactly four integers. Unused.                                                                                                                                                                                                           |
+| `rvm_onnx_path`        | path                                  | `models/rvm/generated/rvm_mobilenetv3_b{batch}_640x576_ds0.5_float16.onnx` | Fixed-shape FP16 ONNX model for `rvm`. `{batch}` becomes the number of active cameras; it is the only placeholder. The server builds the TensorRT engine from this file on first use.                                                    |
+| `rvm_engine_cache_dir` | path                                  | `/var/lib/orbbec-streamer/engines`                                         | Where built engines are kept. The server's user must be able to write it; it is created if missing. `config/dev/live.yaml` uses `models/rvm/engines`.                                                                                    |
+| `rvm_engine_path`      | path                                  | empty                                                                      | Development override: a prebuilt engine, loaded as is. When set, `rvm_onnx_path` and `rvm_engine_cache_dir` are ignored, nothing is checked against the GPU or the TensorRT version, and nothing is built. Leave it empty in production. |
+| `rvm_downsample_ratio` | float                                 | `0.5`                                                                      | In (0, 1]. Must match the `ds` value in the ONNX file name.                                                                                                                                                                              |
 
-| `backend`                 | What it does                                                                                                                                                                                                                   |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `rvm`                     | Robust Video Matting on TensorRT, the working segmenter. Needs `streams.alignment: color_to_depth` and an engine whose batch size (`b2`) equals the number of active cameras and whose size (`640x576`) equals the depth size. |
-| `fill_all`                | Every pixel is foreground. Use it to run without segmentation.                                                                                                                                                                 |
-| `none`                    | No mask; the bilateral filter then treats every pixel as foreground. Same depth as `fill_all`, without the mask image.                                                                                                         |
-| `rgb_luma_threshold`      | Foreground where colour luma is above 128. Test backend.                                                                                                                                                                       |
-| `sam3`                    | Placeholder that behaves like `fill_all`.                                                                                                                                                                                      |
-| `tensorrt`, `onnxruntime` | Accepted by the parser, then fail at the first batch with `Selected foreground mask backend is not implemented`.                                                                                                               |
+| `backend`                 | What it does                                                                                                                                                                                                                                                                                        |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rvm`                     | Robust Video Matting on TensorRT, the working segmenter. Needs `streams.alignment: color_to_depth` and an ONNX model (or override engine) whose batch size equals the number of active cameras and whose size (`640x576`) equals the depth size. See [The RVM engine cache](#the-rvm-engine-cache). |
+| `fill_all`                | Every pixel is foreground. Use it to run without segmentation.                                                                                                                                                                                                                                      |
+| `none`                    | No mask; the bilateral filter then treats every pixel as foreground. Same depth as `fill_all`, without the mask image.                                                                                                                                                                              |
+| `rgb_luma_threshold`      | Foreground where colour luma is above 128. Test backend.                                                                                                                                                                                                                                            |
+| `sam3`                    | Placeholder that behaves like `fill_all`.                                                                                                                                                                                                                                                           |
+| `tensorrt`, `onnxruntime` | Accepted by the parser, then fail at the first batch with `Selected foreground mask backend is not implemented`.                                                                                                                                                                                    |
+
+#### The RVM engine cache [#the-rvm-engine-cache]
+
+A TensorRT engine works only with the GPU model, the TensorRT version and the
+batch size it was built for, so none ships with the server. With
+`backend: rvm` and no `rvm_engine_path`, the server builds the engine from the
+ONNX file the first time it needs it and keeps it in `rvm_engine_cache_dir`:
+
+```text
+<cache_dir>/sm89-trt11.1.0-<first 12 hex of the ONNX SHA-256>-b2.engine
+<cache_dir>/sm89-trt11.1.0-<first 12 hex of the ONNX SHA-256>-b2.json
+```
+
+* **First start.** The build takes 3 to 4 minutes per batch size on an RTX
+  4090 (measured: 181 s for batch 2, 220 s for batch 1). The
+  server starts and serves while it builds. Until the engine is ready the mask
+  stage passes every pixel as foreground, as with `fill_all`, and the log
+  prints `RVM engine` progress lines (phase and percentage). When the build
+  ends the mask stage switches to RVM without a restart.
+* **Later starts.** The engine is found in the cache and loaded; nothing
+  is built. A TensorRT timing cache in the same directory makes a rebuild
+  much faster than the first build (8 s measured for batch 1, with the same
+  GPU and TensorRT version).
+* **Rebuild triggers.** The JSON manifest next to the engine records the GPU
+  name and compute capability, the driver version, the TensorRT version, the
+  ONNX SHA-256, the batch size, the size and the downsample ratio. A change in
+  any of them, a missing or unreadable manifest, or an empty engine rebuilds
+  it. An engine that exists but fails to load is deleted and rebuilt once.
+* **Safe to interrupt.** Files are written to a temporary name and renamed, so
+  a stopped build leaves no partial engine. A lock file stops two processes
+  from building the same engine at once; the second waits and then uses the
+  result.
+* **Other tools.** `orbbec_streamer_depth_quantization_calibrator` builds a
+  missing engine before it starts instead of passing masks through.
+
+To export the ONNX files for development, run
+[`scripts/setup_rvm.py --skip-engine-build`](./install#rvm-segmentation-engine-optional).
 
 ### `processing` [#processing]
 
@@ -3693,35 +3766,41 @@ ORBBEC_STREAMER_STATUS_MODE=log ./build/dev-debug/orbbec_streamer --live config/
 
 ## Troubleshooting [#troubleshooting]
 
-| Message                                                                                                                                                                                      | Fix                                                                                                                       |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `Failed to open live config: <path>`                                                                                                                                                         | Wrong path or wrong working directory. Run from `server/` or pass an absolute path.                                       |
-| `Unsupported <section> key: <key>`                                                                                                                                                           | Typo, or a key in the wrong section.                                                                                      |
-| `Encoding key appeared outside color/depth subsection: <key>`                                                                                                                                | Unknown key under `encoding`, often a misspelt `gop_length`, `queue_capacity` or `stream_fps`.                            |
-| `Stream key appeared outside depth/color subsection`                                                                                                                                         | A `width`, `height`, `fps` or `format` line is not under `depth:` or `color:`.                                            |
-| `Unsupported config section: <key>`                                                                                                                                                          | A header without value that is not a known section.                                                                       |
-| `Invalid integer value: <raw>`, `Invalid float value (a finite number is required): <raw>`                                                                                                   | A number with trailing text (`30fps`), a sign on an integer, or a word (`thirty`).                                        |
-| `Integer value out of range (0 to 4294967295): <raw>`                                                                                                                                        | The number does not fit 32 bits.                                                                                          |
-| `Invalid empty integer value`, `Invalid empty float value`                                                                                                                                   | A number key without value.                                                                                               |
-| `Invalid boolean value: <raw>`                                                                                                                                                               | Use `true`/`false`, `yes`/`no` or `1`/`0`.                                                                                |
-| `live config must contain at least one camera`                                                                                                                                               | Add a `cameras` list item.                                                                                                |
-| `sync.enabled=true requires exactly one primary camera`                                                                                                                                      | Set `role: primary` on exactly one camera.                                                                                |
-| `streams.depth.fps and streams.color.fps (the capture rate) must be 15 or 30, got ...`                                                                                                       | Use 15 or 30.                                                                                                             |
-| `streams.color.fps and streams.depth.fps must match`                                                                                                                                         | Make them equal.                                                                                                          |
-| `encoding.stream_fps must be 15 or 30, got ...` or `... must not exceed the capture rate ...`                                                                                                | Set `stream_fps` to 15 or 30, at most `streams.depth.fps`.                                                                |
-| `Encoding: no HEVC level up to 6.2 admits ...`                                                                                                                                               | Lower `bitrate_bps`, the resolution or the stream rate, or use `per_camera`.                                              |
-| `processing.depth_filter_backend=bilateral_cuda requires streams.alignment color_to_depth or depth_to_color`, `encoding.enabled requires streams.alignment color_to_depth or depth_to_color` | Both need colour and depth at one size. Set `streams.alignment: color_to_depth`.                                          |
-| `Bilateral depth filter: colour <w>x<h> does not match depth <w>x<h> (camera <id>)`                                                                                                          | The aligned colour or mask size differs from depth at run time. Use `streams.alignment: color_to_depth`.                  |
-| `Current RVM integration requires streams.alignment=color_to_depth`                                                                                                                          | Set that alignment or choose another mask backend.                                                                        |
-| `Unsupported live mask backend: <name>`, `Unsupported live depth filter backend: <name>`                                                                                                     | Use a value from the `mask` or `processing` tables.                                                                       |
-| `Cannot open TensorRT engine: <path>`                                                                                                                                                        | The RVM engine is not built, or `rvm_engine_path` is relative to another directory.                                       |
-| `Depth quantization profile range does not match live config`                                                                                                                                | Recalibrate with `--force`, or delete the file to use the linear mapping.                                                 |
-| `No configured cameras are active; live mode cannot continue`                                                                                                                                | No serial matched. Check cables and `serial_number`; list devices with `./build/dev-debug/orbbec_streamer --orbbec-test`. |
-| `serving.enabled needs serving.gateway_executable` / `... needs encoding.enabled` / `... needs serving.allowed_origins`                                                                      | Set the missing key.                                                                                                      |
-| `serving.max_sessions must be 1..1024`, `serving.path must start with '/'`, `serving.listen_address must be host:port`                                                                       | Fix the value.                                                                                                            |
-| `serving.certificate and serving.private_key go together`                                                                                                                                    | Set both, or neither for a development certificate.                                                                       |
-| `GPU-output recording requires encoding.enabled=true`                                                                                                                                        | Enable encoding or set `record_gpu_outputs: false`.                                                                       |
-| `Debug recording references unknown camera id: <id>`                                                                                                                                         | `debug_recording.camera_ids` takes camera `id`s, not serials.                                                             |
+| Message                                                                                                                                                                                      | Fix                                                                                                                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Failed to open live config: <path>`                                                                                                                                                         | Wrong path or wrong working directory. Run from `server/` or pass an absolute path.                                                                                               |
+| `Unsupported <section> key: <key>`                                                                                                                                                           | Typo, or a key in the wrong section.                                                                                                                                              |
+| `Encoding key appeared outside color/depth subsection: <key>`                                                                                                                                | Unknown key under `encoding`, often a misspelt `gop_length`, `queue_capacity` or `stream_fps`.                                                                                    |
+| `Stream key appeared outside depth/color subsection`                                                                                                                                         | A `width`, `height`, `fps` or `format` line is not under `depth:` or `color:`.                                                                                                    |
+| `Unsupported config section: <key>`                                                                                                                                                          | A header without value that is not a known section.                                                                                                                               |
+| `Invalid integer value: <raw>`, `Invalid float value (a finite number is required): <raw>`                                                                                                   | A number with trailing text (`30fps`), a sign on an integer, or a word (`thirty`).                                                                                                |
+| `Integer value out of range (0 to 4294967295): <raw>`                                                                                                                                        | The number does not fit 32 bits.                                                                                                                                                  |
+| `Invalid empty integer value`, `Invalid empty float value`                                                                                                                                   | A number key without value.                                                                                                                                                       |
+| `Invalid boolean value: <raw>`                                                                                                                                                               | Use `true`/`false`, `yes`/`no` or `1`/`0`.                                                                                                                                        |
+| `live config must contain at least one camera`                                                                                                                                               | Add a `cameras` list item.                                                                                                                                                        |
+| `sync.enabled=true requires exactly one primary camera`                                                                                                                                      | Set `role: primary` on exactly one camera.                                                                                                                                        |
+| `streams.depth.fps and streams.color.fps (the capture rate) must be 15 or 30, got ...`                                                                                                       | Use 15 or 30.                                                                                                                                                                     |
+| `streams.color.fps and streams.depth.fps must match`                                                                                                                                         | Make them equal.                                                                                                                                                                  |
+| `encoding.stream_fps must be 15 or 30, got ...` or `... must not exceed the capture rate ...`                                                                                                | Set `stream_fps` to 15 or 30, at most `streams.depth.fps`.                                                                                                                        |
+| `Encoding: no HEVC level up to 6.2 admits ...`                                                                                                                                               | Lower `bitrate_bps`, the resolution or the stream rate, or use `per_camera`.                                                                                                      |
+| `processing.depth_filter_backend=bilateral_cuda requires streams.alignment color_to_depth or depth_to_color`, `encoding.enabled requires streams.alignment color_to_depth or depth_to_color` | Both need colour and depth at one size. Set `streams.alignment: color_to_depth`.                                                                                                  |
+| `Bilateral depth filter: colour <w>x<h> does not match depth <w>x<h> (camera <id>)`                                                                                                          | The aligned colour or mask size differs from depth at run time. Use `streams.alignment: color_to_depth`.                                                                          |
+| `Current RVM integration requires streams.alignment=color_to_depth`                                                                                                                          | Set that alignment or choose another mask backend.                                                                                                                                |
+| `Unsupported live mask backend: <name>`, `Unsupported live depth filter backend: <name>`                                                                                                     | Use a value from the `mask` or `processing` tables.                                                                                                                               |
+| `RVM mask backend requires mask.rvm_onnx_path and mask.rvm_engine_cache_dir (or the development override mask.rvm_engine_path)`                                                              | Set both keys, or `rvm_engine_path`.                                                                                                                                              |
+| `mask.rvm_onnx_path supports only the {batch} placeholder: <path>`                                                                                                                           | Remove other braces from the path.                                                                                                                                                |
+| `ONNX model not found: <path> ...`                                                                                                                                                           | Install the packaged model or export it with `scripts/setup_rvm.py --skip-engine-build`, then point `mask.rvm_onnx_path` at it.                                                   |
+| `cannot create the TensorRT engine cache directory <dir>` or `cannot write the TensorRT engine cache directory <dir>`                                                                        | Set `mask.rvm_engine_cache_dir` to a directory the server's user can write.                                                                                                       |
+| `ONNX model <path> input '<name>' ...` or `... has <n> inputs`                                                                                                                               | The ONNX file does not match the configured batch size, size or `rvm_downsample_ratio`. Export the matching model.                                                                |
+| `RVM segmentation unavailable: TensorRT engine build failed: TensorRT engine build from <path>: ...`                                                                                         | The background build failed, and the next batch stops the server with this error. The message names the TensorRT step. Check free GPU memory with `nvidia-smi`, then start again. |
+| `Cannot open TensorRT engine: <path>`                                                                                                                                                        | Only with the `rvm_engine_path` override: the engine file is missing, or the path is relative to another directory.                                                               |
+| `Depth quantization profile range does not match live config`                                                                                                                                | Recalibrate with `--force`, or delete the file to use the linear mapping.                                                                                                         |
+| `No configured cameras are active; live mode cannot continue`                                                                                                                                | No serial matched. Check cables and `serial_number`; list devices with `./build/dev-debug/orbbec_streamer --orbbec-test`.                                                         |
+| `serving.enabled needs serving.gateway_executable` / `... needs encoding.enabled` / `... needs serving.allowed_origins`                                                                      | Set the missing key.                                                                                                                                                              |
+| `serving.max_sessions must be 1..1024`, `serving.path must start with '/'`, `serving.listen_address must be host:port`                                                                       | Fix the value.                                                                                                                                                                    |
+| `serving.certificate and serving.private_key go together`                                                                                                                                    | Set both, or neither for a development certificate.                                                                                                                               |
+| `GPU-output recording requires encoding.enabled=true`                                                                                                                                        | Enable encoding or set `record_gpu_outputs: false`.                                                                                                                               |
+| `Debug recording references unknown camera id: <id>`                                                                                                                                         | `debug_recording.camera_ids` takes camera `id`s, not serials.                                                                                                                     |
 
 
 # Depth quantization calibrator (https://irc-hslu.github.io/orbbecstreamer/docs/server/depth-quantization-calibrator)
@@ -3940,7 +4019,7 @@ the GPU, so encoding stays one lookup per pixel.
 | `Depth calibration collected no valid masked in-range samples`                                               | Nothing in the foreground mask was inside the range. Put a person in view, check the depth range, lower `processing.bilateral_mask_threshold`, or make the run longer than the warm-up.                                                                                                                                                 |
 | `Calibration duration must be in [1, 60] seconds` or `Calibration duration must exceed setup.warmup_seconds` | Fix `--duration-s` or the `setup` section.                                                                                                                                                                                                                                                                                              |
 | `Adaptive uniform mix must be in [0, 1]`                                                                     | Fix `--uniform-mix` or `encoding.depth.adaptive_uniform_mix`.                                                                                                                                                                                                                                                                           |
-| Error while loading the RVM engine                                                                           | `mask.backend: rvm` needs the TensorRT engine at `mask.rvm_engine_path`. Build it, or calibrate with `mask.backend: fill_all` (then background pixels are counted too).                                                                                                                                                                 |
+| Error while loading or building the RVM engine                                                               | `mask.backend: rvm` needs the ONNX at `mask.rvm_onnx_path` (the tool builds a missing engine before it starts, 3 to 4 minutes the first time) or the `mask.rvm_engine_path` override. Fix the path, or calibrate with `mask.backend: fill_all` (then background pixels are counted too).                                                |
 | `selected=linear` after a run                                                                                | The adaptive table was not better on your data, for example with a nearly even depth spread or `--uniform-mix 1`. Nothing to fix.                                                                                                                                                                                                       |
 | `config/dev/depth-quantization.json` appears in `git status`                                                 | `server/.gitignore` ignores `config/*/depth-quantization.json`, so the file shows up only if someone committed it. It is specific to one room and camera setup. To stop tracking it, run `git rm --cached config/dev/depth-quantization.json`. To commit a new version on purpose, run `git add -f config/dev/depth-quantization.json`. |
 
@@ -4684,17 +4763,19 @@ the segmenter, but no current backend uses them.
 
 ### The RVM engine [#the-rvm-engine]
 
-The engine is built by `scripts/setup_rvm.py` for a fixed batch size,
-image size and downsample ratio, all in its file name, for example
-`rvm_mobilenetv3_b2_640x576_ds0.5_float16.engine`: batch 2, 640 × 576,
-ratio 0.5. At start-up the server checks the engine's tensors against:
+The engine is built from a fixed-shape ONNX model (batch size, image size and
+downsample ratio are in its file name, for example
+`rvm_mobilenetv3_b2_640x576_ds0.5_float16.onnx`: batch 2, 640 × 576, ratio
+0.5). The server builds it on first use and caches it; see
+[The RVM engine cache](../configuration#the-rvm-engine-cache). The server checks the engine's tensors when the engine loads: at start-up if the engine is cached, otherwise when the background build finishes. It checks them against:
 
 * the number of **active** cameras (the batch size),
 * the depth size (colour is aligned to it),
 * `mask.rvm_downsample_ratio`.
 
-A mismatch stops the server before the pipeline starts, after the cameras
-are opened. If a configured camera is missing, the active count drops and
+A mismatch stops the server, after the cameras are opened (with a cached
+engine, before the pipeline starts; after a first-run build, at the first
+batch after the build fails to load). If a configured camera is missing, the active count drops and
 the batch-2 engine no longer fits.
 
 RVM's recurrent state carries over from one batch to the next. It is not
@@ -4774,13 +4855,13 @@ when the cameras capture at 30.
 
 ## Troubleshooting [#troubleshooting]
 
-| Message or symptom                                                                                                                                                             | Fix                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `orbbec-streamer failed: Resolved bilateral radius exceeds maximum_radius_pixels`                                                                                              | Lower `bilateral_radius_ratio` or raise `bilateral_maximum_radius_pixels`.                                                |
-| `orbbec-streamer failed: Unexpected static TensorRT shape for ...`                                                                                                             | The engine does not match the active cameras or the depth size. Build the matching engine and set `mask.rvm_engine_path`. |
-| `RVM requires exactly one usable RGB8 color frame per synchronized camera`, `Bilateral RGB input pointer is null` or `NVENC frame set is missing RGB8 color or DepthU16 input` | Set `streams.color.format: rgb8`.                                                                                         |
-| `Selected foreground mask backend is not implemented`                                                                                                                          | `tensorrt` or `onnxruntime`. Use `rvm` or `fill_all`.                                                                     |
-| `process` drops rising in the telemetry                                                                                                                                        | See [Read the telemetry](../telemetry#troubleshooting).                                                                   |
+| Message or symptom                                                                                                                                                             | Fix                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orbbec-streamer failed: Resolved bilateral radius exceeds maximum_radius_pixels`                                                                                              | Lower `bilateral_radius_ratio` or raise `bilateral_maximum_radius_pixels`.                                                                                          |
+| `orbbec-streamer failed: Unexpected static TensorRT shape for ...`                                                                                                             | The engine does not match the active cameras or the depth size. Point `mask.rvm_onnx_path` at the matching ONNX model (or fix the `mask.rvm_engine_path` override). |
+| `RVM requires exactly one usable RGB8 color frame per synchronized camera`, `Bilateral RGB input pointer is null` or `NVENC frame set is missing RGB8 color or DepthU16 input` | Set `streams.color.format: rgb8`.                                                                                                                                   |
+| `Selected foreground mask backend is not implemented`                                                                                                                          | `tensorrt` or `onnxruntime`. Use `rvm` or `fill_all`.                                                                                                               |
+| `process` drops rising in the telemetry                                                                                                                                        | See [Read the telemetry](../telemetry#troubleshooting).                                                                                                             |
 
 ## Related pages [#related-pages]
 
@@ -5345,7 +5426,7 @@ needs its C++ SDK, which comes from the same NVIDIA repository. The Python
 sudo apt install -y tensorrt-dev libnvinfer-bin
 ```
 
-`libnvinfer-bin` provides `trtexec`, which only the RVM engine build needs.
+`libnvinfer-bin` provides `trtexec`, which only `scripts/setup_rvm.py` uses to prebuild development engines. The server itself builds its RVM engine with the TensorRT library and does not need `trtexec`.
 
 The tested version is TensorRT `11.1.0.106-1+cuda13.3`. Plain `tensorrt-dev`
 installs the newest build, currently `11.3.0.99-1+cuda13.4`, which targets
@@ -5411,20 +5492,27 @@ Compare the output with [Expected result](#expected-result).
 
 ## RVM segmentation engine (optional) [#rvm-segmentation-engine-optional]
 
-Skip this step unless you want `mask.backend: rvm` in the config file, or want
-to run the RVM smoke tests. The other mask backends (`none`, `fill_all`,
-`rgb_luma_threshold`) need no engine. You can come back to this step after the
+Skip this step unless you want `mask.backend: rvm` from a source checkout, or
+want to run the RVM smoke tests. The other mask backends (`none`, `fill_all`,
+`rgb_luma_threshold`) need no model. You can come back to this step after the
 build.
 
-The engine is a TensorRT file built from the RVM (Robust Video Matting)
-network, which separates people from the background. `scripts/setup_rvm.py`
-builds it:
+The RVM (Robust Video Matting) network separates people from the background.
+The server needs its fixed-shape FP16 ONNX model, one file per batch size, and
+builds the TensorRT engine from it by itself on first use, in 3 to 4 minutes
+per batch size; see [The RVM engine cache](./configuration#the-rvm-engine-cache).
+A packaged install ships the ONNX files and needs nothing else. From a source
+checkout, `scripts/setup_rvm.py` exports them:
 
 1. updates the RVM fork checkout in `external/RobustVideoMatting`, or clones
    it if the folder does not exist
 2. downloads the official `rvm_mobilenetv3.pth` checkpoint to `models/rvm/`
 3. exports a fixed-shape FP16 ONNX model on the CPU
-4. builds one TensorRT engine per batch size with `trtexec`
+
+Pass `--skip-engine-build` so the script stops after the export. Without that
+flag it also prebuilds one TensorRT engine per batch size with `trtexec`; use
+those engines for the RVM smoke tests or as the `mask.rvm_engine_path`
+development override.
 
 The script needs PyTorch, torchvision, ONNX and NVIDIA ModelOpt.
 `pyproject.toml` and `uv.lock` pin their versions.
@@ -5444,7 +5532,7 @@ To run it with [uv](https://docs.astral.sh/uv/), a Python package manager:
 
    ```bash
    uv sync
-   uv run python scripts/setup_rvm.py
+   uv run python scripts/setup_rvm.py --skip-engine-build
    ```
 
 Without uv, create a virtual environment and let the script install what is
@@ -5453,20 +5541,18 @@ missing. From the `server/` folder:
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python scripts/setup_rvm.py --install-python-deps
+python scripts/setup_rvm.py --install-python-deps --skip-engine-build
 ```
 
-The defaults build batch sizes 1 and 2 at 640 × 576 with downsample ratio 0.5.
-This matches the depth resolution in `config/dev/live.yaml`. The engine's
-batch size must equal the number of active cameras: batch 1 for one camera,
-batch 2 for two. Set `mask.rvm_engine_path` in the config to the matching
-engine. For other values, see `uv run python scripts/setup_rvm.py --help`.
-
-A TensorRT engine works only with the GPU model and TensorRT version that
-built it. Run `setup_rvm.py` again after you change either one.
+The defaults export batch sizes 1 and 2 at 640 × 576 with downsample ratio 0.5.
+This matches the depth resolution in `config/dev/live.yaml`, whose
+`mask.rvm_onnx_path` already points at the exported files. The batch size must
+equal the number of active cameras: batch 1 for one camera, batch 2 for two;
+the server picks the file with `{batch}` in the path. For other values, see
+`uv run python scripts/setup_rvm.py --help`.
 
 The RVM model and weights are GPL-3.0. Confirm that this licence suits you
-before you distribute the engine.
+before you distribute the model or an engine built from it.
 
 ## Expected result [#expected-result]
 
@@ -5499,13 +5585,14 @@ ls /usr/local/lib/OrbbecSDKConfig.cmake /etc/udev/rules.d/99-obsensor-libusb.rul
 After the optional RVM step, `models/rvm/generated/` contains:
 
 ```text
-rvm_mobilenetv3_b1_640x576_ds0.5_float16.engine
-rvm_mobilenetv3_b2_640x576_ds0.5_float16.engine
+rvm_mobilenetv3_b1_640x576_ds0.5_float16.onnx
+rvm_mobilenetv3_b2_640x576_ds0.5_float16.onnx
 ```
 
-It also contains an `.onnx` model and a `.json` manifest for each batch size,
-and a timing cache. None of these files are committed. The script ends with
-`RVM setup complete.`
+None of these files are committed. Without `--skip-engine-build` the folder
+also holds the prebuilt `.engine` files with a `.json` manifest and a timing
+cache for each, and the script ends with `RVM setup complete.` The engines the
+server builds itself go to `mask.rvm_engine_cache_dir`, not here.
 
 ## Troubleshooting [#troubleshooting]
 
@@ -5519,7 +5606,7 @@ and a timing cache. None of these files are committed. The script ends with
 | Configure fails with a pkg-config error that names `ffnvcodec`                                          | Install `libffmpeg-nvenc-dev`.                                                                                                                                                                                                                                                                                                                                         |
 | Configure fails on `libavcodec`, `libavformat`, `libavutil` or `libswscale`                             | Install the matching `-dev` package from [System packages](#system-packages).                                                                                                                                                                                                                                                                                          |
 | `dpkg -l tensorrt-dev` shows a `+cuda13.4` version                                                      | apt installed the newest TensorRT, which targets CUDA 13.4 and is not tested. To stay on the tested stack, pin every TensorRT package to `11.1.0.106-1+cuda13.3` with `sudo apt install <package>=11.1.0.106-1+cuda13.3` for `tensorrt-dev` and each `libnvinfer*` and `libnvonnxparsers*` package it depends on. This pinning has not been tested on a fresh machine. |
-| `setup_rvm.py` fails with `trtexec not found; install libnvinfer-bin or pass --trtexec`                 | Install `libnvinfer-bin`, or pass `--trtexec /path/to/trtexec`.                                                                                                                                                                                                                                                                                                        |
+| `setup_rvm.py` fails with `trtexec not found; install libnvinfer-bin or pass --trtexec`                 | You did not pass `--skip-engine-build`. Pass it (the server builds its own engine), or install `libnvinfer-bin`, or pass `--trtexec /path/to/trtexec`.                                                                                                                                                                                                                 |
 | `setup_rvm.py` fails with `missing Python packages: ...`                                                | Run it with `uv run`, or add `--install-python-deps` inside a virtual environment.                                                                                                                                                                                                                                                                                     |
 | `setup_rvm.py` fails with `not an orbbec-streamer repository root`                                      | Run it from `server/`, or pass `--repo-root <path to server/>`.                                                                                                                                                                                                                                                                                                        |
 | A camera works as root but not as your user                                                             | The udev rule is missing. Run `sudo /opt/OrbbecSDK_v2.8.7/shared/install_udev_rules.sh`, then replug the camera.                                                                                                                                                                                                                                                       |
@@ -5657,9 +5744,9 @@ What each item is for:
 * **TensorRT** (`tensorrt-dev`) is required to build the server. Every server
   program links it, and CMake stops with an error if it cannot find the
   TensorRT headers and `libnvinfer`.
-* **`trtexec`** (`libnvinfer-bin`) is needed only to build the RVM engine. You
-  need that engine only if the config uses `mask.backend: rvm` or you run the
-  two RVM smoke tests.
+* **`trtexec`** (`libnvinfer-bin`) is optional. The server builds its RVM
+  engine itself; only `scripts/setup_rvm.py` without `--skip-engine-build`
+  uses `trtexec`, to prebuild the engines for the two RVM smoke tests.
 * **Orbbec SDK** (`orbbecsdk`) talks to the cameras.
 * **`ffnvcodec`** (`libffmpeg-nvenc-dev`) provides the NVENC API headers.
 * **GCC 15** compiles the C++ code and is the host compiler for CUDA.
@@ -5738,7 +5825,7 @@ As shipped, `config/dev/live.yaml` describes the development rig: two cameras by
 
 3. In `cameras`, add one entry per camera with its `serial_number`. With hardware sync give exactly one camera `role: primary`; without a sync cable or with one camera set `sync.enabled: false`.
 
-4. Choose the mask: build the RVM engine ([Install](./install#rvm-segmentation-engine-optional)) whose batch size equals your camera count and set `mask.rvm_engine_path`, or set `mask.backend: fill_all`.
+4. Choose the mask: keep `mask.backend: rvm` and point `mask.rvm_onnx_path` at the exported ONNX files ([Install](./install#rvm-segmentation-engine-optional)); the server builds the engine for your camera count on the first start, 3 to 4 minutes, while masks pass through ([details](./configuration#the-rvm-engine-cache)). Or set `mask.backend: fill_all`.
 
 5. Decide on recording: set `debug_recording.record_gpu_inputs` and `record_gpu_outputs` to `false` to write only `setup.json`, or make sure `debug_recording.camera_ids` lists your camera `id`s and the disk has room.
 
@@ -5875,7 +5962,9 @@ The Orbbec SDK logs to `Log/OrbbecSDK.log.txt` in the working directory; look th
 | `--cuda-test` prints `CUDA error: ...`                                                                                                                          | No usable CUDA device or driver; check `nvidia-smi`. It still exits 0, so read its output.                                                                                                                                                                                                                                                             |
 | `cudaMalloc failed: ...` or another CUDA error                                                                                                                  | Check the driver and free GPU memory with `nvidia-smi`.                                                                                                                                                                                                                                                                                                |
 | `NvEncOpenEncodeSessionEx failed with NVENC status 10`                                                                                                          | No NVENC session available (`NV_ENC_ERR_OUT_OF_MEMORY`, also returned at the driver's session limit). The server opens 2 sessions in `concatenated_batch`, 2 per camera in `per_camera`. Stop other encoders and check `nvidia-smi --query-gpu=encoder.stats.sessionCount --format=csv`.                                                               |
-| `Cannot open TensorRT engine: models/rvm/generated/...`                                                                                                         | `mask.backend: rvm` without an engine. Build it with `scripts/setup_rvm.py` or use `fill_all`. This error comes after the cameras open.                                                                                                                                                                                                                |
+| `RVM engine` progress lines, and masks that keep everything                                                                                                     | The engine is building on first start (3 to 4 minutes). Wait for `built TensorRT engine`.                                                                                                                                                                                                                                                              |
+| `ONNX model not found: ...`                                                                                                                                     | `mask.rvm_onnx_path` does not point at an exported model. Export it with `scripts/setup_rvm.py --skip-engine-build` or use `fill_all`.                                                                                                                                                                                                                 |
+| `Cannot open TensorRT engine: ...`                                                                                                                              | Only with the `mask.rvm_engine_path` override and a missing file.                                                                                                                                                                                                                                                                                      |
 | `--calibrate-camera-pose requires streams.alignment: color_to_depth`                                                                                            | Set that alignment.                                                                                                                                                                                                                                                                                                                                    |
 | `setup state not built: client-facing setup requires streams.alignment=color_to_depth`                                                                          | Warning only: the pipeline runs without a setup state.                                                                                                                                                                                                                                                                                                 |
 | `the preview window did not close within 2 s ...; exiting without waiting for it`                                                                               | The display server stopped answering. The server has already stopped everything and written its summary. Check `DISPLAY` or set `run.preview: false`.                                                                                                                                                                                                  |
