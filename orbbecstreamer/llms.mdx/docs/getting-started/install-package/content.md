@@ -70,8 +70,16 @@ Nothing is built from source. To build from source instead, see
     * installs the udev rules for the cameras;
     * runs the machine check (below), which only reports and never stops the
       install;
-    * enables and starts `orbbec-streamer`, `orbbec-streamer-web` and the
-      certificate renewal timer `orbbec-tls-renew.timer`.
+    * starts `orbbec-streamer-web` and the certificate renewal timer
+      `orbbec-tls-renew.timer`.
+
+    What happens to the server service `orbbec-streamer` depends on the version:
+
+    * **v0.1.0-poc.3:** the install also enables and starts it.
+    * **From the next package (poc.4) on:** a fresh install neither enables nor
+      starts it, and prints `cameras stay off until you run: sudo systemctl
+      start orbbec-streamer`. You start it in step 5. An upgrade restarts it
+      only if it was running, and never changes whether it starts at boot.
   </Step>
 
   <Step>
@@ -100,9 +108,19 @@ Nothing is built from source. To build from source instead, see
   </Step>
 
   <Step>
-    ## Connect the cameras and wait for the first start [#connect-the-cameras-and-wait-for-the-first-start]
+    ## Start the server and wait for the first start [#start-the-server-and-wait-for-the-first-start]
 
-    With the cameras connected, the server starts capturing. **The first start
+    Connect the cameras. From poc.4 on, start the server, and enable it if it
+    should also start at boot:
+
+    ```bash
+    sudo systemctl start orbbec-streamer
+    sudo systemctl enable orbbec-streamer
+    ```
+
+    With v0.1.0-poc.3 it is already running; skip these two commands.
+
+    The server then starts capturing. **The first start
     builds the segmentation engine for your GPU**: about 3 minutes, once. Until
     it's ready, frames pass through without background removal. Follow it with:
 
@@ -189,6 +207,6 @@ installed; `sudo apt autoremove` offers to remove them.
 | After an upgrade, the log shows `Cannot open TensorRT engine: …` or an engine deserialisation error, and the service keeps restarting | You kept an edited `live.yaml` from poc.1 or poc.2, which names a fixed engine file. In the `mask:` section of `/etc/orbbec-streamer/live.yaml`, delete `rvm_engine_path` and set `rvm_onnx_path: "/usr/share/orbbec-streamer/models/rvm/rvm_mobilenetv3_b{batch}_640x576_ds0.5_float16.onnx"` and `rvm_engine_cache_dir: "/var/lib/orbbec-streamer/engines"`. Then run `sudo systemctl restart orbbec-streamer`; the first start builds the engine (3 to 4 minutes). |
 | The log shows `error while loading shared libraries: libcuda.so.1`                                                                    | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | The Femto Bolt doesn't start; the log shows depth engine error 204                                                                    | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                                                                                                                                                                                                                                                          |
-| The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                       | The gateway starts only once a camera is active, and the first start may still be building the engine. Check `journalctl -u orbbec-streamer -f`.                                                                                                                                                                                                                                                                                                                      |
+| The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                       | From poc.4 on, the server isn't started by the install: run `sudo systemctl start orbbec-streamer`. Otherwise, the gateway starts only once a camera is active, and the first start may still be building the engine. Check `journalctl -u orbbec-streamer -f`.                                                                                                                                                                                                       |
 | The page doesn't load                                                                                                                 | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                 |
 | Another computer can't open the page                                                                                                  | Expected in this release: open it on the server PC.                                                                                                                                                                                                                                                                                                                                                                                                                   |
