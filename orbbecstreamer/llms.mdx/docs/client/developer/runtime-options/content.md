@@ -125,6 +125,27 @@ if (result.kind === 'found') model.add(result.source);
 * `vite` and `vite preview` answer 404 for `/.well-known/` paths, so the development server behaves like a host without discovery.
 * In tests, inject `TransportDiscoveryPort` (`client/src/connections/transportDiscovery.ts`): pass `transportDiscovery` to `ConnectionManager` or `ServerPipeline`, or pass the port to `discoverTransport`.
 
+## Tell where a connection closed [#tell-where-a-connection-closed]
+
+`ServerPipelineStatus.lastClose` (and `ServerConnection.lastCloseReason`) is the reason the last session ended. Every close carries a `stage`, so a caller can tell a discovery failure from a failed handshake without matching message text:
+
+| `stage`     | Meaning                                                                                        | Examples                                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `discovery` | The discovery fetch or document validation failed, before any WebTransport handshake.          | `404` first, `5xx`, a network error, an invalid document                                                     |
+| `connect`   | The opening handshake, the connect timeout, or any failure before `server.hello` was accepted. | A refused handshake, `connect-timeout`, a reset before the hello, a fatal `server.error` answering the hello |
+| `session`   | After the session was established.                                                             | A protocol error, the server closing the session, the control stream ending, a resync failure                |
+
+`lastClose` keeps its `stage` across a reconnect and changes only when the next close happens.
+
+A local `disconnect()` (and removing a card) takes the stage of what it interrupts:
+
+* in an established session: `session`;
+* while the discovery fetch is running: `discovery`;
+* in the handshake, before the hello: `connect`;
+* during a reconnect backoff, with no attempt in flight: the stage of the attempt that failed last.
+
+A `discovered` source that can't be set up at all (the page isn't served by the server PC) never builds a connection, so `lastClose` stays `null`. `start()` and `reconnect()` still resolve with a failure whose `stage` is `discovery`. A disposed entry reports `connect`.
+
 ## Troubleshooting [#troubleshooting]
 
 * **A subscribe returns `not-decode-compatible`**: expected with `media: 'none'`. The runtime told the server it decodes nothing, so `connection.compatibility` has `renderingCompatible: false` and `clientRole(compatibility)` (`client/src/state/compatibility.ts`) returns `control-only`. Start a runtime with `media: 'full'` to draw.
