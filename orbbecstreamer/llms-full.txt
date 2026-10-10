@@ -136,16 +136,16 @@ With WebGL2, the **View** section reads `Blending needs WebGPU; with WebGL2 the 
 Nobody has confirmed HEVC decoding in any browser yet. Two browsers have been tested, and both report no HEVC decoding:
 
 * Headless Chromium 153 on Linux.
-* Desktop Google Chrome 155 on Ubuntu 26.04 with an NVIDIA RTX 4090 (2026-10-08). WebGPU and WebGL2 work, and H.264, VP9 and AV1 decode, but HEVC colour and Main10 depth do not. Chrome on Linux decodes HEVC through VA-API, and by default there is no VA-API driver for NVIDIA.
+* Desktop Google Chrome 155 on Ubuntu 26.04 with an NVIDIA RTX 4090 (2026-10-08). WebGPU and WebGL2 work, and H.264 and VP9 decode, but HEVC colour and Main10 depth do not. Chrome on Linux decodes HEVC through VA-API, and by default there is no VA-API driver for NVIDIA.
 
-With Chrome's default settings on a Linux PC with an NVIDIA GPU, Chrome shows the cards and the setup workspace but no point cloud (**Setup and control only**). Use a Windows or macOS viewer instead. HEVC decoding is expected there, but the team hasn't tested it, nor whether the depth frames can be read. With the nvidia-vaapi-driver package and Chrome started with `--enable-features=VaapiOnNvidiaGPUs`, Chrome 155 decodes HEVC in hardware, but the depth frames can't be read (the decoded 10-bit frames are opaque to the page), so the point cloud still doesn't appear. Tested 2026-10-08 on Ubuntu 26.04, RTX 4090, driver 580. Ubuntu's Chromium snap can't use the driver at all. The next test is Chrome or Edge on Windows, or Safari on macOS. The detailed results are on [Test the client](/docs/client/developer/test-the-client#browsers-tested-so-far).
+With Chrome's default settings on a Linux PC with an NVIDIA GPU, Chrome shows the cards and the setup workspace but no point cloud (**Setup and control only**). The client is planned to download its own WebAssembly HEVC decoder on browsers that cannot return exact HEVC frames, such as Chrome on Linux. That decoder is not built yet. Hardware decoding is expected on Windows and macOS, but the team has not tested it, nor whether the depth frames can be read. With the nvidia-vaapi-driver package and Chrome started with `--enable-features=VaapiOnNvidiaGPUs`, Chrome 155 decodes HEVC in hardware, but the depth frames can't be read (the decoded 10-bit frames are opaque to the page), so the point cloud still doesn't appear. Tested 2026-10-08 on Ubuntu 26.04, RTX 4090, driver 580. Ubuntu's Chromium snap can't use the driver at all. The next test is Chrome or Edge on Windows, or Safari on macOS. The detailed results are on [Test the client](/docs/client/developer/test-the-client#browsers-tested-so-far).
 
 ## Fix browser problems [#fix-browser-problems]
 
 These are the common browser problems and their fixes:
 
 * **No 3D view on a desktop browser**: hardware acceleration may be off. Turn on **Use graphics acceleration when available** in the browser settings. In Chrome or Edge, open `chrome://gpu` to check the WebGL2 and WebGPU status.
-* **Every server card says the browser lacks HEVC decoding**: this browser has no HEVC decoder on this machine. Try another browser, or a machine with GPU video decoding. You can still use the client to set up servers.
+* **Every server card says the browser lacks HEVC decoding**: this browser cannot decode HEVC frames on this machine. You can still use the client to set up servers. A built-in WebAssembly HEVC decoder for such browsers is planned but not built yet.
 * **Nothing works when you open the client from another computer**: plain `http://` pages are only secure on `localhost`. Open the client on the machine that runs it.
 
 
@@ -1237,13 +1237,13 @@ Results go to `client/scripts/qa/.out/`, which git ignores. The perf media and t
 These are the recorded results so far. Other browsers, and Windows and macOS, haven’t been tested yet.
 
 * **Headless Chromium 153 on Linux, 2026-09-23**:
-  * WebCodecs works; H.264, VP9 and AV1 decode in software.
+  * WebCodecs works; H.264 and VP9 decode in software.
   * No hardware video decoding is available.
   * HEVC is reported unsupported for colour and depth in every hardware-acceleration mode, even with the VA-API flags.
   * The client connects and stays control-only. That’s why the wiring and latency checks use a synthetic decoder. The decode check uses real WebCodecs, so it reports the missing support.
 * **Desktop Google Chrome 155 on Ubuntu 26.04, NVIDIA RTX 4090, 2026-10-08**, on a secure page:
   * `VideoDecoder.isConfigSupported` at 1920×1088 reports HEVC unsupported for `hev1.1.6.L120.B0` (Main, colour), `hev1.2.4.L120.B0` (Main10, depth) and `hvc1.1.6.L120.B0`, with `hardwareAcceleration` set to `no-preference`, `prefer-hardware` and `prefer-software`.
-  * H.264 (`avc1.640028`), AV1 10-bit (`av01.0.08M.10`) and VP9 profile 2 (`vp09.02.40.10`) are supported.
+  * H.264 (`avc1.640028`) and VP9 profile 2 (`vp09.02.40.10`) are supported.
   * WebGPU has an adapter (NVIDIA, Lovelace) and WebGL2 is available.
   * Likely cause, not confirmed: Chrome on Linux decodes HEVC only through VA-API, and this PC has no VA-API driver for NVIDIA. The community nvidia-vaapi-driver isn’t installed, and the team hasn’t tried it.
   * Headless Google Chrome 155 gives the same HEVC answer.
@@ -2343,14 +2343,49 @@ Other people’s views don’t change. The section is hidden while the setup vie
 
 
 <Callout type="warn">
-  Browsers cannot get a live stream from a real server yet: WebTransport
-  serving is not implemented (see [Serve to browsers](/docs/server/serving)).
-  A working first stream today runs entirely on the server, verified by its
-  own telemetry and debug recordings.
+  A browser can connect to a real server today and gets its status and
+  setup, but no video yet: the server sends colour and depth to browsers
+  only once protocol change 0009 is decided (see
+  [Serve to browsers](/docs/server/serving#status)). To see your own capture
+  today, use the server's telemetry and debug recordings (below).
 </Callout>
 
-This needs a [built server](/docs/getting-started/install-server) and at
-least one attached Orbbec camera.
+## Connect a browser to the release package [#connect-a-browser-to-the-release-package]
+
+With the [release package](/docs/getting-started/install-package) installed
+and at least one Orbbec camera connected:
+
+1. Make sure the server is running. From poc.4 on, the install doesn't start
+   it:
+
+   ```bash
+   sudo systemctl start orbbec-streamer
+   ```
+
+   The gateway starts only once a camera is active.
+
+2. In Chrome or Edge **on the server PC**, open
+   [http://127.0.0.1:8080](http://127.0.0.1:8080) (or
+   `http://localhost:8080`). The gateway accepts only these two page
+   addresses.
+
+3. The client finds the server by itself and adds it; you type nothing. A
+   server card appears under **Servers**.
+
+**Expected result:** the card connects and shows the server's state and
+calibration chips. It shows no point cloud yet. If the card shows **Server
+or camera not running**, start the server as in step 1 and connect a
+camera; the card then connects by itself. For other problems, and for
+typing the address and certificate hash by hand, see
+[Add a server](/docs/client/add-a-server).
+
+The read-only [Operator Console](/docs/operator) at
+`http://127.0.0.1:8080/operator` connects the same way.
+
+## Run a source build on your own cameras [#run-a-source-build-on-your-own-cameras]
+
+This needs a [server built from source](/docs/getting-started/install-server)
+and at least one attached Orbbec camera.
 
 <Steps>
   <Step>
@@ -2950,16 +2985,167 @@ the package). After a rotation, enter the new hash, or use discovery.
 
 ## Troubleshooting [#troubleshooting]
 
-| Symptom                                                     | Cause and fix                                                                                                                                                       |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The page doesn't load at all                                | The web service isn't running. Run `sudo systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                             |
-| **Connecting to the server** for more than 10 seconds       | The gateway isn't up, usually because no camera is active yet. Connect a camera and check `journalctl -u orbbec-streamer -f`. The console keeps retrying by itself. |
-| **Connection lost** with **Retrying in … s**                | The server restarted or went away. Wait; the console reconnects by itself. Values shown meanwhile are from the time on the **Values as of** chip.                   |
-| **Connection lost** and **It is not retried automatically** | The address or certificate hash is wrong. Fix it with **Change server**, then select **Retry now**.                                                                 |
-| **This console does not match the server**                  | The page is from another version than the server. Select **Reload**.                                                                                                |
-| **The server closed the session**                           | A bug in the console or the server. Select **Copy details**, then **Reload**, and report the copied text if it repeats.                                             |
-| **No cameras reported**                                     | The server sees no camera. Check the USB 3 cable and `journalctl -u orbbec-streamer`, then select **Refresh**.                                                      |
-| It doesn't work from another computer                       | Expected in this release: open the console on the server PC.                                                                                                        |
+| Symptom                                                     | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The page doesn't load at all                                | The web service isn't running. Run `sudo systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Connecting to the server** for more than 10 seconds       | The gateway isn't up, usually because no camera is active yet. Connect a camera and check `journalctl -u orbbec-streamer -f`. The console keeps retrying by itself.                                                                                                                                                                                                                                                                                                                                                  |
+| **Can't reach the OrbbecStreamer server**                   | The first connection failed. Most likely the server isn't started: from poc.4 on, the install doesn't start it. On the server PC, run `sudo systemctl start orbbec-streamer` (or start it from the [terminal console](/docs/operator/terminal-console)) and connect a camera. The console only shows these commands, with **Copy**; it never starts anything. It retries by itself and connects once the server is up; **Retry now** tries at once. If the server is running, check `journalctl -u orbbec-streamer`. |
+| **Connection lost** with **Retrying in … s**                | The server restarted or went away. Wait; the console reconnects by itself. Values shown meanwhile are from the time on the **Values as of** chip.                                                                                                                                                                                                                                                                                                                                                                    |
+| **Connection lost** and **It is not retried automatically** | The address or certificate hash is wrong. Fix it with **Change server**, then select **Retry now**.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **This console does not match the server**                  | The page is from another version than the server. Select **Reload**.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **The server closed the session**                           | A bug in the console or the server. Select **Copy details**, then **Reload**, and report the copied text if it repeats.                                                                                                                                                                                                                                                                                                                                                                                              |
+| **No cameras reported**                                     | The server sees no camera. Check the USB 3 cable and `journalctl -u orbbec-streamer`, then select **Refresh**.                                                                                                                                                                                                                                                                                                                                                                                                       |
+| It doesn't work from another computer                       | Expected in this release: open the console on the server PC.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+
+# Terminal console (preview) (https://irc-hslu.github.io/orbbecstreamer/docs/operator/terminal-console)
+
+
+
+`orbbec-console` is the Operator Console for a terminal. It ships with the
+release package from poc.4 on. It shows whether the server service is
+running and starts or stops it.
+
+In poc.4 the server still refuses the terminal console's connection. Live
+status (cameras, calibration, streaming), the setup lock and calibration
+from the terminal therefore **come in a later release**. Until then, use
+the browser [Operator Console](/docs/operator) for live status.
+
+## Run it [#run-it]
+
+On the server PC:
+
+```bash
+orbbec-console
+```
+
+| Key                | Action                                         |
+| ------------------ | ---------------------------------------------- |
+| `s`                | Start the server, when it isn't started        |
+| `x`                | Stop the server, after a confirmation          |
+| `l`, `L`           | Take or release the setup lock                 |
+| `c`                | Start a camera-pose calibration run            |
+| `d`                | Start a depth-quantization calibration run     |
+| `a`                | Cancel the running calibration                 |
+| `k`                | Commit the solved result, after a confirmation |
+| `Tab`, `Shift+Tab` | Move between panes                             |
+| `m`                | Minimise or reopen the focused pane            |
+| `r`                | Reopen all panes                               |
+| `?`                | Help                                           |
+| `q`                | Quit                                           |
+
+The lock and calibration keys (`l`, `L`, `c`, `d`, `a`, `k`) need a server
+that accepts the console, which comes in a later release. Each pane lists
+only the keys that work right now. Commit always asks first, for
+example `Commit the solved <kind> result? It replaces revision N.`
+
+The terminal must be at least 80 columns by 24 rows. With less height, the
+panes you aren't in collapse to their titles. Every state is also written
+out in words, so the console works without colour; it respects `NO_COLOR`.
+
+**Expected result:** while the service is stopped, the console shows
+**Server not started**, with **Start** as the only action. Press `s` to
+start it.
+
+In poc.4 the server always refuses the console. The console then shows the chip **REFUSED BY
+SERVER** with one of these headlines, and retries every 60 seconds.
+Starting and stopping still work.
+
+* **The server refused the terminal console**: most likely the server still
+  admits only browsers. Use the browser console at
+  `http://127.0.0.1:8080/operator`. If it persists after the server allows
+  terminal consoles, check `journalctl -u orbbec-streamer`.
+* **This server does not accept the terminal console yet**: same cause and
+  fix.
+
+## Start and stop without sudo [#start-and-stop-without-sudo]
+
+Starting and stopping goes through systemd. Members of the group
+`orbbec-operators` may start, stop and restart the `orbbec-streamer`
+service without an admin password. Replace `<user>` with the account name:
+
+```bash
+sudo adduser <user> orbbec-operators
+```
+
+Log out and in again for the group to apply. To take the right away again,
+run `sudo deluser <user> orbbec-operators`.
+
+The group covers only starting, stopping and restarting `orbbec-streamer`.
+Enabling or disabling it at boot, and any other service, still need an
+admin. Without the group, the console asks for an admin password, or shows
+the command to run instead: `sudo systemctl start orbbec-streamer`.
+
+## Check the state from a script [#check-the-state-from-a-script]
+
+```bash
+orbbec-console status --json
+```
+
+It prints one line of JSON with `status` (`ok`, `not-started`,
+`unreachable` or `refused`), the console version and a message, then exits:
+
+| Exit code | Meaning                        |
+| --------- | ------------------------------ |
+| `0`       | OK                             |
+| `2`       | The server isn't started       |
+| `3`       | The server can't be reached    |
+| `7`       | The server refused the console |
+
+## Calibrate from a script [#calibrate-from-a-script]
+
+This comes in a later release, once the server accepts terminal consoles.
+In poc.4 the command exits with code `7`.
+
+```bash
+orbbec-console calibrate depth --commit
+```
+
+Use `pose` instead of `depth` for camera pose. Without `--commit`, the run
+stops at a solved result without committing it. `--timeout 120s` sets how
+long to wait. `Ctrl+C` cancels the run and releases the setup lock.
+
+| Exit code | Meaning                                                    |
+| --------- | ---------------------------------------------------------- |
+| `0`       | Committed, or solved and ready to commit                   |
+| `3`       | The server can't be reached                                |
+| `4`       | The calibration failed                                     |
+| `5`       | The setup lock isn't available                             |
+| `6`       | The server refused the command; the reason code is printed |
+| `7`       | The server refused the console                             |
+| `130`     | Interrupted                                                |
+
+## Try it without hardware [#try-it-without-hardware]
+
+```bash
+orbbec-console --demo
+```
+
+This runs the console against a built-in fake server with three cameras,
+so you can see the full layout: Status, Cameras, Calibration, Streaming
+and Log. `orbbec-console --demo-calibration` plays a calibration run with
+the setup lock.
+
+## Other options [#other-options]
+
+| Option                            | Meaning                                                                                                                      |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `--version`                       | Print the version, for example `0.1.0-poc.4`                                                                                 |
+| `--server https://host:port/path` | Connect to this address instead of the one the package publishes                                                             |
+| `--cert-hash <hash>`              | Trust this SHA-256 certificate hash instead of the published ones: 64 hex characters, in either case, with or without colons |
+
+By default the console reads the server's address and certificate hashes
+from `/etc/orbbec-streamer/tls/public/transport.json` before every
+connection, so a rotated certificate needs no action.
+
+## Troubleshooting [#troubleshooting]
+
+| Symptom                                                   | Cause and fix                                                                                                                                                          |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orbbec-console: command not found`                       | It ships from poc.4 on. Check with `dpkg -l orbbec-streamer`.                                                                                                          |
+| Starting asks for admin rights or prints a `sudo` command | You aren't in `orbbec-operators`, or haven't logged in again since joining. See [Start and stop without sudo](#start-and-stop-without-sudo).                           |
+| **REFUSED BY SERVER** while the server runs               | Expected in poc.4: the server doesn't accept terminal consoles yet. Use the browser console at `http://127.0.0.1:8080/operator`. Start and stop still work.            |
+| The calibration keys don't appear                         | Expected in poc.4. From a later release, they appear only while the server accepts the console and the action is possible, for example `k` only after a run is solved. |
 
 
 # Build and test (https://irc-hslu.github.io/orbbecstreamer/docs/server/build)
@@ -3833,8 +4019,9 @@ Browser serving through the WebTransport gateway, off by default. See [Serve to 
 | `listen_address`             | `host:port`                    | `127.0.0.1:4443`                 | UDP address of the HTTP/3 listener. `0.0.0.0` accepts every interface.                                                                                                                                                                                                                                   |
 | `path`                       | string                         | `/orbbec`                        | WebTransport endpoint path. Starts with `/`.                                                                                                                                                                                                                                                             |
 | `allowed_origins`            | list of `scheme://host[:port]` | none                             | Browser origins allowed to connect. At least one when enabled, unless `allow_missing_origin`.                                                                                                                                                                                                            |
-| `allow_missing_origin`       | bool                           | `false`                          | Accept requests without an `Origin` header (native tools, never needed by browsers).                                                                                                                                                                                                                     |
+| `allow_missing_origin`       | bool                           | `false`                          | Accept requests without an `Origin` header, from loopback addresses only (`127.0.0.0/8`, `::1`). For native tools on the server PC, such as `orbbec-console`; browsers always send an `Origin`. A request without one from any other address gets HTTP 403.                                              |
 | `max_sessions`               | integer                        | `16`                             | Sessions open at once, 1 to 1024. A full server answers HTTP 503.                                                                                                                                                                                                                                        |
+| `max_sessions_per_ip`        | integer                        | unset (gateway default 4)        | Sessions open at once from one source address, 1 to `max_sessions`. Unset keeps the gateway's default of 4. Raise it when several clients share an address, such as a packaged server on loopback. Over the cap the gateway answers HTTP 503.                                                            |
 | `certificate`, `private_key` | path                           | empty                            | A CA-issued certificate and its key (mode 600). Both or neither. Empty: a self-signed development certificate.                                                                                                                                                                                           |
 | `dev_certificate_hash_path`  | path                           | `debug/live/gateway-cert.sha256` | Where the development certificate's SHA-256 (hex) is written on every renewal.                                                                                                                                                                                                                           |
 | `host_names`                 | list of names or IP addresses  | none                             | Names and addresses browsers use to reach this server, besides `localhost`, `127.0.0.1`, `::1` and the names in the certificate. A request whose `Host` (`:authority`) is not one of them, or names another port, is refused with HTTP 421 (protection against DNS rebinding). No scheme, port or path.  |
@@ -3918,7 +4105,7 @@ ORBBEC_STREAMER_STATUS_MODE=log ./build/dev-debug/orbbec_streamer --live config/
 | `depth quantization profile <path> covers ... mm but the configuration says ... mm; using the linear profile ...` or `... is unusable (...)`                                                 | Not fatal: the server runs on the linear mapping and reports the calibration as `stale`. Recalibrate (the calibrator needs `--force`), or delete the file.                                                                                                                                                              |
 | `No configured cameras are active; live mode cannot continue`                                                                                                                                | No serial matched. Check cables and `serial_number`; list devices with `./build/dev-debug/orbbec_streamer --orbbec-test`.                                                                                                                                                                                               |
 | `serving.enabled needs serving.gateway_executable` / `... needs encoding.enabled` / `... needs serving.allowed_origins`                                                                      | Set the missing key.                                                                                                                                                                                                                                                                                                    |
-| `serving.max_sessions must be 1..1024`, `serving.path must start with '/'`, `serving.listen_address must be host:port`                                                                       | Fix the value.                                                                                                                                                                                                                                                                                                          |
+| `serving.max_sessions_per_ip must be 1..serving.max_sessions`, `serving.max_sessions must be 1..1024`, `serving.path must start with '/'`, `serving.listen_address must be host:port`        | Fix the value.                                                                                                                                                                                                                                                                                                          |
 | `serving.certificate and serving.private_key go together`                                                                                                                                    | Set both, or neither for a development certificate.                                                                                                                                                                                                                                                                     |
 | `GPU-output recording requires encoding.enabled=true`                                                                                                                                        | Enable encoding or set `record_gpu_outputs: false`.                                                                                                                                                                                                                                                                     |
 | `Debug recording references unknown camera id: <id>`                                                                                                                                         | `debug_recording.camera_ids` takes camera `id`s, not serials.                                                                                                                                                                                                                                                           |
@@ -6213,7 +6400,7 @@ Browsers will connect over WebTransport, a browser API for low-latency streams o
 ### Gateway [#gateway]
 
 * **Endpoint.** `https://<listen_address>/orbbec` (`serving.path`). The client opens the control stream: the first bidirectional stream it opens. The server resets any further client stream. These are the server's current choices, listed in CR 0024 (proposed, PR #114).
-* **Admission.** At most `serving.max_sessions` sessions, and at most 4 per source IP address. Above either cap, and while shutting down, the request is answered with HTTP 503 before the session exists. A request from an origin that is not in `serving.allowed_origins` is refused with HTTP 400. See [Why a connection is refused](#why-a-connection-is-refused).
+* **Admission.** The origin is checked first: a request from an origin that is not in `serving.allowed_origins` is refused with HTTP 403 and takes no admission slot. A request without an `Origin` header is accepted only with `serving.allow_missing_origin` and from a loopback address (native tools on this PC). Then at most `serving.max_sessions` sessions, and at most `serving.max_sessions_per_ip` per source IP address (default 4). Above either cap, and while shutting down, the request is answered with HTTP 503 before the session exists. See [Why a connection is refused](#why-a-connection-is-refused).
 * **Host check.** The `:authority` of every request must name the listener's port and one of: `localhost`, `127.0.0.1`, `::1`, a name or address in the TLS certificate, or an entry of `serving.host_names`. Anything else gets HTTP 421 before a session exists, which blocks DNS-rebinding attacks. With the development certificate (SANs `localhost`, `127.0.0.1`), a browser that connects by a LAN address needs that address in `serving.host_names`.
 * **Limits.** QUIC idle timeout 4 s with a keep-alive every 1 s. HTTP/3 idle connections are closed after 5 s and headers are capped at 16 KiB. Inbound control bytes are rate-limited per session; over the rate the server stops reading, which slows only that client.
 * **Exposure.** `config/dev/live.yaml` listens on `0.0.0.0:4443`, so any host that can reach this machine can open a session, limited only by the origin check and the caps. A non-browser client can send any `Origin` header. Use a firewall, or listen on `127.0.0.1`, when the machine is on an untrusted network.
@@ -6272,13 +6459,14 @@ Tests: `gateway_ipc_contract_tests`, `gateway_ipc_fuzz_tests`, `gateway_transpor
 
 ## Why a connection is refused [#why-a-connection-is-refused]
 
-| What the client sees                                             | Cause                                                                                                                                                            |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| QUIC connection closed with code `0x10b` (`H3_REQUEST_REJECTED`) | More QUIC connections at once than the gateway allows (twice `serving.max_sessions` plus 16, sessions and handshakes together)                                   |
-| HTTP 421                                                         | The request's `Host` (`:authority`) is not `localhost`, `127.0.0.1`, `::1`, a name in the certificate or an entry of `serving.host_names`, or names another port |
-| HTTP 503                                                         | `serving.max_sessions` or the per-address cap (4) is reached, or the gateway is stopping                                                                         |
-| HTTP 400                                                         | The `Origin` is not in `serving.allowed_origins`, or the WebTransport upgrade failed for another reason                                                          |
-| No answer; the QUIC handshake times out                          | No gateway is listening: `serving.enabled` is `false`, the core is not up, or a firewall blocks the UDP port                                                     |
+| What the client sees                                             | Cause                                                                                                                                                                           |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| QUIC connection closed with code `0x10b` (`H3_REQUEST_REJECTED`) | More QUIC connections at once than the gateway allows (twice `serving.max_sessions` plus 16, sessions and handshakes together)                                                  |
+| HTTP 421                                                         | The request's `Host` (`:authority`) is not `localhost`, `127.0.0.1`, `::1`, a name in the certificate or an entry of `serving.host_names`, or names another port                |
+| HTTP 403                                                         | The `Origin` is not in `serving.allowed_origins`, or there is no `Origin` header and the request does not come from a loopback address or `serving.allow_missing_origin` is off |
+| HTTP 503                                                         | `serving.max_sessions` or the per-address cap (`serving.max_sessions_per_ip`, default 4) is reached, or the gateway is stopping                                                 |
+| HTTP 400                                                         | The WebTransport upgrade failed for another reason                                                                                                                              |
+| No answer; the QUIC handshake times out                          | No gateway is listening: `serving.enabled` is `false`, the core is not up, or a firewall blocks the UDP port                                                                    |
 
 Browsers do not expose the status to JavaScript. `WebTransport.ready` rejects with a generic "Opening handshake failed" error whatever the cause. The gateway logs upgrade failures, at most once every 10 seconds, so look in the server log.
 
@@ -6397,16 +6585,17 @@ This is the accepted design (ADR 0002 §13–§15).
 
 ## Troubleshooting [#troubleshooting]
 
-| Symptom                                                          | Cause and fix                                                                                                                                                |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| The page never connects; no `client.hello` in the spike's log    | The browser didn't use QUIC to `127.0.0.1:4433`. Use Chrome or Chromium on the same machine, and check with `ss -ulpn` that nothing else uses UDP port 4433. |
-| Browser error about the certificate or `serverCertificateHashes` | The certificate is not ECDSA P-256 or is valid for 14 days or more. Recreate it with the command above; restart the spike to get a new one.                  |
-| The hash is rejected although the certificate is fine            | The hash was computed over the PEM file. Hash the DER bytes.                                                                                                 |
-| `go: command not found`                                          | Install Go 1.27.1 or newer and add its `bin` folder to `PATH`.                                                                                               |
-| Safari does not connect with a hash                              | Expected: Safari needs a CA-issued certificate.                                                                                                              |
-| `serving.enabled needs ...` at start-up                          | See the [`serving` keys](./configuration#serving).                                                                                                           |
-| `serving: the WebTransport gateway could not be started`         | `serving.gateway_executable` is wrong (a relative path is resolved against the config file) or not built. The server keeps capturing and retries.            |
-| The browser gets HTTP 503                                        | The server is full (`max_sessions`, or 4 sessions from your address), or shutting down.                                                                      |
+| Symptom                                                          | Cause and fix                                                                                                                                                                                                       |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The page never connects; no `client.hello` in the spike's log    | The browser didn't use QUIC to `127.0.0.1:4433`. Use Chrome or Chromium on the same machine, and check with `ss -ulpn` that nothing else uses UDP port 4433.                                                        |
+| Browser error about the certificate or `serverCertificateHashes` | The certificate is not ECDSA P-256 or is valid for 14 days or more. Recreate it with the command above; restart the spike to get a new one.                                                                         |
+| The hash is rejected although the certificate is fine            | The hash was computed over the PEM file. Hash the DER bytes.                                                                                                                                                        |
+| `go: command not found`                                          | Install Go 1.27.1 or newer and add its `bin` folder to `PATH`.                                                                                                                                                      |
+| Safari does not connect with a hash                              | Expected: Safari needs a CA-issued certificate.                                                                                                                                                                     |
+| `serving.enabled needs ...` at start-up                          | See the [`serving` keys](./configuration#serving).                                                                                                                                                                  |
+| `serving: the WebTransport gateway could not be started`         | `serving.gateway_executable` is wrong (a relative path is resolved against the config file) or not built. The server keeps capturing and retries.                                                                   |
+| The browser gets HTTP 403                                        | The page's origin is not in `serving.allowed_origins`. Add it exactly as `scheme://host[:port]`.                                                                                                                    |
+| The browser gets HTTP 503                                        | The server is full (`max_sessions`, or `max_sessions_per_ip` sessions from your address, default 4), or shutting down. Raise `max_sessions_per_ip` when several tabs and tools share one address, such as loopback. |
 
 
 # Stream layout (https://irc-hslu.github.io/orbbecstreamer/docs/server/stream-layout)

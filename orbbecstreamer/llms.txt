@@ -4,7 +4,7 @@
 - Getting started
   - [Install the release package](https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-package): Install OrbbecStreamer from the Debian package on Ubuntu 26.04, check the machine, and open the client on the server PC.
   - [Build the server from source](https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server): The shortest path to a server built from source, linking out to the full server documentation for every detail.
-  - [First stream](https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/first-stream): Capture your own camera through the full server pipeline today; stream it to a browser once serving lands.
+  - [First stream](https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/first-stream): Run the server on your own cameras, connect a browser to it, and watch capture and encoding work.
 - Guides
   - [Calibration](https://irc-hslu.github.io/orbbecstreamer/docs/guides/calibration): What each calibration kind does, and where you can run it today against a real server.
   - [Placement](https://irc-hslu.github.io/orbbecstreamer/docs/guides/placement): Move a server's point cloud into position and commit it, and what the server does with the commit.
@@ -54,4 +54,5 @@
     - [Tile views](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/tile-views): Show one camera's decoded colour or depth image in a 2D canvas, from the frames the 3D view already has.
 - Operator Console
   - [Operator Console](https://irc-hslu.github.io/orbbecstreamer/docs/operator): Open the read-only Operator Console on the server PC and read a server's status at a glance.
+  - [Terminal console (preview)](https://irc-hslu.github.io/orbbecstreamer/docs/operator/terminal-console): Check whether the server is running and start or stop it from a terminal on the server PC with orbbec-console.
 - [Troubleshooting & FAQ](https://irc-hslu.github.io/orbbecstreamer/docs/troubleshooting-faq): Cross-team questions and where to find every build and run failure.

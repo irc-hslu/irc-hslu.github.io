@@ -119,13 +119,13 @@ Results go to `client/scripts/qa/.out/`, which git ignores. The perf media and t
 These are the recorded results so far. Other browsers, and Windows and macOS, haven’t been tested yet.
 
 * **Headless Chromium 153 on Linux, 2026-09-23**:
-  * WebCodecs works; H.264, VP9 and AV1 decode in software.
+  * WebCodecs works; H.264 and VP9 decode in software.
   * No hardware video decoding is available.
   * HEVC is reported unsupported for colour and depth in every hardware-acceleration mode, even with the VA-API flags.
   * The client connects and stays control-only. That’s why the wiring and latency checks use a synthetic decoder. The decode check uses real WebCodecs, so it reports the missing support.
 * **Desktop Google Chrome 155 on Ubuntu 26.04, NVIDIA RTX 4090, 2026-10-08**, on a secure page:
   * `VideoDecoder.isConfigSupported` at 1920×1088 reports HEVC unsupported for `hev1.1.6.L120.B0` (Main, colour), `hev1.2.4.L120.B0` (Main10, depth) and `hvc1.1.6.L120.B0`, with `hardwareAcceleration` set to `no-preference`, `prefer-hardware` and `prefer-software`.
-  * H.264 (`avc1.640028`), AV1 10-bit (`av01.0.08M.10`) and VP9 profile 2 (`vp09.02.40.10`) are supported.
+  * H.264 (`avc1.640028`) and VP9 profile 2 (`vp09.02.40.10`) are supported.
   * WebGPU has an adapter (NVIDIA, Lovelace) and WebGL2 is available.
   * Likely cause, not confirmed: Chrome on Linux decodes HEVC only through VA-API, and this PC has no VA-API driver for NVIDIA. The community nvidia-vaapi-driver isn’t installed, and the team hasn’t tried it.
   * Headless Google Chrome 155 gives the same HEVC answer.

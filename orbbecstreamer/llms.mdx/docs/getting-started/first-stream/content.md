@@ -3,14 +3,49 @@
 
 
 <Callout type="warn">
-  Browsers cannot get a live stream from a real server yet: WebTransport
-  serving is not implemented (see [Serve to browsers](/docs/server/serving)).
-  A working first stream today runs entirely on the server, verified by its
-  own telemetry and debug recordings.
+  A browser can connect to a real server today and gets its status and
+  setup, but no video yet: the server sends colour and depth to browsers
+  only once protocol change 0009 is decided (see
+  [Serve to browsers](/docs/server/serving#status)). To see your own capture
+  today, use the server's telemetry and debug recordings (below).
 </Callout>
 
-This needs a [built server](/docs/getting-started/install-server) and at
-least one attached Orbbec camera.
+## Connect a browser to the release package [#connect-a-browser-to-the-release-package]
+
+With the [release package](/docs/getting-started/install-package) installed
+and at least one Orbbec camera connected:
+
+1. Make sure the server is running. From poc.4 on, the install doesn't start
+   it:
+
+   ```bash
+   sudo systemctl start orbbec-streamer
+   ```
+
+   The gateway starts only once a camera is active.
+
+2. In Chrome or Edge **on the server PC**, open
+   [http://127.0.0.1:8080](http://127.0.0.1:8080) (or
+   `http://localhost:8080`). The gateway accepts only these two page
+   addresses.
+
+3. The client finds the server by itself and adds it; you type nothing. A
+   server card appears under **Servers**.
+
+**Expected result:** the card connects and shows the server's state and
+calibration chips. It shows no point cloud yet. If the card shows **Server
+or camera not running**, start the server as in step 1 and connect a
+camera; the card then connects by itself. For other problems, and for
+typing the address and certificate hash by hand, see
+[Add a server](/docs/client/add-a-server).
+
+The read-only [Operator Console](/docs/operator) at
+`http://127.0.0.1:8080/operator` connects the same way.
+
+## Run a source build on your own cameras [#run-a-source-build-on-your-own-cameras]
+
+This needs a [server built from source](/docs/getting-started/install-server)
+and at least one attached Orbbec camera.
 
 <Steps>
   <Step>
