@@ -133,7 +133,7 @@ A new card appears under **Servers**, titled with the manifest’s `serverName`:
 
 <img alt="The card for the test recording: Recorded rig, Streaming, the recording address, a Setup and control only chip because the capture browser couldn’t decode HEVC, Pairs 0, and Set up unavailable" src="__img1" />
 
-The point cloud appears in the 3D view when your browser can decode HEVC. Nobody has confirmed this in any browser yet; see [Check your browser](/docs/client/browser-requirements).
+The point cloud appears in the 3D view. A browser that can't decode HEVC exactly uses the client's built-in decoder (Chrome on Linux without a VA-API driver does); the first frames then take a moment while the decoder downloads. See [Check your browser](/docs/client/browser-requirements).
 
 With `"loop": true`, the recording plays forever. With `"loop": false`, frames stop after the last one and the card stays connected. A recording never reconnects by itself. To play it again, select **Remove** on its card, then open it again.
 
@@ -181,7 +181,7 @@ The `file` values are names for the files, not paths. The colour file you choose
 
 ### Nothing decodes and Pairs stays at 0 [#nothing-decodes-and-pairs-stays-at-0]
 
-Your browser can’t decode HEVC. The card shows a **Setup and control only** chip, or the header’s decoder chip is amber instead of **WebCodecs**. Use a browser that can decode HEVC Main and Main10, usually through GPU video decoding. See [Check your browser](/docs/client/browser-requirements).
+Your browser can’t decode HEVC exactly and the built-in decoder didn’t load, or the browser has no WebCodecs. The card shows a **Setup and control only** chip, or the header’s decoder chip is amber instead of **WebCodecs**. Read the `[decode path]` warning in the browser console; it names the reason. See [Check your browser](/docs/client/browser-requirements#fix-browser-problems).
 
 ### Messages under the Open recording form [#messages-under-the-open-recording-form]
 

@@ -8,7 +8,7 @@
 
 The server sends depth as a video in which each pixel is one of 1024 codes, and the client turns each code back into a distance. A depth-quantization calibration measures the depths your cameras see and produces a new code-to-distance mapping, called a **result**. The result comes into force only when you commit it, and then every client uses it.
 
-Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today.
+Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today. Against a real server you can start, follow and cancel a depth-quantization run, but not commit it yet: the client and server still follow two different proposals for when a calibration result is sent (change requests 0012 and 0023), and the fix waits on that decision. Against the mock server, committing works.
 
 ## Depth quantization [#depth-quantization]
 

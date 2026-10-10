@@ -23,10 +23,10 @@ logged and left out; the server runs with the ones it found (see
 called `orbbec:<serial>`; logs, recordings and clients use your config `id`
 instead.
 
-| `sync.enabled` | Roles used                                                                                                              |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `true`         | The camera with `role: primary` drives the trigger; every other camera is a secondary. Exactly one primary is required. |
-| `false`        | Every camera runs free (standalone). `role` has no effect, but at most one camera may be `primary`.                     |
+| `sync.enabled` | Roles used                                                                                                                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `true`         | The camera with `role: primary` drives the trigger; every other camera is a secondary. Exactly one primary is required.                                                              |
+| `false`        | One camera only, running free (standalone); `role` has no effect. More than one camera is refused at start-up, because free-running cameras drift apart and no frame set would form. |
 
 The start-up order matters for hardware sync: the server writes the sync
 settings to every camera first, starts the secondaries, and starts the

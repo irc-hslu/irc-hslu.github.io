@@ -29,7 +29,7 @@ As shipped, `config/dev/live.yaml` describes the development rig: two cameras by
    ./build/dev-debug/orbbec_streamer --orbbec-test
    ```
 
-3. In `cameras`, add one entry per camera with its `serial_number`. With hardware sync give exactly one camera `role: primary`; without a sync cable or with one camera set `sync.enabled: false`.
+3. In `cameras`, add one entry per camera with its `serial_number`. With more than one camera, hardware sync is required: connect the sync cables, set `sync.enabled: true` and give exactly one camera `role: primary`. With a single camera set `sync.enabled: false`.
 
 4. Choose the mask: keep `mask.backend: rvm` and point `mask.rvm_onnx_path` at the exported ONNX files ([Install](./install#rvm-segmentation-engine-optional)); the server builds the engine for your camera count on the first start, 3 to 4 minutes, while masks pass through ([details](./configuration#the-rvm-engine-cache)). Or set `mask.backend: fill_all`.
 

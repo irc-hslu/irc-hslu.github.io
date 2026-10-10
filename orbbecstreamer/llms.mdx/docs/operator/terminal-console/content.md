@@ -32,7 +32,7 @@ orbbec-console
 | `m`                | Minimise or reopen the focused pane            |
 | `r`                | Reopen all panes                               |
 | `?`                | Help                                           |
-| `q`                | Quit                                           |
+| `q`, `Ctrl+C`      | Quit                                           |
 
 The lock and calibration keys (`l`, `L`, `c`, `d`, `a`, `k`) need a server
 that accepts the console, which comes in a later release. Each pane lists
@@ -43,20 +43,18 @@ The terminal must be at least 80 columns by 24 rows. With less height, the
 panes you aren't in collapse to their titles. Every state is also written
 out in words, so the console works without colour; it respects `NO_COLOR`.
 
-**Expected result:** while the service is stopped, the console shows
-**Server not started**, with **Start** as the only action. Press `s` to
-start it.
+**Expected result:** while the service is stopped, the console shows the
+chip **SERVER NOT STARTED** and the line `Server not started  The
+orbbec-streamer service is not running.`, then `Press s to start it`. It
+connects by itself as soon as the server is up.
 
-In poc.4 the server always refuses the console. The console then shows the chip **REFUSED BY
-SERVER** with one of these headlines, and retries every 60 seconds.
-Starting and stopping still work.
-
-* **The server refused the terminal console**: most likely the server still
-  admits only browsers. Use the browser console at
-  `http://127.0.0.1:8080/operator`. If it persists after the server allows
-  terminal consoles, check `journalctl -u orbbec-streamer`.
-* **This server does not accept the terminal console yet**: same cause and
-  fix.
+In poc.4 the server always refuses the console: its gateway answers the
+connection with HTTP 400. The console then shows the chip **REFUSED BY
+SERVER** and the headline **The server refused the terminal console**, and
+retries every 60 seconds. Starting and stopping still work. Use the browser
+console at `http://127.0.0.1:8080/operator` for live status. The refusal
+ends with a later server release that adds the setting
+`serving.allow_missing_origin`.
 
 ## Start and stop without sudo [#start-and-stop-without-sudo]
 
@@ -130,7 +128,7 @@ the setup lock.
 
 | Option                            | Meaning                                                                                                                      |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `--version`                       | Print the version, for example `0.1.0-poc.4`                                                                                 |
+| `--version`                       | Print the version, for example `orbbec-console 0.1.0-poc.4`                                                                  |
 | `--server https://host:port/path` | Connect to this address instead of the one the package publishes                                                             |
 | `--cert-hash <hash>`              | Trust this SHA-256 certificate hash instead of the published ones: 64 hex characters, in either case, with or without colons |
 
@@ -140,9 +138,9 @@ connection, so a rotated certificate needs no action.
 
 ## Troubleshooting [#troubleshooting]
 
-| Symptom                                                   | Cause and fix                                                                                                                                                          |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `orbbec-console: command not found`                       | It ships from poc.4 on. Check with `dpkg -l orbbec-streamer`.                                                                                                          |
-| Starting asks for admin rights or prints a `sudo` command | You aren't in `orbbec-operators`, or haven't logged in again since joining. See [Start and stop without sudo](#start-and-stop-without-sudo).                           |
-| **REFUSED BY SERVER** while the server runs               | Expected in poc.4: the server doesn't accept terminal consoles yet. Use the browser console at `http://127.0.0.1:8080/operator`. Start and stop still work.            |
-| The calibration keys don't appear                         | Expected in poc.4. From a later release, they appear only while the server accepts the console and the action is possible, for example `k` only after a run is solved. |
+| Symptom                                                                                     | Cause and fix                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orbbec-console: command not found`                                                         | It ships from poc.4 on. Check with `dpkg -l orbbec-streamer`.                                                                                                                                                                                  |
+| Starting asks for admin rights or prints a `sudo` command                                   | You aren't in `orbbec-operators`, or haven't logged in again since joining. See [Start and stop without sudo](#start-and-stop-without-sudo).                                                                                                   |
+| **REFUSED BY SERVER** and **The server refused the terminal console** while the server runs | Expected in poc.4: the gateway answers with HTTP 400 because it admits only browsers until a later server release adds `serving.allow_missing_origin`. Use the browser console at `http://127.0.0.1:8080/operator`. Start and stop still work. |
+| The calibration keys don't appear                                                           | Expected in poc.4. From a later release, they appear only while the server accepts the console and the action is possible, for example `k` only after a run is solved.                                                                         |

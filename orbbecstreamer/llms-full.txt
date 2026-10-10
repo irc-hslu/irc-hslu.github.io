@@ -106,13 +106,13 @@ These messages appear under the URL field:
 
 The client needs three browser features to show point clouds. Without one of them, the client still connects to servers, shows their status and sets them up, but draws no point clouds.
 
-| Feature                                                                  | What the client uses it for                                          | Without it                                                                                    |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| WebTransport                                                             | Connecting to a live server                                          | Adding a server fails to connect. Recordings still play.                                      |
-| WebCodecs video decoding with HEVC Main (8-bit) and HEVC Main10 (10-bit) | Decoding the colour and depth video                                  | No point clouds. Setup and control still work.                                                |
-| WebGPU, or WebGL2 as a fallback                                          | Drawing the point clouds. Blending overlapping cameras needs WebGPU. | Without either: no point clouds; setup and control still work. With WebGL2 only: no blending. |
+| Feature                                                                                           | What the client uses it for                                          | Without it                                                                                    |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| WebTransport                                                                                      | Connecting to a live server                                          | Adding a server fails to connect. Recordings still play.                                      |
+| WebCodecs video decoding with HEVC Main (8-bit) and HEVC Main10 (10-bit), or the built-in decoder | Decoding the colour and depth video                                  | No point clouds. Setup and control still work.                                                |
+| WebGPU, or WebGL2 as a fallback                                                                   | Drawing the point clouds. Blending overlapping cameras needs WebGPU. | Without either: no point clouds; setup and control still work. With WebGL2 only: no blending. |
 
-HEVC is the video format the servers send. The browser only turns these features on for secure pages: pages served over `https://`, or from `http://localhost`. The development server at `http://localhost:5173` counts as secure.
+HEVC is the video format the servers send. At startup the client also checks that your browser decodes it exactly, by decoding two tiny built-in streams and comparing the pixels with a known-good result. A channel that passes is decoded by the browser. A channel that fails is decoded by the client's own WebAssembly HEVC decoder, which runs in one background worker per stream; the client downloads it (about 1.1 MB, 0.37 MB compressed) only when a channel needs it. If that decoder can't load, the channel isn't decoded: the server's card says **Setup and control only** and names the missing HEVC decoding, and its point cloud isn't shown. The browser only turns these features on for secure pages: pages served over `https://`, or from `http://localhost`. The development server at `http://localhost:5173` counts as secure.
 
 ## Check what your browser supports [#check-what-your-browser-supports]
 
@@ -133,19 +133,20 @@ With WebGL2, the **View** section reads `Blending needs WebGPU; with WebGL2 the 
 
 ## Browsers tested so far [#browsers-tested-so-far]
 
-Nobody has confirmed HEVC decoding in any browser yet. Two browsers have been tested, and both report no HEVC decoding:
+Two browsers have been tested. Both report no HEVC decoding of their own, so both use the built-in decoder:
 
 * Headless Chromium 153 on Linux.
 * Desktop Google Chrome 155 on Ubuntu 26.04 with an NVIDIA RTX 4090 (2026-10-08). WebGPU and WebGL2 work, and H.264 and VP9 decode, but HEVC colour and Main10 depth do not. Chrome on Linux decodes HEVC through VA-API, and by default there is no VA-API driver for NVIDIA.
 
-With Chrome's default settings on a Linux PC with an NVIDIA GPU, Chrome shows the cards and the setup workspace but no point cloud (**Setup and control only**). The client is planned to download its own WebAssembly HEVC decoder on browsers that cannot return exact HEVC frames, such as Chrome on Linux. That decoder is not built yet. Hardware decoding is expected on Windows and macOS, but the team has not tested it, nor whether the depth frames can be read. With the nvidia-vaapi-driver package and Chrome started with `--enable-features=VaapiOnNvidiaGPUs`, Chrome 155 decodes HEVC in hardware, but the depth frames can't be read (the decoded 10-bit frames are opaque to the page), so the point cloud still doesn't appear. Tested 2026-10-08 on Ubuntu 26.04, RTX 4090, driver 580. Ubuntu's Chromium snap can't use the driver at all. The next test is Chrome or Edge on Windows, or Safari on macOS. The detailed results are on [Test the client](/docs/client/developer/test-the-client#browsers-tested-so-far).
+With Chrome's default settings on a Linux PC with an NVIDIA GPU, Chrome now shows the point cloud: the client decodes both channels with the built-in decoder. Measured on 2026-10-10 (Google Chrome 155, headless, on a shared PC, an `http://localhost` page, a real 640×576 colour and depth capture played from a recording at 15 frames per second): the built-in decoder is bit-exact against FFmpeg's decode for colour and depth (every 10th frame compared: 45 of each, on that capture and on a 1920×576 NVENC pair), the channels read `wasm / probe-inexact`, and every camera played at 15 frames per second with no dropped frame sets. The cost is CPU, and it depends on the video bitrate and on the CPU frequency setting. With 4 cameras at 15 frames per second (concatenated layout, Chrome 155, a PC with a load average of 14 to 25): clips at the lowest bitrate (about 0.7 Mbit/s colour and almost nothing for depth, per camera) used 0.13 cores in the decoder workers and 0.17 cores for the whole browser when the CPU governor was on `performance`, and 0.37 and 0.45 cores on `powersave`; mid-rate clips (4 and 1 Mbit/s) about 0.30 cores hot and 0.34 to 0.39 cold; the highest-rate real recordings (about 6 and 2 Mbit/s) about 0.36 cores hot and 0.41 to 0.45 cold, with no late and no dropped frame sets (colour p95 22 ms, depth p95 12 ms per frame). The per-camera layout costs 20 to 30 percent more decoder CPU. With the `powersave` governor a 15 fps stream arrives in bursts that run 2 to 4 times slower. A very high-rate clip (about 33 Mbit/s, 1920×576) costs far more: about 1.1 cores for one pair. A computer with fewer cores, or many cameras, may not keep up; the client then drops frames and shows the drops (`decoderOutputDropped` in `droppedFrameSets`). Hardware decoding is expected on Windows and macOS, but the team has not tested it, nor whether the depth frames can be read. With the nvidia-vaapi-driver package and Chrome started with `--enable-features=VaapiOnNvidiaGPUs`, Chrome 155 decodes HEVC in hardware, but the depth frames can't be read (the decoded 10-bit frames are opaque to the page), so the point cloud still doesn't appear. Tested 2026-10-08 on Ubuntu 26.04, RTX 4090, driver 580. Ubuntu's Chromium snap can't use the driver at all. The next test is Chrome or Edge on Windows, or Safari on macOS. The detailed results are on [Test the client](/docs/client/developer/test-the-client#browsers-tested-so-far).
 
 ## Fix browser problems [#fix-browser-problems]
 
 These are the common browser problems and their fixes:
 
 * **No 3D view on a desktop browser**: hardware acceleration may be off. Turn on **Use graphics acceleration when available** in the browser settings. In Chrome or Edge, open `chrome://gpu` to check the WebGL2 and WebGPU status.
-* **Every server card says the browser lacks HEVC decoding**: this browser cannot decode HEVC frames on this machine. You can still use the client to set up servers. A built-in WebAssembly HEVC decoder for such browsers is planned but not built yet.
+* **Every server card says the browser lacks HEVC decoding**: this browser can't decode HEVC exactly, and the built-in decoder didn't load. Open the browser's console: a `[decode path]` warning reads `Depth/colour cannot be decoded in this browser: the built-in decoder failed to load (<reason>)`. The reason is `HTTP 404` when the decoder file is missing from the server, `…failed its integrity check…` when the file was changed, or `blocked by the page's content security policy` when the page's policy lacks `'wasm-unsafe-eval'` in `script-src`. Fix the cause and reload the page; the client doesn't try again until then. You can still use the client to set up servers.
+* **Your server sets a content security policy**: the built-in decoder needs `script-src 'self' 'wasm-unsafe-eval'` and `worker-src 'self'`. It needs no other change, no cross-origin isolation headers and no `SharedArrayBuffer`.
 * **Nothing works when you open the client from another computer**: plain `http://` pages are only secure on `localhost`. Open the client on the machine that runs it.
 
 
@@ -159,7 +160,7 @@ These are the common browser problems and their fixes:
 
 The server sends depth as a video in which each pixel is one of 1024 codes, and the client turns each code back into a distance. A depth-quantization calibration measures the depths your cameras see and produces a new code-to-distance mapping, called a **result**. The result comes into force only when you commit it, and then every client uses it.
 
-Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today.
+Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today. Against a real server you can start, follow and cancel a depth-quantization run, but not commit it yet: the client and server still follow two different proposals for when a calibration result is sent (change requests 0012 and 0023), and the fix waits on that decision. Against the mock server, committing works.
 
 ## Depth quantization [#depth-quantization]
 
@@ -953,12 +954,13 @@ const stats = model.pipeline(id)?.bundleStats(bundleId);   // BundleStats | null
 const all = model.pipeline(id)?.allBundleStats();          // ReadonlyMap<BundleId, BundleStats>
 ```
 
-| Field                | Meaning                                                                                                                                                                                                                                                                                                                                                        |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fps`                | Completed frame sets per second over the last 2 s. Until a bundle has been streaming for 2 s, it counts intervals over the time observed, so a new bundle isn't under-reported.                                                                                                                                                                                |
-| `decodeLatencyMs`    | `{ p50, p95 }` from decoder submit to decoder output over the last 5 s. For a frame set it is the slower of the colour and depth frames. `null` when the latency probe is off, or when no sample is in the window.                                                                                                                                             |
-| `droppedFrameSets`   | Count of lost frame sets by reason. The synchroniser's `missingColor`, `missingDepth`, `revisionMismatch`, `timestampMismatch` and `discarded`, and the render feed's `no-target`, `revision-mismatch`, `geometry-mismatch`, `colour-unmappable`, `depth-unreadable`, `target-changed`, `upload-failed`, `superseded` and `disposed`. Every reason is present. |
-| `lastFrameSetNumber` | The last completed frame set as a `bigint`, or `null` before the first one.                                                                                                                                                                                                                                                                                    |
+| Field                | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fps`                | Completed frame sets per second over the last 2 s. Until a bundle has been streaming for 2 s, it counts intervals over the time observed, so a new bundle isn't under-reported.                                                                                                                                                                                                                                                                                   |
+| `decodeLatencyMs`    | `{ p50, p95 }` from decoder submit to decoder output over the last 5 s. For a frame set it is the slower of the colour and depth frames. `null` when the latency probe is off, or when no sample is in the window.                                                                                                                                                                                                                                                |
+| `droppedFrameSets`   | Count of lost frame sets by reason. The synchroniser's `missingColor`, `missingDepth`, `revisionMismatch`, `timestampMismatch` and `discarded`, and the render feed's `no-target`, `revision-mismatch`, `geometry-mismatch`, `colour-unmappable`, `depth-unreadable`, `target-changed`, `upload-failed`, `superseded` and `disposed`, and `decoderOutputDropped`: a frame the built-in decoder lost because it had no free frame buffer. Every reason is present. |
+| `lastFrameSetNumber` | The last completed frame set as a `bigint`, or `null` before the first one.                                                                                                                                                                                                                                                                                                                                                                                       |
+| `decodePath`         | How the colour and the depth channel are decoded, and why: `{ colour, depth }`, each a `DecodePathInfo`. See [Read how a channel is decoded](#read-how-a-channel-is-decoded).                                                                                                                                                                                                                                                                                     |
 
 * Before the first frame set of a session, `bundleStats` already returns an object for a bundle the connection has: `fps` is 0 and `lastFrameSetNumber` is `null`. Show "Waiting for frames" while `lastFrameSetNumber` is `null`.
 * Everything counts from the start of the current session. A reconnect, or a bundle removed from the snapshot, starts that bundle over, and `bundleStats` returns `null` for a bundle the connection doesn't have. A control-only runtime returns `null` for every bundle. For a removed entry, `model.pipeline(id)` is already `null`, so `model.pipeline(id)?.bundleStats(bundleId)` gives `undefined`.
@@ -966,6 +968,63 @@ const all = model.pipeline(id)?.allBundleStats();          // ReadonlyMap<Bundle
 * `decodeLatencyMs` needs the latency probe, which is off by default. Turn it on for a runtime with `startAppRuntime(container, { latencyProbe: true })`. Per frame set it costs about a dozen `performance.now()` calls (arrival, receive, submit and output of each channel, pairing, depth read, upload) and writes into preallocated rings, with no allocation. `pipeline.latencyReport()` then returns the [per-stage percentiles](/docs/client/developer/latency). With the option off, no clock is read for the probe and `decodeLatencyMs` stays `null`.
 * `dispose()` on a `media: 'full'` runtime also releases the GPU: the WebGPU device is destroyed and the WebGL2 context is lost, so a page can mount and dispose runtimes repeatedly without hitting the browser's context limit.
 * `EntryPipeline` does not give out the decoding sink or the render feed. `bundleStats` is the way to see a bundle's counters.
+
+## Read how a channel is decoded [#read-how-a-channel-is-decoded]
+
+Use this to show whether a camera's colour and depth are decoded by the browser, and why not when they aren't. The client decodes a channel with WebCodecs only if the browser returns exact frames. At startup it decodes two tiny built-in HEVC streams (one per channel) and compares the result with a known-good decode. The check is bounded (about 6 seconds at most) and runs beside the connections. A server's `client.hello` waits for it, so a bundle normally appears with its decision already made; a stream that opens earlier holds its records until the check finishes.
+
+`BundleStats.decodePath` is present from the moment the bundle exists, before the first frame (`lastFrameSetNumber` is still `null`). Each channel is one of these, and `probe` is always present as a key:
+
+| `path`      | `reason`           | Meaning                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pending`   | `probing`          | The check hasn't finished. Show "Checking decoder…".                                                                                                                                                                                                                                                                                                 |
+| `webcodecs` | `probe-exact`      | The browser returned exact frames. WebCodecs decodes this channel.                                                                                                                                                                                                                                                                                   |
+| `wasm`      | `probe-inexact`    | The browser's frames aren't exact, or it can't decode HEVC. The client's own WebAssembly decoder serves this channel.                                                                                                                                                                                                                                |
+| `wasm`      | `runtime-demoted`  | The same, after a run-time signal that a re-check confirmed (see below).                                                                                                                                                                                                                                                                             |
+| `none`      | `wasm-load-failed` | The browser's frames aren't exact and the client's own decoder could not be loaded. `detail` holds the reason, for example `HTTP 404 for the decoder file` or `blocked by the page's content security policy (script-src needs 'wasm-unsafe-eval')`. The channel isn't decoded, so the bundle isn't shown. Final for the page: a reload tries again. |
+| `none`      | `unsupported`      | The browser's frames aren't exact and there is no other decoder: the browser has no workers, WebAssembly or `VideoFrame`, or the client decodes nothing. This channel isn't decoded, so the bundle isn't shown.                                                                                                                                      |
+
+`probe` is `null` while the check runs, and when no check applies (the client decodes nothing, or the embedding code supplied no check: then both channels read `webcodecs` / `probe-exact` with `probe: null`). Otherwise it holds what was measured:
+
+| Field                  | Meaning                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `codec`                | The codec string of the check.                                                                                                    |
+| `hardwareAcceleration` | The preference of the configuration that ran: `prefer-software` (tried first for depth) or `no-preference`.                       |
+| `format`               | The pixel format of the decoded frames (`I420`, `NV12`, `I420P10`, …), or `null` for an opaque frame or when nothing was decoded. |
+| `exact`                | `true` if the frames matched.                                                                                                     |
+| `source`               | `run`: measured in this page load. `cache`: read from the stored result.                                                          |
+| `at`                   | When the check ran, in epoch milliseconds (`Date.now()`).                                                                         |
+
+A channel the check finds inexact is decoded by the client's own decoder (FFmpeg's HEVC decoder compiled to WebAssembly, `client/wasm/hevc`). It runs in one module worker per stream, with no `SharedArrayBuffer`. It returns ordinary `VideoFrame`s (`I420` for colour, `I420P10` with LSB-aligned 10-bit samples for depth), so pairing, the depth read and the GPU upload are the same as for WebCodecs. The client loads it lazily: the file is fetched with a SHA-384 integrity hash and compiled the first time a channel (or a server's hello) needs it, once per page. Colour and depth decide separately, so one camera can mix a WebCodecs channel with a WASM one.
+
+A channel is exact when its decoded frames hash-match the reference. Colour: `I420` or `NV12` planes. Depth: a 10-bit format with LSB-aligned samples (for example `I420P10`) and matching planes. An opaque frame (`format` `null`), another format, a decoder error, a timeout (5 s) or any difference means not exact. `isConfigSupported` alone is never taken as proof.
+
+The two channels decide separately. A bundle needs both, so one inexact channel still withholds it.
+
+```ts
+const stats = model.pipeline(id)?.bundleStats(bundleId);
+const depth = stats?.decodePath.depth;       // DecodePathInfo
+if (depth?.path === 'pending') showChip('Checking decoder…');
+else if (depth?.path === 'none') showChip(`Depth not decoded (${depth.reason})`);
+```
+
+* `decodePath` reports what each channel's decoder actually does. A bundle whose stream is running reports the path that stream's decoder was created on (`webcodecs` or `wasm`); a decoder that is unsupported or has failed reports `none` / `unsupported`; a bundle with no stream yet reports the shared decision. After the shared decision changes, decoders already running keep reporting `webcodecs` (with the newer `probe`, whose `exact` may then be `false`) until they are replaced. The object is the same between reads and changes only when something it reports changes, so you can compare it by reference.
+* The hello follows the decision (§16): a channel that is not decoded isn't advertised, so the server's card shows `Setup and control only: this browser lacks HEVC Main10 depth decoding.` (or colour) and no media is requested.
+* The result is stored in `localStorage` for 30 days, per browser (full user agent), GPU, check version, check rules and client build. Without storage (a private window, blocked site data) it works the same and the check runs on every page load. A check that failed with a decoder error or a timeout is not stored.
+* A decoder that fails on one server (a corrupt stream, too many errors) affects only that bundle's channel for the session. It doesn't change the shared decision or the stored result. A built-in decoder that fails is not replaced by WebCodecs: the channel stays on `wasm`, the stream's decoder is replaced up to three times and then the bundle is withheld, as for WebCodecs.
+* A decoder worker that does not start (its script is blocked or missing) also counts as a failed load (its script raises `onerror` before it reports ready; a worker that is merely slow fails only its own stream's decoder). The channels then read `none` / `wasm-load-failed` with the reason in `detail`, and the hello stops advertising them.
+* The built-in decoder doesn't support streams that reorder frames (B-frames). It checks the SPS of every keyframe: `sps_max_num_reorder_pics` must be 0, and a keyframe whose SPS can't be read is refused too, because the decoder can't match output frames to timestamps otherwise.
+* A failed load of the built-in decoder is reported once per page, as a console warning: `Depth/colour cannot be decoded in this browser: the built-in decoder failed to load (<reason>)`. The server's hello then leaves the channel out, so its card shows `Setup and control only`.
+* If a decoded depth frame is not 10-bit, or a colour frame is not `I420` or `NV12`, the client drops the stored result and checks again once for that channel. The channel is switched away from WebCodecs (to `wasm` / `runtime-demoted`) only if the new check isn't exact. Frames from the built-in decoder never start this check.
+* Add `?decodeProbe=force` to the page URL to ignore the stored result and check again.
+* The check runs once per page, and every server shares its result.
+
+Measured on 2026-10-10 with Google Chrome 155 on Ubuntu 26.04 and an RTX 4090 (a headed browser):
+
+| Browser flags                                                             | Colour                                                                        | Depth                                                          |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Default                                                                   | `none` / `unsupported`, `format` `null`: the browser doesn't decode HEVC      | `none` / `unsupported`, `format` `null`                        |
+| VA-API (`--enable-features=VaapiOnNvidiaGPUs` with `nvidia-vaapi-driver`) | `none` / `unsupported`, `format` `NV12`: the values differ from the reference | `none` / `unsupported`, `format` `null`: the frames are opaque |
 
 ## Pin a server certificate [#pin-a-server-certificate]
 
@@ -1253,7 +1312,8 @@ These are the recorded results so far. Other browsers, and Windows and macOS, ha
     * `copyTo` throws `NotSupportedError`.
     * An 8-bit NV12 readback differs from the reference by up to 26 levels.
     * An ffmpeg VA-API control decode on the same machine is bit-exact.
-* **Real HEVC decoding in a browser hasn’t been verified yet.** Windows and macOS viewers are expected to decode it but haven’t been tested. The next test is desktop Chrome or Edge on Windows, or Safari. It’s tracked in `client/docs/development/ROADMAP.md` as “Check with real decoded HEVC frames in a browser”, under Phase 2.
+* **Built-in WebAssembly HEVC decoder in Google Chrome 155 on Linux, 2026-10-10** (extracted `.deb`, headless, the real GPU through Vulkan, default HEVC settings; the dev server, and the production build behind a content security policy of `script-src 'self' 'wasm-unsafe-eval'`): a recording played from real colour and depth captures. Both channels read `wasm / probe-inexact`, every bundle paired at 15 frames per second with no dropped frame sets, and points were drawn (the image was taken in a headed window; headless screenshots miss the WebGPU canvas). The `VideoFrame` planes of every 10th frame matched `ffmpeg -pix_fmt yuv420p` and `yuv420p10le` bit for bit (45 colour and 45 depth frames on a 640×576 capture and on a 1920×576 NVENC pair). With `script-src 'self'` only, the decoder is blocked and the card says **Setup and control only**. CPU and decode times are in [Check your browser](/docs/client/browser-requirements#browsers-tested-so-far). In the dev server, `window.__orbbec` holds `{ model, decodePaths }` for such checks (it is not in production builds).
+* **Hardware HEVC decoding in a browser hasn’t been verified yet.** Windows and macOS viewers are expected to decode it but haven’t been tested. The next test is desktop Chrome or Edge on Windows, or Safari. It’s tracked in `client/docs/development/ROADMAP.md` as “Check with real decoded HEVC frames in a browser”, under Phase 2.
 * **Rendering in headless Chromium with SwiftShader**: WebGL2 works. WebGPU works with `--enable-unsafe-webgpu`, and the wiring check passed on it on 2026-09-24. Headless WebGPU on SwiftShader can lose its device when the machine is under heavy load; rerun on an idle machine.
 * **Blending, 2026-10-03**: the render check passed in headless Chromium 153 on Linux on a real GPU (NVIDIA GeForce RTX 4090 through Vulkan, flags as in [Placement check](/docs/client/developer/placement-check#run-headless-on-a-real-gpu)) with `engine=webgpu`: `compute-blend`, and `compute-nearest` with `blend=0`, both with no WebGPU validation errors; the **Blend (WebGPU)** checkbox switched between them; `engine=webgl2` still drew `babylon-points`.
 * **Placement handle drags, 2026-09-28**: real mouse drags in headless Chromium 153 on Linux moved the draft on WebGL2 and WebGPU, with SwiftShader and on a real GPU (NVIDIA GeForce RTX 4090 through Vulkan). Dragging a translate arrow moved x to 0.104 m; dragging a rotate ring turned yaw to about −45°. Nothing was sent to the server. See [Placement check](/docs/client/developer/placement-check#run-headless-on-a-real-gpu).
@@ -1690,7 +1750,7 @@ A new card appears under **Servers**, titled with the manifest’s `serverName`:
 
 <img alt="The card for the test recording: Recorded rig, Streaming, the recording address, a Setup and control only chip because the capture browser couldn’t decode HEVC, Pairs 0, and Set up unavailable" src="__img1" />
 
-The point cloud appears in the 3D view when your browser can decode HEVC. Nobody has confirmed this in any browser yet; see [Check your browser](/docs/client/browser-requirements).
+The point cloud appears in the 3D view. A browser that can't decode HEVC exactly uses the client's built-in decoder (Chrome on Linux without a VA-API driver does); the first frames then take a moment while the decoder downloads. See [Check your browser](/docs/client/browser-requirements).
 
 With `"loop": true`, the recording plays forever. With `"loop": false`, frames stop after the last one and the card stays connected. A recording never reconnects by itself. To play it again, select **Remove** on its card, then open it again.
 
@@ -1738,7 +1798,7 @@ The `file` values are names for the files, not paths. The colour file you choose
 
 ### Nothing decodes and Pairs stays at 0 [#nothing-decodes-and-pairs-stays-at-0]
 
-Your browser can’t decode HEVC. The card shows a **Setup and control only** chip, or the header’s decoder chip is amber instead of **WebCodecs**. Use a browser that can decode HEVC Main and Main10, usually through GPU video decoding. See [Check your browser](/docs/client/browser-requirements).
+Your browser can’t decode HEVC exactly and the built-in decoder didn’t load, or the browser has no WebCodecs. The card shows a **Setup and control only** chip, or the header’s decoder chip is amber instead of **WebCodecs**. Read the `[decode path]` warning in the browser console; it names the reason. See [Check your browser](/docs/client/browser-requirements#fix-browser-problems).
 
 ### Messages under the Open recording form [#messages-under-the-open-recording-form]
 
@@ -2766,11 +2826,38 @@ can show it and, for some kinds, run it over a browser session. A browser
 session to a real server carries status and setup commands but no video yet
 (see [Serve to browsers](/docs/server/serving#status)).
 
-| Kind               | On the server                                                                                           | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Camera pose        | Works from the local console. See [Camera pose calibration](/docs/server/camera-calibration).           | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid; a missing pose must be calibrated on the server. The client has no camera-pose controls yet: its section shows a placeholder. See [Calibrate depth](/docs/client/calibration#camera-pose). |
-| Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator). | Not yet. The client's workspace can start, watch, cancel and commit a run, but a real server refuses it with `calibration-kind-unsupported`. It works against the client's mock server: see [Calibrate depth](/docs/client/calibration#depth-quantization) and [Mock server](/docs/client/developer/mock-server).                                                           |
-| Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.        | Not available.                                                                                                                                                                                                                                                                                                                                                              |
+| Kind               | On the server                                                                                           | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Camera pose        | Works from the local console. See [Camera pose calibration](/docs/server/camera-calibration).           | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid; a missing pose must be calibrated on the server. The client has no camera-pose controls yet: its section shows a placeholder. See [Calibrate depth](/docs/client/calibration#camera-pose).                                                                                                                                                                                                                                                                                                                                                   |
+| Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator). | The server runs it for a client that holds the setup lock (since v0.1.0-poc.4): it samples live, masked depth, and a solved run waits for a commit, which swaps the new profile in without a restart. Against a real server, committing a depth-quantization run is not yet possible from the client: the client and server still follow two different proposals for when a calibration result is sent (change requests 0012 and 0023), and the fix waits on that decision. Start, progress and Cancel work. To change the profile today, use the calibrator. The full flow works against the client's [mock server](/docs/client/developer/mock-server). See [Calibrate depth](/docs/client/calibration#depth-quantization). |
+| Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.        | Not available.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+
+### Before a depth run from a browser [#before-a-depth-run-from-a-browser]
+
+The server refuses to start a depth run, with `calibration-unavailable`
+and a reason, when:
+
+* no capture is active (no camera is delivering frames);
+* `mask.backend` or `processing.depth_filter_backend` is `none`;
+* the person-mask engine is still being built on the first start, or has
+  failed. Masks then pass every pixel, so the profile would include the
+  background. Wait until the mask engine is ready, or set
+  `mask.backend: fill_all` to calibrate on all depth.
+
+Only one calibration run of any kind runs at a time. Cancelling, releasing
+the lock or disconnecting abandons the run and keeps the profile in force.
+
+<Callout type="warn">
+  **Known issues in v0.1.0-poc.4:**
+
+  * A depth run can be solved from too few valid samples; there is no
+    minimum yet. Check **valid samples** and **reconstruction error** before
+    you commit.
+  * After a server restart, the depth-quantization revision starts again at
+    1, although the committed profile loads.
+
+  A fix is in progress.
+</Callout>
 
 The read-only [Operator Console](/docs/operator) shows each kind's state
 under **Calibration** on its Overview, and changes nothing.
@@ -3032,7 +3119,7 @@ orbbec-console
 | `m`                | Minimise or reopen the focused pane            |
 | `r`                | Reopen all panes                               |
 | `?`                | Help                                           |
-| `q`                | Quit                                           |
+| `q`, `Ctrl+C`      | Quit                                           |
 
 The lock and calibration keys (`l`, `L`, `c`, `d`, `a`, `k`) need a server
 that accepts the console, which comes in a later release. Each pane lists
@@ -3043,20 +3130,18 @@ The terminal must be at least 80 columns by 24 rows. With less height, the
 panes you aren't in collapse to their titles. Every state is also written
 out in words, so the console works without colour; it respects `NO_COLOR`.
 
-**Expected result:** while the service is stopped, the console shows
-**Server not started**, with **Start** as the only action. Press `s` to
-start it.
+**Expected result:** while the service is stopped, the console shows the
+chip **SERVER NOT STARTED** and the line `Server not started  The
+orbbec-streamer service is not running.`, then `Press s to start it`. It
+connects by itself as soon as the server is up.
 
-In poc.4 the server always refuses the console. The console then shows the chip **REFUSED BY
-SERVER** with one of these headlines, and retries every 60 seconds.
-Starting and stopping still work.
-
-* **The server refused the terminal console**: most likely the server still
-  admits only browsers. Use the browser console at
-  `http://127.0.0.1:8080/operator`. If it persists after the server allows
-  terminal consoles, check `journalctl -u orbbec-streamer`.
-* **This server does not accept the terminal console yet**: same cause and
-  fix.
+In poc.4 the server always refuses the console: its gateway answers the
+connection with HTTP 400. The console then shows the chip **REFUSED BY
+SERVER** and the headline **The server refused the terminal console**, and
+retries every 60 seconds. Starting and stopping still work. Use the browser
+console at `http://127.0.0.1:8080/operator` for live status. The refusal
+ends with a later server release that adds the setting
+`serving.allow_missing_origin`.
 
 ## Start and stop without sudo [#start-and-stop-without-sudo]
 
@@ -3130,7 +3215,7 @@ the setup lock.
 
 | Option                            | Meaning                                                                                                                      |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `--version`                       | Print the version, for example `0.1.0-poc.4`                                                                                 |
+| `--version`                       | Print the version, for example `orbbec-console 0.1.0-poc.4`                                                                  |
 | `--server https://host:port/path` | Connect to this address instead of the one the package publishes                                                             |
 | `--cert-hash <hash>`              | Trust this SHA-256 certificate hash instead of the published ones: 64 hex characters, in either case, with or without colons |
 
@@ -3140,12 +3225,12 @@ connection, so a rotated certificate needs no action.
 
 ## Troubleshooting [#troubleshooting]
 
-| Symptom                                                   | Cause and fix                                                                                                                                                          |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `orbbec-console: command not found`                       | It ships from poc.4 on. Check with `dpkg -l orbbec-streamer`.                                                                                                          |
-| Starting asks for admin rights or prints a `sudo` command | You aren't in `orbbec-operators`, or haven't logged in again since joining. See [Start and stop without sudo](#start-and-stop-without-sudo).                           |
-| **REFUSED BY SERVER** while the server runs               | Expected in poc.4: the server doesn't accept terminal consoles yet. Use the browser console at `http://127.0.0.1:8080/operator`. Start and stop still work.            |
-| The calibration keys don't appear                         | Expected in poc.4. From a later release, they appear only while the server accepts the console and the action is possible, for example `k` only after a run is solved. |
+| Symptom                                                                                     | Cause and fix                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orbbec-console: command not found`                                                         | It ships from poc.4 on. Check with `dpkg -l orbbec-streamer`.                                                                                                                                                                                  |
+| Starting asks for admin rights or prints a `sudo` command                                   | You aren't in `orbbec-operators`, or haven't logged in again since joining. See [Start and stop without sudo](#start-and-stop-without-sudo).                                                                                                   |
+| **REFUSED BY SERVER** and **The server refused the terminal console** while the server runs | Expected in poc.4: the gateway answers with HTTP 400 because it admits only browsers until a later server release adds `serving.allow_missing_origin`. Use the browser console at `http://127.0.0.1:8080/operator`. Start and stop still work. |
+| The calibration keys don't appear                                                           | Expected in poc.4. From a later release, they appear only while the server accepts the console and the action is possible, for example `k` only after a run is solved.                                                                         |
 
 
 # Build and test (https://irc-hslu.github.io/orbbecstreamer/docs/server/build)
@@ -3818,17 +3903,17 @@ Cameras missing after `camera_wait_timeout_ms` are logged as `neglecting missing
 
 Hardware synchronisation over the trigger cable. Details in [Capture and synchronisation](./how-it-works/capture-and-sync#hardware-sync-and-delays).
 
-| Key                                     | Type         | Default | Description                                                                                                                                |
-| --------------------------------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `enabled`                               | bool         | `false` | Hardware sync. Requires exactly one `role: primary`; without sync at most one camera may be primary.                                       |
-| `secondary_depth_delay_step_us`         | integer (µs) | `150`   | Depth exposure delay step: the *n*th secondary gets *n* steps.                                                                             |
-| `color_delay_us`                        | integer (µs) | `0`     | Colour trigger delay, every camera.                                                                                                        |
-| `trigger_to_image_delay_us`             | integer (µs) | `0`     | Trigger-to-image delay, every camera.                                                                                                      |
-| `trigger_out_enable`                    | bool         | `true`  | Trigger output.                                                                                                                            |
-| `trigger_out_delay_us`                  | integer (µs) | `0`     | Trigger output delay.                                                                                                                      |
-| `frames_per_trigger`                    | integer      | `1`     | Greater than 0.                                                                                                                            |
-| `timestamp_tolerance_us`                | integer (µs) | `5000`  | Largest timestamp difference for frame sets to form one batch. Greater than 0 and less than half the frame interval (16 666 µs at 30 fps). |
-| `maximum_pending_frame_sets_per_camera` | integer      | `4`     | Frame sets waiting for a partner, per camera. Greater than 0.                                                                              |
+| Key                                     | Type         | Default | Description                                                                                                                                                   |
+| --------------------------------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`                               | bool         | `false` | Hardware sync. Requires exactly one `role: primary`. Without sync only one camera may be configured: free-running cameras drift apart and no frame set forms. |
+| `secondary_depth_delay_step_us`         | integer (µs) | `150`   | Depth exposure delay step: the *n*th secondary gets *n* steps.                                                                                                |
+| `color_delay_us`                        | integer (µs) | `0`     | Colour trigger delay, every camera.                                                                                                                           |
+| `trigger_to_image_delay_us`             | integer (µs) | `0`     | Trigger-to-image delay, every camera.                                                                                                                         |
+| `trigger_out_enable`                    | bool         | `true`  | Trigger output.                                                                                                                                               |
+| `trigger_out_delay_us`                  | integer (µs) | `0`     | Trigger output delay.                                                                                                                                         |
+| `frames_per_trigger`                    | integer      | `1`     | Greater than 0.                                                                                                                                               |
+| `timestamp_tolerance_us`                | integer (µs) | `5000`  | Largest timestamp difference for frame sets to form one batch. Greater than 0 and less than half the frame interval (16 666 µs at 30 fps).                    |
+| `maximum_pending_frame_sets_per_camera` | integer      | `4`     | Frame sets waiting for a partner, per camera. Greater than 0.                                                                                                 |
 
 Every delay, and the largest secondary's total depth delay, must fit the SDK's signed 32-bit microseconds.
 
@@ -4087,6 +4172,7 @@ ORBBEC_STREAMER_STATUS_MODE=log ./build/dev-debug/orbbec_streamer --live config/
 | `Invalid boolean value: <raw>`                                                                                                                                                               | Use `true`/`false`, `yes`/`no` or `1`/`0`.                                                                                                                                                                                                                                                                              |
 | `live config must contain at least one camera`                                                                                                                                               | Add a `cameras` list item.                                                                                                                                                                                                                                                                                              |
 | `sync.enabled=true requires exactly one primary camera`                                                                                                                                      | Set `role: primary` on exactly one camera.                                                                                                                                                                                                                                                                              |
+| `sync.enabled=false allows only one camera, but N are configured`                                                                                                                            | Connect the sync cables and set `sync.enabled: true` with one `role: primary`, or keep a single camera.                                                                                                                                                                                                                 |
 | `streams.depth.fps and streams.color.fps (the capture rate) must be 15 or 30, got ...`                                                                                                       | Use 15 or 30.                                                                                                                                                                                                                                                                                                           |
 | `streams.color.fps and streams.depth.fps must match`                                                                                                                                         | Make them equal.                                                                                                                                                                                                                                                                                                        |
 | `encoding.stream_fps must be 15 or 30, got ...` or `... must not exceed the capture rate ...`                                                                                                | Set `stream_fps` to 15 or 30, at most `streams.depth.fps`.                                                                                                                                                                                                                                                              |
@@ -4598,10 +4684,10 @@ logged and left out; the server runs with the ones it found (see
 called `orbbec:<serial>`; logs, recordings and clients use your config `id`
 instead.
 
-| `sync.enabled` | Roles used                                                                                                              |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `true`         | The camera with `role: primary` drives the trigger; every other camera is a secondary. Exactly one primary is required. |
-| `false`        | Every camera runs free (standalone). `role` has no effect, but at most one camera may be `primary`.                     |
+| `sync.enabled` | Roles used                                                                                                                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `true`         | The camera with `role: primary` drives the trigger; every other camera is a secondary. Exactly one primary is required.                                                              |
+| `false`        | One camera only, running free (standalone); `role` has no effect. More than one camera is refused at start-up, because free-running cameras drift apart and no frame set would form. |
 
 The start-up order matters for hardware sync: the server writes the sync
 settings to every camera first, starts the secondaries, and starts the
@@ -6203,7 +6289,7 @@ As shipped, `config/dev/live.yaml` describes the development rig: two cameras by
    ./build/dev-debug/orbbec_streamer --orbbec-test
    ```
 
-3. In `cameras`, add one entry per camera with its `serial_number`. With hardware sync give exactly one camera `role: primary`; without a sync cable or with one camera set `sync.enabled: false`.
+3. In `cameras`, add one entry per camera with its `serial_number`. With more than one camera, hardware sync is required: connect the sync cables, set `sync.enabled: true` and give exactly one camera `role: primary`. With a single camera set `sync.enabled: false`.
 
 4. Choose the mask: keep `mask.backend: rvm` and point `mask.rvm_onnx_path` at the exported ONNX files ([Install](./install#rvm-segmentation-engine-optional)); the server builds the engine for your camera count on the first start, 3 to 4 minutes, while masks pass through ([details](./configuration#the-rvm-engine-cache)). Or set `mask.backend: fill_all`.
 
