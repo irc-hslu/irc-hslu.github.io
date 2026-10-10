@@ -109,8 +109,9 @@ and at least one attached Orbbec camera.
     client's recording format is manual: you write a manifest by hand (camera
     intrinsics, depth range and lookup table) alongside the raw `.hevc` files.
     See [Play a recording](/docs/client/playback) for the file
-    requirements and the manifest format. Real HEVC decoding has not been
-    verified in a desktop browser yet either; see
+    requirements and the manifest format. Desktop Chrome plays such a recording,
+    also on a Linux PC with an NVIDIA GPU, where the client uses its built-in
+    WebAssembly decoder; see
     [Check your browser](/docs/client/browser-requirements).
   </Step>
 </Steps>

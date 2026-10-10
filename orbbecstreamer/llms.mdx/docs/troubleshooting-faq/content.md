@@ -39,9 +39,12 @@ server's hello, snapshots, pings, the setup lock and calibration commands
 (see [Session control](/docs/server/serving#session-control)). No colour or
 depth video yet.
 
-**Why does a server card say “Setup and control only”?** The browser can't
-decode the server's HEVC video, so there are no point clouds to draw. Setup
-and the lock still work. See
+**Why does a server card say “Setup and control only”?** The client can't
+decode the server's HEVC video in this browser, neither with the browser's
+own decoder nor with the client's built-in WebAssembly decoder, so there
+are no point clouds to draw. Setup and the lock still work. Chrome on a
+Linux PC with an NVIDIA GPU has no exact HEVC decoder of its own, so the
+client uses the built-in one there. See
 [Check your browser](/docs/client/browser-requirements). The read-only
 [Operator Console](/docs/operator) never receives video, by design.
 
