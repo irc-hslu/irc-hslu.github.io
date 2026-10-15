@@ -4,7 +4,7 @@
 
 
 
-Each server’s placement is relative to a named anchor, for example a marker or a corner of the room. The **World anchors** section decides where each anchor sits in your 3D view. These anchor positions stay in this browser tab: the client never sends them to a server, and they never change a server’s placement.
+Each server’s placement is relative to a named anchor, for example a marker or a corner of the room. The **World anchors** section decides where each anchor sits in your 3D view. These anchor positions are remembered in this browser and restored after a reload (**Reset** forgets one). They stay in this browser: the client never sends them to a server, and they never change a server’s placement.
 
 To change where a server sits for everyone, see [Place a server in the scene](/docs/client/placement-editing) instead.
 
@@ -23,5 +23,5 @@ Other people’s views don’t change. The section is hidden while the setup vie
 
 * **`No connected server names an anchor yet.`**: no server is connected, or the connected servers have no placement yet. Connect a server and wait until its card shows **Ready** or **Streaming**.
 * **`Not applied (not a rigid transform): …`**: the client refused a pose that would stretch or mirror the scene, and nothing changed. The fields can’t produce such a pose, so this is a bug. Report it with the values you typed.
-* **The anchors are back at the origin after a reload**: anchor positions aren’t saved. Set them again after each reload.
+* **The anchors are back at the origin after a reload**: the browser blocked or cleared its site storage (private window, cleared data), so nothing was remembered. Set them again.
 * **A server moved for you but not for anyone else**: this is how anchors work. To move a server for everyone, [place it in the scene](/docs/client/placement-editing).

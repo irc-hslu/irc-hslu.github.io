@@ -278,6 +278,13 @@ the server picks the file with `{batch}` in the path. For other values, see
 The RVM model and weights are GPL-3.0. Confirm that this licence suits you
 before you distribute the model or an engine built from it.
 
+## First start [#first-start]
+
+One camera needs no calibration: on the first start the server writes the
+identity camera pose itself. Several cameras need a calibration first; run the
+server with `--calibrate-camera-pose` (see
+[Camera pose calibration](./camera-calibration)).
+
 ## Expected result [#expected-result]
 
 `make check-env` prints your toolchain. On the reference machine:

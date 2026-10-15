@@ -3,15 +3,17 @@
 
 
 There are three calibration kinds. Each one is a server-side state; a client
-can show it and, for some kinds, run it over a browser session. A browser
-session to a real server carries status and setup commands but no video yet
-(see [Serve to browsers](/docs/server/serving#status)).
+can show it and, for some kinds, run it over a browser session. From
+v0.1.0-poc.7 the session also carries live video (see
+[Serve to browsers](/docs/server/serving)); up to poc.6 it carries status and
+setup commands only. The team has not yet checked depth calibration on a
+live scene on real hardware.
 
-| Kind               | On the server                                                                                           | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Camera pose        | Works from the local console. See [Camera pose calibration](/docs/server/camera-calibration).           | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid; a missing pose must be calibrated on the server. The client has no camera-pose controls yet: its section shows a placeholder. See [Calibrate depth](/docs/client/calibration#camera-pose).                                                                                                                                                                                                                                                                                                                                                   |
-| Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator). | The server runs it for a client that holds the setup lock (since v0.1.0-poc.4): it samples live, masked depth, and a solved run waits for a commit, which swaps the new profile in without a restart. Against a real server, committing a depth-quantization run is not yet possible from the client: the client and server still follow two different proposals for when a calibration result is sent (change requests 0012 and 0023), and the fix waits on that decision. Start, progress and Cancel work. To change the profile today, use the calibrator. The full flow works against the client's [mock server](/docs/client/developer/mock-server). See [Calibrate depth](/docs/client/calibration#depth-quantization). |
-| Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.        | Not available.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Kind               | On the server                                                                                                                                                                                                                                                                               | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Camera pose        | One camera needs none: from v0.1.0-poc.7 the server writes its identity pose at start. Several cameras: works from the local console with a ChArUco board, tested with synthetic cameras and not yet validated on hardware. See [Camera pose calibration](/docs/server/camera-calibration). | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid; a missing pose must be calibrated on the server. The client has no camera-pose controls yet: its section shows a placeholder. See [Calibrate depth](/docs/client/calibration#camera-pose).                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator).                                                                                                                                                                                     | The server runs it for a client that holds the setup lock (since v0.1.0-poc.4): it samples live, masked depth, and a solved run waits for a commit, which swaps the new profile in without a restart. From v0.1.0-poc.6, the client can also commit the run against a real server: it follows the server's "solved; awaiting commit" behaviour. This was tested against the mock server; a check on real hardware is pending. With poc.5, the client can start, watch and cancel a run but not commit it, so use the calibrator or `orbbec-console calibrate depth --commit` (see [Terminal console](/docs/operator/terminal-console#calibrate-from-a-script)). The full flow works against the client's [mock server](/docs/client/developer/mock-server). See [Calibrate depth](/docs/client/calibration#depth-quantization). |
+| Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.                                                                                                                                                                                            | Not available.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### Before a depth run from a browser [#before-a-depth-run-from-a-browser]
 
@@ -25,31 +27,29 @@ and a reason, when:
   background. Wait until the mask engine is ready, or set
   `mask.backend: fill_all` to calibrate on all depth.
 
-Only one calibration run of any kind runs at a time. Cancelling, releasing
+From poc.6, a run needs at least four frames' worth of valid depth in one
+camera's depth image; below that it keeps collecting, and fails at the
+deadline with `too few valid depth samples …`. Point the cameras at the
+scene, or widen the configured range (`encoding.depth.minimum_depth_mm`
+and `maximum_depth_mm` in `live.yaml`). With poc.4 and poc.5 there is no
+minimum, so check **valid samples** before you commit. Only one calibration run of any kind runs at a time. Cancelling, releasing
 the lock or disconnecting abandons the run and keeps the profile in force.
 
-<Callout type="warn">
-  **Known issues in v0.1.0-poc.4:**
-
-  * A depth run can be solved from too few valid samples; there is no
-    minimum yet. Check **valid samples** and **reconstruction error** before
-    you commit.
-  * After a server restart, the depth-quantization revision starts again at
-    1, although the committed profile loads.
-
-  A fix is in progress.
-</Callout>
-
-The read-only [Operator Console](/docs/operator) shows each kind's state
-under **Calibration** on its Overview, and changes nothing.
+The [Operator Console](/docs/operator) shows each kind's state under
+**Calibration** on its Overview. From poc.6, its **Depth range** screen
+also runs and commits a depth-quantization calibration: see
+[Calibrate the depth range](/docs/operator#calibrate-the-depth-range). The
+[terminal console](/docs/operator/terminal-console#calibrate-from-a-script)
+does the same from a script with `orbbec-console calibrate depth --commit`.
 
 ## Run calibration today [#run-calibration-today]
 
 Run camera pose and depth quantization on the server:
 
-1. Calibrate the camera pose from the server console with
-   `--calibrate-camera-pose`. See
-   [Camera pose calibration](/docs/server/camera-calibration).
+1. With several cameras, calibrate the camera pose from the server console
+   with `--calibrate-camera-pose`. See
+   [Camera pose calibration](/docs/server/camera-calibration). With one
+   camera, poc.7 and later skip this step.
 2. Optionally, build a depth quantization profile with the calibrator. See
    [Depth quantization calibrator](/docs/server/depth-quantization-calibrator).
    Without one, the server uses a linear depth range.

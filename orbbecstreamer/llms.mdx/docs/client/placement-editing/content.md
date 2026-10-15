@@ -11,7 +11,9 @@ A server’s **placement** is its position in metres and rotation relative to it
 You change a placement in two stages:
 
 1. **Draft**: you change the placement in your browser. Your 3D view shows the change at once, but nothing is sent.
-2. **Commit**: **Commit** sends the draft to the server. The server’s placement then gets a new revision, and every client draws the server there.
+2. **Commit**: **Commit** sends the draft to the server. The server’s placement then gets a new revision, and every client draws the server there. A commit doesn’t restart the video streams or force keyframes, so moving a server in several steps doesn’t cost extra video bandwidth. Each client draws every frame at the newest placement it holds.
+
+When you open the [setup view](/docs/client/setup-workspace), the 3D view frames this server’s cloud once, so you can see what you are about to move.
 
 The client never commits a draft by itself. Leaving setup, losing the lock or reconnecting never sends it.
 

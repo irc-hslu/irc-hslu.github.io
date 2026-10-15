@@ -44,18 +44,18 @@ On a screen with tile views but no 3D view, call `runtime.setSceneDrawing(false)
 
 ## View states [#view-states]
 
-| `state.kind`  | `reason`              | Meaning                                                                                                                                                                      |
-| ------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `live`        |                       | Showing a frame. `tileWidth` and `tileHeight` give the tile's native size.                                                                                                   |
-| `waiting`     | `not-connected`       | The server isn't connected.                                                                                                                                                  |
-| `waiting`     | `no-frame`            | Connected, but no frame of this camera has arrived yet.                                                                                                                      |
-| `waiting`     | `hidden`              | The last frame can't be shown: a calibration change, a failed upload or a lost GPU device. The view goes live again with the next frame.                                     |
-| `unavailable` | `unknown-camera`      | The server's snapshot has no such camera.                                                                                                                                    |
-| `unavailable` | `bundle-incompatible` | This client can't render the camera's stream, for example because it has too many tiles.                                                                                     |
-| `unavailable` | `unsupported-engine`  | No WebGPU. In this version, tile views need WebGPU; the WebGL2 fallback has none.                                                                                            |
-| `unavailable` | `canvas-in-use`       | The canvas already has another context, or another view uses it.                                                                                                             |
-| `unavailable` | `gpu-setup-failed`    | The canvas couldn't be configured on the GPU device, or the tile couldn't be bound. A warning is logged (`[tile views]`). The view retries after the GPU device is restored. |
-| `unavailable` | `closed`              | `close()` was called or the server entry was removed. This state is final.                                                                                                   |
+| `state.kind`  | `reason`              | Meaning                                                                                                                                                                                                                 |
+| ------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `live`        |                       | Showing a frame. `tileWidth` and `tileHeight` give the tile's native size.                                                                                                                                              |
+| `waiting`     | `not-connected`       | The server isn't connected.                                                                                                                                                                                             |
+| `waiting`     | `no-frame`            | Connected, but no frame of this camera has arrived yet.                                                                                                                                                                 |
+| `waiting`     | `hidden`              | The last frame can't be shown: a calibration change, a failed upload, a lost GPU device, or the stream ended (an accepted unsubscribe, or the bundle became unavailable). The view goes live again with the next frame. |
+| `unavailable` | `unknown-camera`      | The server's snapshot has no such camera.                                                                                                                                                                               |
+| `unavailable` | `bundle-incompatible` | This client can't render the camera's stream, for example because it has too many tiles.                                                                                                                                |
+| `unavailable` | `unsupported-engine`  | No WebGPU. In this version, tile views need WebGPU; the WebGL2 fallback has none.                                                                                                                                       |
+| `unavailable` | `canvas-in-use`       | The canvas already has another context, or another view uses it.                                                                                                                                                        |
+| `unavailable` | `gpu-setup-failed`    | The canvas couldn't be configured on the GPU device, or the tile couldn't be bound. A warning is logged (`[tile views]`). The view retries after the GPU device is restored.                                            |
+| `unavailable` | `closed`              | `close()` was called or the server entry was removed. This state is final.                                                                                                                                              |
 
 `onStateChange` fires only when the kind, the reason or the tile size changes, never once per frame. `view.frameSetNumber` gives the frame set on screen; read it when you need it.
 

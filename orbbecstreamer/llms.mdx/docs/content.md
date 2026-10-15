@@ -3,14 +3,17 @@
 
 
 OrbbecStreamer captures colour and depth from Orbbec cameras, processes and
-HEVC-encodes them on an NVIDIA GPU, and will stream them over WebTransport to
-a browser client.
+HEVC-encodes them on an NVIDIA GPU, and streams them over WebTransport to a
+browser client.
 
-Today a browser can connect to a server for status and setup, but the server
-doesn't send video to browsers yet (see
-[Serve to browsers](/docs/server/serving)). A working first stream today
-means running the server against your own camera and watching it capture,
-process and encode in real time: see [First stream](/docs/getting-started/first-stream).
+From v0.1.0-poc.7 a browser on the server PC shows live video: the server
+sends colour and depth to each browser that subscribes (see
+[Serve to browsers](/docs/server/serving)), and the client draws point clouds
+from them, as it does from [recordings](/docs/client/playback). With one
+camera, a fresh install streams with no setup step. A first stream means
+installing the [release package](/docs/getting-started/install-package),
+starting the server and opening the client on the server PC: see
+[First stream](/docs/getting-started/first-stream).
 
 ## Choose your side [#choose-your-side]
 
@@ -27,7 +30,7 @@ process and encode in real time: see [First stream](/docs/getting-started/first-
 
   <Card title="Guides" href="/docs/guides/calibration" description="Calibration and placement, across the server and the client." />
 
-  <Card title="Operator Console" href="/docs/operator" description="Read a server's status in the browser on the server PC." />
+  <Card title="Operator Console" href="/docs/operator" description="Read a server's status in the browser, or start, stop and calibrate it from a terminal, on the server PC." />
 
   <Card title="Troubleshooting & FAQ" href="/docs/troubleshooting-faq" description="Where every error and its fix lives." />
 </Cards>

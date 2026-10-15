@@ -3,11 +3,11 @@
 
 
 <Callout type="warn">
-  A browser can connect to a real server today and gets its status and
-  setup, but no video yet: the server sends colour and depth to browsers
-  only once protocol change 0009 is decided (see
-  [Serve to browsers](/docs/server/serving#status)). To see your own capture
-  today, use the server's telemetry and debug recordings (below).
+  Live video in the browser needs v0.1.0-poc.7 or later. With poc.6 and
+  earlier, a browser gets the server's status and setup but no video; use
+  the server's telemetry and debug recordings (below) to see your capture.
+  In poc.7 the team has not yet checked the picture content or depth
+  calibration on a live scene on real hardware.
 </Callout>
 
 ## Connect a browser to the release package [#connect-a-browser-to-the-release-package]
@@ -15,14 +15,14 @@
 With the [release package](/docs/getting-started/install-package) installed
 and at least one Orbbec camera connected:
 
-1. Make sure the server is running. From poc.4 on, the install doesn't start
-   it:
+1. Make sure the server runs. From v0.1.0-poc.10 the install starts it,
+   with the cameras closed. Up to poc.9, start it yourself:
 
    ```bash
    sudo systemctl start orbbec-streamer
    ```
 
-   The gateway starts only once a camera is active.
+   Up to poc.8, the gateway starts only once a camera is active.
 
 2. In Chrome or Edge **on the server PC**, open
    [http://127.0.0.1:8080](http://127.0.0.1:8080) (or
@@ -32,15 +32,26 @@ and at least one Orbbec camera connected:
 3. The client finds the server by itself and adds it; you type nothing. A
    server card appears under **Servers**.
 
+4. From v0.1.0-poc.9 the card reads **Cameras closed**: select **Start
+   cameras**. Opening the cameras can take up to a minute.
+
 **Expected result:** the card connects and shows the server's state and
-calibration chips. It shows no point cloud yet. If the card shows **Server
+calibration chips. From poc.7, with one camera, the point cloud appears: the
+server writes the camera's identity pose at its first start, so there is no
+setup step. Several cameras need a camera-pose calibration with a ChArUco
+board first, which the team has not yet validated on hardware (see
+[Camera pose calibration](/docs/server/camera-calibration)); until then the
+card shows the server needs setup and no point cloud. How much CPU the
+decoder needs depends on the PC; see
+[Check your browser](/docs/client/browser-requirements). If the card shows **Server
 or camera not running**, start the server as in step 1 and connect a
 camera; the card then connects by itself. For other problems, and for
 typing the address and certificate hash by hand, see
 [Add a server](/docs/client/add-a-server).
 
-The read-only [Operator Console](/docs/operator) at
-`http://127.0.0.1:8080/operator` connects the same way.
+The [Operator Console](/docs/operator) at
+`http://127.0.0.1:8080/operator` connects the same way. From poc.7 its
+**Preview** screen shows the same live video.
 
 ## Run a source build on your own cameras [#run-a-source-build-on-your-own-cameras]
 
@@ -104,14 +115,16 @@ and at least one attached Orbbec camera.
   <Step>
     ## Optional: preview it in the client [#optional-preview-it-in-the-client]
 
-    The browser client can play back a recorded `.hevc` colour and depth pair
-    today, without a server. Bridging your server's debug output into the
-    client's recording format is manual: you write a manifest by hand (camera
-    intrinsics, depth range and lookup table) alongside the raw `.hevc` files.
-    See [Play a recording](/docs/client/playback) for the file
-    requirements and the manifest format. Desktop Chrome plays such a recording,
-    also on a Linux PC with an NVIDIA GPU, where the client uses its built-in
-    WebAssembly decoder; see
+    The browser client can also play back the server's debug recording, without
+    a server. The server writes `manifest.json` at the top of `debug/live/` (from
+    v0.1.0-poc.6), and from v0.1.0-poc.7 the client opens that folder. In the
+    client, unfold **Open recording** under **Servers**, choose that folder (the one that holds `manifest.json`, not single files) under
+    **Recording folder (with manifest.json)**, or use **Browse for the folder…**,
+    then select **Play recording**. With an older server there is no manifest:
+    you write one by hand alongside the raw `.hevc` files. See
+    [Play a recording](/docs/client/playback) for the steps and the manifest
+    format. Desktop Chrome plays a recording, also on a Linux PC with an NVIDIA
+    GPU, where the client uses its built-in WebAssembly decoder; see
     [Check your browser](/docs/client/browser-requirements).
   </Step>
 </Steps>

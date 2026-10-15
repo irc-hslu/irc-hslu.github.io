@@ -140,7 +140,10 @@ After the cameras start, `debug/live/setup.json` contains
 `debug_recording.record_gpu_outputs: true`, encoded output is written to
 `debug/live/multicam/` in concatenated mode and to
 `debug/live/<camera id>/` in per-camera mode. Each output directory also gets
-a `gpu-output-layout.json` that describes the surface and its tiles.
+a `gpu-output-layout.json` that describes the surface and its tiles, and the
+debug folder gets a `manifest.json` that names every file and the segments
+in it (protocol change 0038, proposed; agreed revision on the branch
+`client/cr-0038-recording-manifest`). See [Debug recording output](./running#debug-recording-output).
 
 ## Encoded bitstreams [#encoded-bitstreams]
 

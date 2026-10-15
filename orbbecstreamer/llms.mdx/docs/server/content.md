@@ -2,7 +2,7 @@
 
 
 
-The server is one C++20/CUDA program, `orbbec_streamer`. It runs on a Linux machine with an NVIDIA GPU and one or more Orbbec RGB-D cameras. It captures colour and depth, processes the frames on the GPU and encodes them with NVENC, the NVIDIA hardware video encoder. Browsers connect over WebTransport. Today they get the control plane only; media streaming waits for a contract decision (see [Serve to browsers](/docs/server/serving)).
+The server is one C++20/CUDA program, `orbbec_streamer`. It runs on a Linux machine with an NVIDIA GPU and one or more Orbbec RGB-D cameras. It captures colour and depth, processes the frames on the GPU and encodes them with NVENC, the NVIDIA hardware video encoder. Browsers connect over WebTransport. They get the control plane and, once they subscribe to a bundle, its media streams (see [Serve to browsers](/docs/server/serving)).
 
 For each synchronised set of frames, the server:
 
@@ -14,18 +14,18 @@ For each synchronised set of frames, the server:
 
 ## Status [#status]
 
-| Part                                                                               | State                                                                                                |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Multi-camera capture, hardware sync, timestamp offset tracking                     | Works (tested with 2 × Femto Bolt)                                                                   |
-| Capture at 15 or 30 fps, stream at 15 or 30 fps                                    | Works; the dev config captures at 30 and streams at 15                                               |
-| Colour-to-depth alignment (Orbbec SDK, CPU)                                        | Works                                                                                                |
-| GPU segmentation and depth filtering                                               | Works; the RVM backend needs a TensorRT engine                                                       |
-| NVENC colour and depth encoding, both [stream layouts](/docs/server/stream-layout) | Works                                                                                                |
-| [Depth quantization calibrator](/docs/server/depth-quantization-calibrator)        | Works                                                                                                |
-| [Camera pose calibration](/docs/server/camera-calibration)                         | Works on synthetic input; not yet validated with a printed board                                     |
-| Debug recording and [terminal telemetry](/docs/server/telemetry)                   | Works                                                                                                |
-| WebTransport gateway, session control, core-to-gateway IPC                         | Works behind `serving.enabled` (off by default); tested with native clients on loopback              |
-| Media streaming to browsers                                                        | Not yet: the fan-out is wired, but no session receives media until change request CR 0009 is decided |
+| Part                                                                               | State                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Multi-camera capture, hardware sync, timestamp offset tracking                     | Works (tested with 2 × Femto Bolt)                                                                                                                                                                                     |
+| Capture at 15 or 30 fps, stream at 15 or 30 fps                                    | Works; the dev config captures at 30 and streams at 15                                                                                                                                                                 |
+| Colour-to-depth alignment (Orbbec SDK, CPU)                                        | Works                                                                                                                                                                                                                  |
+| GPU segmentation and depth filtering                                               | Works; the RVM backend needs a TensorRT engine                                                                                                                                                                         |
+| NVENC colour and depth encoding, both [stream layouts](/docs/server/stream-layout) | Works                                                                                                                                                                                                                  |
+| [Depth quantization calibrator](/docs/server/depth-quantization-calibrator)        | Works                                                                                                                                                                                                                  |
+| [Camera pose calibration](/docs/server/camera-calibration)                         | Works on synthetic input; not yet validated with a printed board                                                                                                                                                       |
+| Debug recording and [terminal telemetry](/docs/server/telemetry)                   | Works                                                                                                                                                                                                                  |
+| WebTransport gateway, session control, core-to-gateway IPC                         | Works behind `serving.enabled` (off by default); tested with native clients on loopback                                                                                                                                |
+| Media streaming to browsers                                                        | Works behind `serving.enabled`: streams open on subscribe and end on unsubscribe. A descriptor-changing commit (camera-pose or depth-quantization revision) rotates the streams at the next keyframe (wire-format §18) |
 
 RVM (Robust Video Matting) is a neural network that separates people from the background. TensorRT is the NVIDIA runtime that runs it from a prebuilt engine file.
 

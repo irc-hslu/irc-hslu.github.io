@@ -51,8 +51,106 @@ Create the mock on the same scheduler as the connection manager. Each connection
 Useful controls:
 
 * **Scenario**: `setStreaming`, `setBundleAvailability`, and calibration scripts passed in `createMockServer({ calibration })`: duration, progress interval, accepted or failed, new camera poses or a new depth profile, and a depth-code histogram per progress message (`depthHistogram`; `syntheticDepthHistogram` in `src/dev/devMock.ts` is a ready-made one). The shell’s “Add mock server” scripts a 6 s depth-quantization run with that histogram.
-* **Faults**: `dropSession`, `closeSession`, `delaySession`, `stallSession` / `resumeSession`, `sendMalformed`, `skipRevisions`, `sendStaleRevision`, `refuseSnapshots`, `expireLease`.
-* **Inspection**: `sessions()`, `sessionOf(clientId)`, `lockHolder()`, `snapshot()`, `metadataRevision`, `session.requestCounts`, `session.mediaStats(bundleId)`.
+* **Camera-pose data** (change 0033): a camera-pose run sends `server.calibration.progress` at run start, then at most 10 times a second, with `phase`, `lastSolveFailure`, `sharedObservations` and per camera the corners, accepted count, last observation and an 8 x 6 coverage grid; the camera-pose calibration entry carries `board`, `timeoutMs` and `maxReprojectionErrorPx` (`createMockServer({ cameraPose: { statusFields: false } })` omits them; `timeoutMs` sets the limit). Script it with `calibration['camera-pose'].pose`: `blindCameras` (never see the board), `isolatedCameras` (rejected `not-co-observed`, in no pair), `rejectReasons` (per camera, any kebab-case reason), `solveFailure` (keeps the run in `solving` with that `lastSolveFailure`), `neverSolves`, `minPairCountForRms`. A run that never solves ends at `timeoutMs`: result `accepted: false`, state `failed` (a valid pose stays `valid` with the message). A one-camera snapshot has no shared pairs. Cancel, lease loss, takeover and capture stop restore the pre-run record and stop progress; sensor and profile writes are refused `calibration-running` while a run exists.
+* **Faults**: `dropSession`, `closeSession`, `delaySession`, `stallSession` / `resumeSession`, `sendMalformed`, `skipRevisions`, `sendStaleRevision`, `refuseSnapshots`, `expireLease`, `holdLocalConsoleLease`, `session.dropFromNetwork()`.
+* **Inspection**: `sessions()`, `sessionOf(clientId)`, `lockHolder()`, `snapshot()`, `metadataRevision`, `getRequestLog()`, `session.requestCounts`, `session.role`, `session.mediaStats(bundleId)`.
+
+## Fake protocol 1.1: roles, takeover, lease cap, rate limits [#fake-protocol-11-roles-takeover-lease-cap-rate-limits]
+
+The mock follows wire-format §11 and §16 of protocol 1.1. Pass these to `createMockServer`:
+
+| Option                   | Default      | Effect                                                                                                                                                                                                                            |
+| ------------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `roleGrant`              | `'viewer'`   | `'operator'`: a session whose hello asks for `operator` gets it. `'by-hello'`: it gets it only when its peer is loopback and its origin equals `consoleOrigin`. A session that doesn't ask, or announces 1.0, is always a viewer. |
+| `consoleOrigins`         | none         | The list of origins `'by-hello'` compares with, for example `['https://localhost:8443']`: the server's configured console origins. Any listed origin is granted.                                                                  |
+| `consoleOrigin`          | none         | One origin; the single-value form of `consoleOrigins`. Both together are combined.                                                                                                                                                |
+| `serverMinor`            | `1`          | `0` runs a 1.0 server: no `role` in the hello, `takeover` ignored.                                                                                                                                                                |
+| `strictMinor0Hello`      | `false`      | Rejects a hello with any field a 1.0 hello doesn't have, as a 1.0 server does: `server.error{fatal: true, code: 'invalid-message'}`, then close code 1. Use it with `serverMinor: 0` to test the client's one retry.              |
+| `rateLimit`              | 10, then 2/s | One budget per session for acquire, placement commit and calibration start and commit. Over it, the ack is `rate-limited` and nothing changes. `false` turns it off.                                                              |
+| `leaseMaxLifetimeUs`     | 30 min       | The lease cap. At the cap the lease ends as on expiry, and only that session gets `rate-limited` for 15 s.                                                                                                                        |
+| `helloDeadlineUs`        | off          | Closes a session without a hello: `hello-timeout`, then close code 3.                                                                                                                                                             |
+| `legacyLeaseInvalidCode` | `false`      | Answers a wrong lease with the old `lease-invalid` instead of `invalid-lease`.                                                                                                                                                    |
+
+## Fake capture idle mode (protocol 1.1) [#fake-capture-idle-mode-protocol-11]
+
+A real server keeps its cameras closed until a client asks it to open them (wire-format §10, §11, §18; change 0039). The mock fakes that with the `capture` option:
+
+```ts
+createMockServer({
+  snapshot,                       // the rig's content while the cameras are open
+  capture: { initial: 'idle', openDurationUs: 2_000_000n, closeDurationUs: 500_000n },
+  scheduler,
+});
+```
+
+| Option                    | Default                         | Effect                                                                                                                                                                       |
+| ------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `capture.initial`         | `'running'`                     | `'idle'`: the server starts with its cameras closed. The snapshot has `capture.state: 'idle'`, empty `cameras`, `bundles` and `bundleAvailability`, and streaming `stopped`. |
+| `capture.openDurationUs`  | 2 s                             | How long `opening` lasts before `running` (or `failed`).                                                                                                                     |
+| `capture.closeDurationUs` | 500 ms                          | How long `closing` lasts before `idle`.                                                                                                                                      |
+| `capture.devices`         | one connected device per camera | `capture.devices` while the cameras are closed. `null`: the server cannot enumerate.                                                                                         |
+| `capture.openFailure`     | none                            | Every open fails with this text.                                                                                                                                             |
+
+Controls: `captureState()`, `setCaptureOpenFailure(message | null)`, `setCaptureDevices(devices)` (hot-plug) and `failCapture(message)` (a running rig fails).
+
+What the mock does, message for message as §18 says:
+
+* **Start** (`client.capture.start`, no lease, no role): refused `lock-held` while another session holds the lock. Running: acknowledged at once. Idle or failed: `opening`, then after the open one atomic commit: `server.capture.state{running}`, `server.metadata.revision-changed` for `cameras` and `bundles`, a `server.stream.descriptor` per channel, `server.streaming`, and only then each pending start's ack. A failed open sends `server.capture.state{failed}` and then `capture-start-failed` with the same text. A start during `closing` is queued and reopens after `idle`.
+* **Stop** (`client.capture.stop`): needs the `operator` role (`role-required`), then the lease (`invalid-lease`). It finishes every media stream, abandons a calibration run without a result, publishes `closing`, the revision notice (invalidating streams) and `streaming{stopped, capture-not-running}`, then `idle`, and acknowledges. A stop while opening aborts the open and answers pending starts `capture-stopped`.
+* **Calibration start** while the cameras are not running is refused `capture-not-running`, before its other rules.
+* **1.0 sessions**: never get `capture` or `server.capture.state`. While the cameras are not running, their hello is answered with a fatal `server.error{capture-not-running}`; when the cameras close, they are closed with the same error before the revision notice.
+
+On the client, `connection.startCapture()` and `connection.stopCapture()` (also on the pipeline) wait up to 60 s for the deferred ack. `startCapture()` while one is pending fails `already-pending` without sending, and both fail `unsupported-by-server` below protocol 1.1. `state.capture` is `null` for a server that does not report it (1.0), and the card label follows it before the lock and readiness.
+
+## Fake the operator state (protocol 1.1) [#fake-the-operator-state-protocol-11]
+
+Changes 0027 to 0033 add operator-only messages (sensors, stream profiles, sync telemetry), the task list every session gets, and preview media. The mock fakes them with the `operatorState` option. Every part is off unless you name it, so an operator session still gets only `server.operator.replay-complete` by default.
+
+```ts
+createMockServer({
+  snapshot,
+  roleGrant: 'operator',
+  operatorState: { sensors: true, profiles: true, telemetry: true, setupProgress: true, preview: true },
+  scheduler,
+});
+```
+
+| Option          | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sensors`       | A Femto Bolt registry per camera: colour auto-exposure, exposure 1..300 (inert while auto-exposure is on), gain, white balance, brightness, power line as an enum, a `requiresRestart` property (`backlight-compensation`); depth noise removal with two dependents and a read-only exposure 20..125. `{ deviceClamp, restartDurationUs }`: a clamp the device applies inside the advertised range, and how long a restart takes (default 3 s). |
+| `profiles`      | Four profiles: two compatible at 30 and 15 fps, one that needs an engine build and invalidates calibration, one incompatible. `{ list, active, switchDurationUs }` replaces them (default 2 s per switch or revert).                                                                                                                                                                                                                            |
+| `telemetry`     | One `server.sync.telemetry` window per second while capture runs. `{ intervalUs, toleranceUs, captureFps, decimated }`.                                                                                                                                                                                                                                                                                                                         |
+| `setupProgress` | `engine-build`, `camera-open` and `encoder-start` to every minor-1 session. The last two mirror `capture`.                                                                                                                                                                                                                                                                                                                                      |
+| `preview`       | Descriptors carry `preview: true` while `needs-setup` (or a camera-pose run started while ready). Media and `available: true` go to operator sessions whose hello has `"preview-media"`; everyone else gets `available: false, reason: 'needs-setup'`.                                                                                                                                                                                          |
+| `coalesceGate`  | Default true: a coalescable message is held while 64 KiB or more is unsent (§12 item 5).                                                                                                                                                                                                                                                                                                                                                        |
+
+What the mock does:
+
+* **Delivery.** Operator-only messages go to `operator` sessions only. The replay after every hello and snapshot is in the §12 order with `replyTo: null`: per camera its capabilities and one config per sensor, the profiles, the latest telemetry, the task list, then the marker. A session that is not an operator gets only the task list, with no marker. While `capture` is not running there are no cameras, so no capabilities, config or telemetry.
+* **Sensor writes.** Role, then lease, then capture, then `calibration-running`, `sensor-busy`, the camera, and the whole request is validated before anything is applied (known, writable, type, range, step grid, `enabledWhen` in order). The originator's `server.sensor.config` copy carries `replyTo` and comes before the ack; a request that changes nothing gets only the ack. A `requiresRestart` property is acknowledged at the start, sends `streaming: starting`, and is `sensor-busy` for every camera until it ends.
+* **Profile switches.** Role, lease, capture, `calibration-running`, `profile-switch-in-progress`, `profile-unknown`, `profile-incompatible`. A real switch sends `switching`, the ack, the pause, `streaming: starting`, then after `switchDurationUs` one commit: the revision notice (invalidating streams), descriptors, and `idle` with `replyTo` for the originator. A profile with `invalidatesCalibration` makes those calibrations `stale`, so the server returns to `needs-setup`.
+* **Coalescing.** Config, profiles, telemetry and task-list messages keep at most one unsent copy per key per session, latest wins, stamped when written. Config is sent at most once a second per camera and sensor, progress at most four times a second; a copy with `replyTo`, and any change of a task's state, is never held back. A stalled session shows it: `session.queuedCoalescableKeys`.
+
+Controls:
+
+* `narrowSensorRange(cameraId, sensor, propertyId, { min, max })`: the capabilities are sent again.
+* `failNextSensorApply('ack' | 'after-ack' | null)`: the device fails the second change (the ack is `sensor-apply-failed`), or fails a restart after its ack (`server.error{replyTo: null}`).
+* `setCameraConnected(cameraId, connected)`: one `cameras` revision change and new capabilities.
+* `failNextProfileSwitch('revert' | 'revert-fails' | null)`: the device refuses the profile and the mock reverts (`reverting`, then `idle` on the old profile, then `server.error{profile-apply-failed}`), or the revert fails too and capture ends `failed`.
+* `setTelemetryFault({ kind: 'degraded' | 'lost' | 'no-signal' | 'signal-unreportable', cameraId } | null)`, `silenceTelemetry(durationUs)`, `telemetryWindow()`.
+* `setSetupTask(taskId, patch)`, `restartSetupProgress()`, `setupTasks()`: script `engine-build` (progress, `failed` with an `error`, `done` back to `running`) or simulate a server restart.
+
+Busy codes (operator ruling 2026-10-12, going into wire-format): a `profile.set` while a switch is pending, even for the pending or active profile, is `profile-switch-in-progress`; a `profile.set` during a sensor restart, and a sensor write during a profile switch, are `sensor-busy`. Entering or leaving preview is its own revision notice even when it coincides with a calibration commit.
+
+Open a session with transport facts for the grant rule with `mock.opener({ loopback: true, origin: 'https://localhost:8443' })`. The default peer is not loopback and has no origin.
+
+A takeover (`client.lock.acquire{takeover: true}` from an operator session) ends the current lease as on expiry. It abandons a running calibration without any `server.calibration.result`, restores the calibration state, and broadcasts one `server.lock.state` with the new owner. `mock.holdLocalConsoleLease()` does the same for the server's own console (owner `local-console`, name `local operator console`), whose lease needs no heartbeat. `releaseLocalConsoleLease()` ends it.
+
+Operator sessions get `server.operator.replay-complete` after every hello and snapshot. A heartbeat that would move the expiry by less than 1 s is acknowledged and broadcasts nothing.
+
+For allow-list tests, create the mock with `requestLog: true`: `mock.getRequestLog()` then returns every client frame with its session id and arrival time (the last 4096 frames, at most 8 MiB of JSON), with a string `authToken` shown as `<redacted>`. Without it the log stays empty. `session.dropFromNetwork()` loses a session abruptly.
+
+The HTTP answers of §1a (403, 421, 503 and so on) are not simulated: the mock has no CONNECT request.
 
 ## Test messages that are not in the protocol yet [#test-messages-that-are-not-in-the-protocol-yet]
 

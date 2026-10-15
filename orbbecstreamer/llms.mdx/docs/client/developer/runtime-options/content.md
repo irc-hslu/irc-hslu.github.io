@@ -25,6 +25,8 @@ model.add({ kind: 'webtransport', url: 'https://capture-01.local:4443/orbbec' })
 
 On its own, the runtime sends only `client.hello`, `client.ping` (clock sync) and `client.snapshot.request` (a resync after an unexpected revision, or `refreshSnapshot()`). The setup lock, its lease heartbeat, calibration, placement commits and reconnects work as in the full runtime. They are sent only when the page asks for them.
 
+While a connection owns the setup lock, it also holds a Web Lock (named `orbbecstreamer:setup-lease:…`, visible in `navigator.locks.query()`), so Chrome doesn't freeze the tab and stop the renewals. The connection releases it when the lock is released, runs out or is lost, when the session ends (so a reconnect never inherits it), and on `disconnect()`, which `dispose()` calls for every server. Without `navigator.locks` the client holds nothing.
+
 What the model reports instead of a renderer:
 
 | Member                                           | Value with `media: 'none'`                                                                                |
@@ -39,6 +41,41 @@ What the model reports instead of a renderer:
 Every member returns one of these values; none of them throws. Hidden-tab media suspension isn’t installed, because there is no media to pause.
 
 At a lower level, `ConnectionManager` and `ServerPipeline` take the same option: `media: 'none'` with `renderer: null`. A full pipeline without a renderer throws `a renderer is required unless media is 'none'`.
+
+## Start with a subset of the bundles [#start-with-a-subset-of-the-bundles]
+
+By default the client subscribes every bundle of a server after the handshake. A page that shows only some cameras at first can pass `initialBundleIds` to `add`, so the server doesn't start a stream, and send a keyframe, for each hidden camera:
+
+```ts
+model.add({ kind: 'webtransport', url: 'https://capture-01.local:4443/orbbec' }, { initialBundleIds: [bundleA] });
+```
+
+After the hello snapshot the client sends one `client.subscribe` with these bundles only (the contract lets a client subscribe any bundles after the snapshot, §4a); `client.hello` still lists no preferred bundles. Ids the server doesn't have are ignored, and an empty list subscribes nothing. Bundles outside the list, including ones a later snapshot adds, stay unsubscribed until the page calls `connection.subscribe`. `pipeline.notRequestedBundles` lists them. The subset applies again after each reconnect, and hidden-tab suspension pauses and resumes only the bundles that were subscribed. A recording ignores the option: it plays what its hello announces. With `media: 'none'` the option has no effect, because that runtime subscribes nothing.
+
+## Read the operator state (protocol 1.1) [#read-the-operator-state-protocol-11]
+
+A connection to a server that announces protocol 1.1 keeps the minor-1 operator state in `connection.operatorState` (also on `EntryPipeline.connectionView`). It is separate from `connection.state` on purpose: these messages carry the current `metadataRevision` and never increment it, so they never trigger a resync, and a copy with a lower revision than the held one is ignored.
+
+| Field           | Meaning                                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cameras`       | Per camera: its `server.sensor.capabilities` and the latest `server.sensor.config` per sensor (the applied values). Operator sessions only.                 |
+| `profiles`      | The latest `server.stream.profiles`: the list, the active and pending profile, `switchState`. Operator sessions only.                                       |
+| `telemetry`     | The latest `server.sync.telemetry` window and when it arrived. 3 s without a window is a fault (`telemetrySilent`). Operator sessions only.                 |
+| `setupProgress` | The latest `server.setup.progress`: the complete task list. Every session gets it, with no marker.                                                          |
+| `complete`      | True after `server.operator.replay-complete`. A new hello or snapshot sets it false until the next marker. A session that is not `operator` never gets one. |
+
+Selectors in `src/state/operatorState.ts`: `sensorProperties`, `appliedValues`, `hasCapabilities`, `telemetrySilent`, `setupProgressIdle`. Listen for the `operator-state` event (`change`: `capabilities`, `config`, `profiles`, `telemetry`, `setup-progress`, `replay-complete` or `cleared`). When capture leaves `running` the cameras and telemetry are cleared (`cleared`); the profile list and the task list stay.
+
+Two operator writes, both needing the lease, the `operator` role and protocol 1.1:
+
+```ts
+await pipeline.setSensorConfig(cameraId, 'color', [{ propertyId: 'auto-exposure', value: false }, { propertyId: 'exposure', value: 120 }]);
+await pipeline.setStreamProfile('nfov-640x576-15');
+```
+
+Nothing is sent before the matching message arrived in this session: `setSensorConfig` needs the camera's capabilities and `setStreamProfile` needs `server.stream.profiles`, otherwise the result is `unsupported-by-server`. Out-of-bound arguments (not 1..32 changes, an empty property id, a `NaN`) fail `invalid-argument`. The server's refusal passes through as `rejected` with its code (`sensor-out-of-range`, `sensor-busy`, `profile-switch-in-progress` and so on). The ack of `setSensorConfig` follows the `server.sensor.config` it caused; the ack of `setStreamProfile` follows the `switching` broadcast, and the switch ends with `profiles.switchState` back at `idle`.
+
+Pass `features: ['preview-media']` to `startAppRuntime` (or a pipeline) to ask for preview media; only the Operator Console's route does. `features` is a minor-1 hello field, so a 1.0 server that rejects the hello gets the one-time 1.0 retry without it. The client does not yet draw preview descriptors differently: it reads `preview` and checks that both channels agree, nothing more.
 
 ## Read per-bundle stats [#read-per-bundle-stats]
 
@@ -63,6 +100,8 @@ const all = model.pipeline(id)?.allBundleStats();          // ReadonlyMap<Bundle
 * `decodeLatencyMs` needs the latency probe, which is off by default. Turn it on for a runtime with `startAppRuntime(container, { latencyProbe: true })`. Per frame set it costs about a dozen `performance.now()` calls (arrival, receive, submit and output of each channel, pairing, depth read, upload) and writes into preallocated rings, with no allocation. `pipeline.latencyReport()` then returns the [per-stage percentiles](/docs/client/developer/latency). With the option off, no clock is read for the probe and `decodeLatencyMs` stays `null`.
 * `dispose()` on a `media: 'full'` runtime also releases the GPU: the WebGPU device is destroyed and the WebGL2 context is lost, so a page can mount and dispose runtimes repeatedly without hitting the browser's context limit.
 * `EntryPipeline` does not give out the decoding sink or the render feed. `bundleStats` is the way to see a bundle's counters.
+* `EntryPipeline.connectionView` is the connection without `connect` and `disconnect`; the full `ServerConnection` is not exposed on an entry.
+* `pipeline.startCapture()` asks a server with closed cameras to open them; `pipeline.stopCapture()` closes them (operator role and lease). See [Mock server](/docs/client/developer/mock-server#fake-capture-idle-mode-protocol-11).
 
 ## Read how a channel is decoded [#read-how-a-channel-is-decoded]
 
@@ -90,7 +129,7 @@ Use this to show whether a camera's colour and depth are decoded by the browser,
 | `source`               | `run`: measured in this page load. `cache`: read from the stored result.                                                          |
 | `at`                   | When the check ran, in epoch milliseconds (`Date.now()`).                                                                         |
 
-A channel the check finds inexact is decoded by the client's own decoder (FFmpeg's HEVC decoder compiled to WebAssembly, `client/wasm/hevc`). It runs in one module worker per stream, with no `SharedArrayBuffer`. It returns ordinary `VideoFrame`s (`I420` for colour, `I420P10` with LSB-aligned 10-bit samples for depth), so pairing, the depth read and the GPU upload are the same as for WebCodecs. The client loads it lazily: the file is fetched with a SHA-384 integrity hash and compiled the first time a channel (or a server's hello) needs it, once per page. Colour and depth decide separately, so one camera can mix a WebCodecs channel with a WASM one.
+A channel the check finds inexact is decoded by the client's own decoder (FFmpeg's HEVC decoder compiled to WebAssembly, `client/wasm/hevc`). It runs in one module worker per stream, with no `SharedArrayBuffer`. It returns ordinary `VideoFrame`s (`I420` for colour, `I420P10` with LSB-aligned 10-bit samples for depth), so pairing and the depth read are the same as for WebCodecs. The colour upload differs: the client copies the three `I420` planes out of the frame at the same time as the depth codes, writes them to the GPU as one-byte-per-sample textures and converts YUV to RGB on the GPU (WebGPU: one render pass into the colour texture; WebGL2: in the point shader). Handing such a frame to the browser instead (`copyExternalImageToTexture`, `texSubImage2D`) cost several milliseconds of GPU-process or main-thread CPU per frame. On WebGPU this applies to colour frames up to 1 megapixel (every per-camera stream and 2-camera concatenations); larger frames keep the browser copy, which costs the same there. Only BT.709-type colour (a BT.709 or BT.601 matrix, BT.709 or unspecified primaries, an SDR transfer) takes this path; a BT.2020 matrix keeps the browser copy; it matches the browser's conversion within 1 level on smooth content and within 4 at sharp colour edges. The client loads it lazily: the file is fetched with a SHA-384 integrity hash and compiled the first time a channel (or a server's hello) needs it, once per page. Colour and depth decide separately, so one camera can mix a WebCodecs channel with a WASM one.
 
 A channel is exact when its decoded frames hash-match the reference. Colour: `I420` or `NV12` planes. Depth: a 10-bit format with LSB-aligned samples (for example `I420P10`) and matching planes. An opaque frame (`format` `null`), another format, a decoder error, a timeout (5 s) or any difference means not exact. `isConfigSupported` alone is never taken as proof.
 
@@ -120,6 +159,46 @@ Measured on 2026-10-10 with Google Chrome 155 on Ubuntu 26.04 and an RTX 4090 (a
 | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | Default                                                                   | `none` / `unsupported`, `format` `null`: the browser doesn't decode HEVC      | `none` / `unsupported`, `format` `null`                        |
 | VA-API (`--enable-features=VaapiOnNvidiaGPUs` with `nvidia-vaapi-driver`) | `none` / `unsupported`, `format` `NV12`: the values differ from the reference | `none` / `unsupported`, `format` `null`: the frames are opaque |
+
+## Ask for the operator role [#ask-for-the-operator-role]
+
+Protocol 1.1 (wire-format §11, §16) lets a session ask for the `operator` role. Only the Operator Console's control runtime asks:
+
+```ts
+const control = startAppRuntime(container, { media: 'none', displayName: 'Operator Console', role: 'operator' });
+const preview = startAppRuntime(previewContainer, { media: 'full', displayName: 'Operator Console preview' }); // no role: a viewer
+```
+
+* Without `role` (the default) the hello carries no `role` field and every session is a viewer. The client still announces protocol 1.1.
+* The server decides the role once per session; a reconnect decides again. Read the granted role from `state.role` (`'viewer'`, `'operator'`, or `null` while no session is up). A 1.0 server sends no role, so its sessions read `'viewer'`.
+* `ServerConnectionOptions.authToken` (`string | null`) is reserved: servers ignore it. Nothing sets it yet. The client never logs it, and the constructor refuses a token over 4096 characters or a role over 64.
+
+### Read newer servers [#read-newer-servers]
+
+A session whose `server.hello` announces 1.1 reads server messages tolerantly (§16): a message of a type the client doesn't know, and unknown fields of a known message, are ignored. Each kind is logged once per session as a warning; after 16 kinds the rest go unlogged. A known field with an invalid value still fails that one connection with `invalid-message`. A session that announces 1.0 reads as before 1.1: an unknown type fails the connection, and unknown fields are dropped silently. A server announces the lower of its minor and the client's, so a 1.1 server answering the 1.0 retry below announces 1.0. The client also caps the session's minor at what it announced itself: in the 1.0 retry a server announcing 1.1 gets no role, no takeover and no tolerant reader.
+
+### Connect to a 1.0 server [#connect-to-a-10-server]
+
+A 1.0 server rejects a hello that carries `role` or `authToken` with `invalid-message`. The connection then retries **once**, on a new session, with a 1.0 hello without those fields, and the session is a viewer:
+
+* `state.helloFallback` is `'minor-0'`, and a `hello-fallback` event names the rejected session. `connect()` resolves with the retry's outcome. The rejected session raises no `closed` event, so the state goes from `connecting` to `connected` without an error in between.
+* A second rejection is reported as it is; there is no further retry.
+* Any other code, or a rejection after the hello was accepted, never triggers the retry.
+* It is not sticky: every reconnect starts again with the 1.1 hello.
+
+### Take over the setup lock [#take-over-the-setup-lock]
+
+`acquireLock({ takeover: true })` (also on the pipeline) asks to end a lease someone else holds. The server's answer passes through unchanged, for example `role-required` for a viewer or `rate-limited`. On a 1.0 server the request is refused locally as `unsupported-by-server` and nothing is sent. The connection never retries it.
+
+The evicted owner receives the `server.lock.state` that names the new owner, as it arrives. Its connection then emits `lease-lost` with `cause: 'owned-by-other'`. The other causes are `'unlocked'` (the lease expired or reached the 30-minute cap) and `'heartbeat-rejected'`. A heartbeat refused with `rate-limited` is not a loss: the lease is kept and the 5-second cadence stays.
+
+Every `server.lock.state` the client applies is also a `lock-state` event. `connection.serverLock` holds the lock as the server last stated it: from the hello or a resync snapshot, then from each applied `server.lock.state`, with the server's own `expiresAtUs` as a `bigint`. It is `null` only while no session is up. Near the cap that value stops advancing. Use it for a remaining-time display; `state.lock` also moves on local heartbeat renewals.
+
+An operator session gets `server.operator.replay-complete` after every hello and snapshot, as an `operator-replay-complete` event. Its `metadataRevision` is never an increment. A viewer session drops the message.
+
+### Use the entry's connection [#use-the-entrys-connection]
+
+`model.pipeline(id).connectionView` is the entry's connection without `connect()` and `disconnect()` (type `EntryConnection`). Use it for state, events, subscriptions and requests. `pipeline(id).connection` still exists but is deprecated: its `disconnect()` stops the manager's entry and its reconnects. Remove an entry with `model.remove(id)`.
 
 ## Pin a server certificate [#pin-a-server-certificate]
 
@@ -203,6 +282,23 @@ A local `disconnect()` (and removing a card) takes the stage of what it interrup
 * during a reconnect backoff, with no attempt in flight: the stage of the attempt that failed last.
 
 A `discovered` source that can't be set up at all (the page isn't served by the server PC) never builds a connection, so `lastClose` stays `null`. `start()` and `reconnect()` still resolve with a failure whose `stage` is `discovery`. A disposed entry reports `connect`.
+
+## Control the cloud view and shut down [#control-the-cloud-view-and-shut-down]
+
+The model that `ready` resolves with has four members for a live preview. All are no-ops without a rendering backend, and none allocates per frame.
+
+| Member                                                                                     | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frameAll(): boolean`                                                                      | Fits the visible cloud into the orbit camera and keeps the viewing direction. The fit comes from the camera rig's view frusta, capped at 3 m depth, not from the points, so it doesn't follow the subject. It always jumps, so reduced motion needs no special case. Returns `false` and changes nothing when no bundle is visible.                                                                                                                                                                                                                                       |
+| `resetView(): void`                                                                        | Restores the default orbit pose. Also a jump.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `pointsDrawn(): number \| null`                                                            | An **estimate** of the points drawn. For each drawn bundle, the client counts the depth codes inside the valid range on a grid of every 4th pixel in both directions, inside the bundle's tiles only, and multiplies by 16. Invalid, below-range and above-range codes aren't counted, so a scene with only background reads `0`. It samples from the depth plane the upload already holds (no extra copy, WebCodecs or the built-in decoder), at most once a second per bundle. `null` before the first sample. Bundles turned off with `setBundleVisible` are excluded. |
+| `setBundleVisible(entryId: ConnectionEntryId, bundleId: BundleId, visible: boolean): void` | Turns one bundle's cloud off or on at once, independent of its subscription. The bundle keeps streaming and uploading, and tile views are unaffected. A bundle you turned off stays off across reconnects and when it leaves and re-enters the scene, until you set it visible or remove the server entry. Its status line reads "ready, hidden". `frameAll` and `pointsDrawn` ignore it.                                                                                                                                                                                 |
+
+A bundle whose stream ends leaves the scene: after an accepted `client.unsubscribe`, an unavailable bundle or a bundle removed by a snapshot, its last frame is removed instead of staying frozen. Frames still being decoded when the stream ended are dropped, not shown. Its textures stay, and the next decoded pair makes it appear again. This includes the hidden-tab pause: the cloud goes after the tab has been hidden for 10 seconds and the server has accepted the unsubscribe, never while a WebXR session presents, and it returns after the tab is shown again.
+
+On-demand rendering draws at most once per animation frame, and only after an upload or camera movement, so the cloud never draws faster than the capture delivers. There is no frame-rate cap to set.
+
+`handle.dispose()` returns a `Promise<void>`. It resolves once the WebTransport sessions have settled `closed` and the GPU device is released, each wait bounded by 2 seconds, and it never rejects. Calling it twice returns the same promise, and callers that ignore the result keep working.
 
 ## Troubleshooting [#troubleshooting]
 

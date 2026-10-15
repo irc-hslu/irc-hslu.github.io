@@ -8,10 +8,14 @@ Nothing is built from source. To build from source instead, see
 [Build the server from source](/docs/getting-started/install-server).
 
 <Callout type="warn">
-  v0.1.0-poc.3 is a non-commercial proof of concept. Browsers on the server
-  PC get status and setup, but no video yet (see
-  [Serve to browsers](/docs/server/serving#status)). Other computers on the
-  network can't connect yet.
+  v0.1.0-poc.10 is a non-commercial proof of concept. Live video (from
+  v0.1.0-poc.7): browsers on the server PC get status, setup and
+  the cameras' colour and depth (see
+  [Serve to browsers](/docs/server/serving)). The team has not yet checked
+  the picture content or depth calibration on a live scene on real
+  hardware. Browsers on other computers in the LAN can view the cameras if
+  you turn that on; the team has not yet tried it from a second machine. See
+  [Remote viewers on the LAN](#remote-viewers-on-the-lan).
 </Callout>
 
 <Steps>
@@ -24,7 +28,8 @@ Nothing is built from source. To build from source instead, see
     * **The NVIDIA driver 580 or newer, installed by you**, for example
       `sudo apt install nvidia-open` from NVIDIA's apt repository, then a reboot.
       The package neither contains nor installs a driver.
-    * **One or more Orbbec cameras** on USB 3.
+    * **One or more Orbbec cameras** on USB 3. Two or more also need sync
+      cables between them; see [More than one camera](#more-than-one-camera).
 
     Check the driver:
 
@@ -51,35 +56,54 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.0.poc3-1_amd64.deb` from the
-    [v0.1.0-poc.3 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.3),
-    or from the release link you were given, then, in the download folder:
+    Download `orbbec-streamer_0.1.0.poc10-1_amd64.deb` from the
+    [v0.1.0-poc.10 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.10),
+    together with `SHA256SUMS`, or from the release link you were given. In
+    the download folder, check the file, then install it:
 
     ```bash
-    sudo apt install ./orbbec-streamer_0.1.0.poc3-1_amd64.deb
+    sha256sum --check --ignore-missing SHA256SUMS
+    sudo apt install ./orbbec-streamer_0.1.0.poc10-1_amd64.deb
     ```
+
+    `sha256sum` must print `orbbec-streamer_0.1.0.poc10-1_amd64.deb: OK`.
+
+    The release also carries the source of the segmentation model and a relink
+    kit for the client's video decoder, which the decoder's LGPL licence
+    requires. You don't need either to install.
 
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.0~poc3-1`. The install:
+    The package version inside the file is `0.1.0~poc10-1`. The install:
 
-    * creates the system user `orbbec-streamer`, the state folder
+    * creates the system user `orbbec-streamer`, the empty group
+      `orbbec-operators` (see [Terminal console](/docs/operator/terminal-console#start-and-stop-without-sudo)), the state folder
       `/var/lib/orbbec-streamer` and the TLS certificates in
       `/etc/orbbec-streamer/tls`;
     * installs the udev rules for the cameras;
     * runs the machine check (below), which only reports and never stops the
       install;
     * starts `orbbec-streamer-web` and the certificate renewal timer
-      `orbbec-tls-renew.timer`.
+      `orbbec-tls-renew.timer`;
+    * from v0.1.0-poc.10, enables and starts the server service
+      `orbbec-streamer` with the cameras closed. You open them from the client
+      or the Operator Console with **Start cameras**. It prints:
 
-    What happens to the server service `orbbec-streamer` depends on the version:
+    ```text
+    orbbec-streamer: installed and started; cameras closed until an app opens them: http://127.0.0.1:8080 (Start cameras), http://127.0.0.1:8080/operator or orbbec-console
+    orbbec-streamer: the first start builds the segmentation engine for this GPU (minutes); follow it with: journalctl -fu orbbec-streamer
+    ```
 
-    * **v0.1.0-poc.3:** the install also enables and starts it.
-    * **From the next package (poc.4) on:** a fresh install neither enables nor
-      starts it, and prints `cameras stay off until you run: sudo systemctl
-      start orbbec-streamer`. You start it in step 5. An upgrade restarts it
-      only if it was running, and never changes whether it starts at boot.
+    To stop the server and keep it off at boot:
+
+    ```bash
+    sudo systemctl disable --now orbbec-streamer
+    ```
+
+    Up to poc.9, the install doesn't start or enable `orbbec-streamer`, and
+    prints `installed; cameras stay off until you run: sudo systemctl start
+    orbbec-streamer`; you start it in step 5.
   </Step>
 
   <Step>
@@ -108,20 +132,22 @@ Nothing is built from source. To build from source instead, see
   </Step>
 
   <Step>
-    ## Start the server and wait for the first start [#start-the-server-and-wait-for-the-first-start]
+    ## Wait for the first start [#wait-for-the-first-start]
 
-    Connect the cameras. From poc.4 on, start the server, and enable it if it
-    should also start at boot:
+    Connect the cameras. From v0.1.0-poc.10 the install has already started the
+    server. Up to poc.9, start it yourself, and enable it if it should also
+    start at boot:
 
     ```bash
     sudo systemctl start orbbec-streamer
     sudo systemctl enable orbbec-streamer
     ```
 
-    With v0.1.0-poc.3 it is already running; skip these two commands.
-
-    The server then starts capturing. **The first start
-    builds the segmentation engine for your GPU**: about 3 minutes, once. Until
+    Up to poc.8, the server then starts capturing. From v0.1.0-poc.9, it
+    starts with the cameras closed (idle) and waits until a client asks it to
+    open them; you do that in the next step. **The first start
+    builds the segmentation engine for your GPU**, whether the cameras are open
+    or not: about 3 minutes, once. Until
     it's ready, frames pass through without background removal. Follow it with:
 
     ```bash
@@ -130,6 +156,14 @@ Nothing is built from source. To build from source instead, see
 
     The engine is cached in `/var/lib/orbbec-streamer/engines` and rebuilt only
     when the GPU, TensorRT, the model or the number of cameras changes.
+
+    In v0.1.0-poc.7 the server may stop once, about 4 minutes after its first
+    start, when the engine build finishes; systemd restarts it within seconds.
+    poc.8 fixes this.
+
+    With one camera, the server writes the camera's identity pose at its first
+    start, so it needs no calibration (from poc.7). Several cameras need a
+    camera-pose calibration first; see [More than one camera](#more-than-one-camera).
   </Step>
 
   <Step>
@@ -140,27 +174,91 @@ Nothing is built from source. To build from source instead, see
     address or trust a certificate. The certificate rotates about every 6 days
     with no action from you.
 
-    The read-only Operator Console is at [http://127.0.0.1:8080/operator](http://127.0.0.1:8080/operator). See
+    From v0.1.0-poc.9, the server's card reads **Cameras closed** until you
+    select **Start cameras**. From v0.1.0-poc.10, the Operator Console has the
+    same button (see [Operator Console](/docs/operator#cameras-closed)). The server then opens the cameras, which can take
+    up to a minute, and stays open until the service stops. See
+    [Server card](/docs/client/server-card). To open the cameras at every
+    start instead, set `start_capture_on_launch: true` under `serving:` in
+    `/etc/orbbec-streamer/live.yaml` and restart the service.
+
+    From poc.7 the page shows the cameras' point cloud once the server is
+    streaming. On a Linux PC with an NVIDIA GPU the client decodes the video with
+    its built-in decoder, on the CPU; how much CPU
+    it needs depends on the PC (see
+    [Check your browser](/docs/client/browser-requirements)).
+
+    The Operator Console is at [http://127.0.0.1:8080/operator](http://127.0.0.1:8080/operator). See
     [Operator Console](/docs/operator).
   </Step>
 </Steps>
 
+## More than one camera [#more-than-one-camera]
+
+The package's `/etc/orbbec-streamer/live.yaml` is set up for one camera.
+Two or more cameras must be hardware-synchronised:
+
+1. Connect the sync cables between the cameras.
+
+2. In `/etc/orbbec-streamer/live.yaml`, give every camera an entry with its
+   `serial_number` (printed on the camera). Exactly one has
+   `role: "primary"`; the others have `role: "secondary"`:
+
+   ```yaml
+   cameras:
+     - id: "cam0"
+       vendor: "orbbec"
+       serial_number: "<serial of the primary camera>"
+       required: true
+       role: "primary"
+     - id: "cam1"
+       vendor: "orbbec"
+       serial_number: "<serial of the second camera>"
+       required: true
+       role: "secondary"
+   ```
+
+3. Turn sync on, with the values tested on two Femto Bolts:
+
+   ```yaml
+   sync:
+     enabled: true
+     secondary_depth_delay_step_us: 160
+     trigger_out_enable: true
+     timestamp_tolerance_us: 5000
+   ```
+
+4. Run `sudo systemctl restart orbbec-streamer`.
+
+5. Calibrate the camera poses with a printed ChArUco board; see
+   [Camera pose calibration](/docs/server/camera-calibration). Until then the
+   server stays in “needs setup” and sends no video. The team has tested
+   this calibration with synthetic cameras only, not yet on hardware. One
+   camera needs no calibration (from poc.7).
+
+See [Configuration](/docs/server/configuration#sync) for every sync key.
+Without sync, the server refuses to start with several cameras:
+`sync.enabled=false allows only one camera …`. (v0.1.0-poc.4 started and
+then stopped after about 10 seconds with `no batch for 10005 ms: the
+cameras' frame sets no longer match …`.)
+
 ## Files and services [#files-and-services]
 
-| Path                                           | What it is                                                                                                                                                 |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/etc/orbbec-streamer/live.yaml`               | The server's config. On upgrade, `apt` asks whether to keep your edited version; see [Upgrade](#upgrade). See [Configuration](/docs/server/configuration). |
-| `/etc/orbbec-streamer/tls/`, `tls.conf`        | Certificates and their settings                                                                                                                            |
-| `/var/lib/orbbec-streamer/`                    | Engine cache and calibration                                                                                                                               |
-| `/usr/lib/orbbec-streamer/bin/orbbec_streamer` | The server, also `orbbec-streamer` on the `PATH`                                                                                                           |
-| `/usr/share/orbbec-streamer/client/`           | The browser client and, in `operator/`, the Operator Console                                                                                               |
-| `/usr/share/doc/orbbec-streamer/`              | Licences and notices                                                                                                                                       |
+| Path                                           | What it is                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/etc/orbbec-streamer/live.yaml`               | The server's config. On upgrade, `apt` asks whether to keep your edited version; see [Upgrade](#upgrade). See [Configuration](/docs/server/configuration).                                                                                                                                    |
+| `/etc/orbbec-streamer/tls/`, `tls.conf`        | Certificates and their settings                                                                                                                                                                                                                                                               |
+| `/var/lib/orbbec-streamer/`                    | Engine cache and calibration; from poc.6 also `crash/`, where the WebTransport gateway writes a crash file if it crashes; `orbbec-streamer-report` collects the newest three. It needs `serving.crash_directory` in `live.yaml`, which a kept, edited `live.yaml` from an older version lacks |
+| `/usr/lib/orbbec-streamer/bin/orbbec_streamer` | The server, also `orbbec-streamer` on the `PATH`                                                                                                                                                                                                                                              |
+| `/usr/bin/orbbec-console`                      | The [terminal console](/docs/operator/terminal-console) (preview)                                                                                                                                                                                                                             |
+| `/usr/share/orbbec-streamer/client/`           | The browser client and, in `operator/`, the Operator Console                                                                                                                                                                                                                                  |
+| `/usr/share/doc/orbbec-streamer/`              | Licences and notices                                                                                                                                                                                                                                                                          |
 
 | Service                  | Does                                                                               |
 | ------------------------ | ---------------------------------------------------------------------------------- |
 | `orbbec-streamer`        | Capture, GPU processing, encoding and the WebTransport gateway on `127.0.0.1:4443` |
 | `orbbec-streamer-web`    | Serves the client on `http://127.0.0.1:8080`, on this PC only                      |
-| `orbbec-tls-renew.timer` | Renews the certificates                                                            |
+| `orbbec-tls-renew.timer` | Renews the certificates. From poc.6 the server reloads them without a restart.     |
 
 Check them with `systemctl status orbbec-streamer orbbec-streamer-web`.
 
@@ -172,19 +270,105 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version. The service restarts. The
-certificates and the engine cache are kept. If you edited `live.yaml` or
+Replace `<version>` with the new file's version. The first upgrade from
+poc.9 or earlier to v0.1.0-poc.10 or later enables and starts the server,
+with the cameras closed. Later upgrades restart the server only if it was
+running, and never change whether it starts at boot. Exception: if a
+`live.yaml` you kept sets `serving.start_capture_on_launch: true` (cameras
+open at every start), the upgrade keeps the previous state and prints
+`left stopped: /etc/orbbec-streamer/live.yaml sets start_capture_on_launch:
+true, so starting would open the cameras`.
+Upgrading from poc.3 or earlier restarts it if it is enabled, which those
+versions did on install. The certificates, the engine cache and your
+calibration are kept.
+
+<Callout type="warn">
+  **`serving.console_origins` (from v0.1.0-poc.9).** The package's
+  `live.yaml` lists the Operator Console's addresses under
+  `serving.console_origins`. A server gives the
+  [operator role](/docs/operator#the-operator-role) only to a page on one of
+  them. If you keep an edited `live.yaml` from an older version, it has no
+  such key. The server then starts as before, logs `serving.console_origins
+    is empty: no session can be granted the operator role`, and every console
+  session is a viewer: it can't change sensor settings or the stream
+  profile or take over the setup lock. To get the role, add to the
+  `serving:` section (each entry must also be in `allowed_origins`):
+
+  ```yaml
+  console_origins:
+    - "http://127.0.0.1:8080"
+    - "http://localhost:8080"
+  ```
+
+  **Downgrading** to a version before poc.9 with a kept `live.yaml`: delete
+  the `console_origins` block first. The older server refuses to start with
+  the unknown key. Downgrading from v0.1.0-poc.10 to poc.9 or earlier: also
+  delete the `lan_viewers` line under `serving:` and restart; otherwise the
+  older server refuses to start with `Unsupported serving key: lan_viewers`.
+</Callout>
+
+From poc.4, placement commits are saved in
+`/var/lib/orbbec-streamer/calibration/placement.json`. The upgrade moves a
+poc.3 placement file there once, if you take the package's `live.yaml`. If
+you keep an edited poc.3 `live.yaml`, the server keeps using
+`/var/lib/orbbec-streamer/config/dev/placement.json`. To switch, add
+`placement_path: /var/lib/orbbec-streamer/calibration/placement.json` under
+`calibration:` and move the file while the service is stopped. If you edited `live.yaml` or
 `tls.conf` and the new package changes that file too, `apt` asks which
 version to keep.
 
 <Callout type="warn">
   **Upgrading from poc.1 or poc.2 with an edited `live.yaml`:** keeping your
   version keeps the old `mask.rvm_engine_path`. The server then loads only
-  that engine file and never builds one, so it fails at start if the file is
-  missing, was built for another GPU or TensorRT, or the rig has two
-  cameras. Take the package's version and re-apply your edits, or fix the
+  that engine file and never builds one. If the file is missing, was built
+  for another GPU or TensorRT, or the rig has two cameras, the server keeps
+  running without background removal: the log has one error line with the
+  cause and the fix, and the 5-second stats show `mask: failed`. Take the package's version and re-apply your edits, or fix the
   `mask:` section as in [Troubleshooting](#troubleshooting).
 </Callout>
+
+## Remote viewers on the LAN [#remote-viewers-on-the-lan]
+
+From v0.1.0-poc.10, browsers on other computers in the same LAN can view
+the cameras. It is off by default: the page and the server listen on the
+server PC only. The team has not yet tried it from a second machine. The
+Operator Console stays on the server PC; a LAN viewer never gets the
+[operator role](/docs/operator#the-operator-role).
+
+The steps are in `/usr/share/orbbec-streamer/lan/LAN-VIEWERS.md` on the
+server PC. In short:
+
+1. Copy the page server's drop-in, so it also serves the page over HTTPS
+   on port 8443:
+
+   ```bash
+   sudo mkdir -p /etc/systemd/system/orbbec-streamer-web.service.d
+   sudo cp /usr/share/orbbec-streamer/lan/orbbec-streamer-web-lan.conf /etc/systemd/system/orbbec-streamer-web.service.d/lan.conf
+   sudo systemctl daemon-reload && sudo systemctl restart orbbec-streamer-web
+   ```
+
+2. In `/etc/orbbec-streamer/live.yaml`, under `serving:`, set
+   `listen_address: "0.0.0.0:4443"`, `lan_viewers: true` and
+   `lan_page_port: 8443`, then run `sudo systemctl restart orbbec-streamer`.
+
+3. If the firewall is on: `sudo ufw allow 8443/tcp` and
+   `sudo ufw allow 4443/udp`.
+
+4. On each viewer computer, trust the installation's certificate
+   authority once. Download it on the server PC from
+   `http://127.0.0.1:8080/.well-known/orbbec/ca.crt` (or copy
+   `/etc/orbbec-streamer/tls/public/orbbec-ca.crt`). Check that
+   `openssl x509 -in orbbec-ca.crt -noout -fingerprint -sha256` prints the
+   same fingerprint on both computers, then import it as a trusted root in
+   the viewer's system or browser.
+
+5. On the viewer, open `https://<server-hostname>.local:8443` or
+   `https://<server-LAN-IP>:8443`. The name or address must be one the
+   server's certificate covers;
+   `sudo /usr/lib/orbbec-streamer/tls/orbbec-tls status` lists them.
+
+To turn it off, remove the drop-in, set `lan_viewers: false` and
+`listen_address` back to `127.0.0.1:4443`, and restart both services.
 
 ## Uninstall [#uninstall]
 
@@ -196,17 +380,44 @@ version to keep.
 Both keep the `orbbec-streamer` user and group. The NVIDIA packages stay
 installed; `sudo apt autoremove` offers to remove them.
 
+## Collect a support report [#collect-a-support-report]
+
+From poc.4, `orbbec-streamer-report` bundles the diagnostics into one
+archive that you read and send yourself. It uploads nothing and changes
+nothing:
+
+```bash
+sudo orbbec-streamer-report
+```
+
+**Expected result:** `orbbec-streamer-report-<UTC timestamp>.tar.gz` in the
+current folder, readable by you. `--since "2 days ago"` widens the log
+window (the default is the last 24 hours), `--out <file>` names the archive,
+and `--print` lists what it would collect without collecting it.
+
+The archive holds the package and system versions, the machine check, the
+services' status and logs, `live.yaml`, `tls.conf`, the public certificate
+data and, from poc.6, the newest gateway crash files. It never holds keys,
+the contents of `/etc/orbbec-streamer/tls`, calibration or placement
+files, or engines. Host names, IP and MAC addresses, e-mail addresses, your
+user name and configured camera serial numbers are masked, but the masking
+is pattern based: read the files before you send them. `MANIFEST.txt` lists
+every file and what was masked.
+
 ## Troubleshooting [#troubleshooting]
 
-| Symptom                                                                                                                               | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `preflight` shows `FAIL  nvidia-driver` or `FAIL  driver-libraries`                                                                   | No NVIDIA driver 580 or newer. Install it (for example `sudo apt install nvidia-open`), reboot, and run `orbbec-streamer-preflight` again.                                                                                                                                                                                                                                                                                                                            |
-| `preflight` shows `FAIL  cuda-runtime` or `FAIL  tensorrt`                                                                            | NVIDIA's apt repository is missing. Add it (step 2), then run the `sudo apt install` command in the `fix:` line.                                                                                                                                                                                                                                                                                                                                                      |
-| `WARN  orbbec-cameras`                                                                                                                | No camera is connected. Connect it to a USB 3 port.                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| The log repeats `No configured cameras are active`                                                                                    | No camera was found at start. The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`.                                                                                                                                                                                                                                   |
-| After an upgrade, the log shows `Cannot open TensorRT engine: …` or an engine deserialisation error, and the service keeps restarting | You kept an edited `live.yaml` from poc.1 or poc.2, which names a fixed engine file. In the `mask:` section of `/etc/orbbec-streamer/live.yaml`, delete `rvm_engine_path` and set `rvm_onnx_path: "/usr/share/orbbec-streamer/models/rvm/rvm_mobilenetv3_b{batch}_640x576_ds0.5_float16.onnx"` and `rvm_engine_cache_dir: "/var/lib/orbbec-streamer/engines"`. Then run `sudo systemctl restart orbbec-streamer`; the first start builds the engine (3 to 4 minutes). |
-| The log shows `error while loading shared libraries: libcuda.so.1`                                                                    | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| The Femto Bolt doesn't start; the log shows depth engine error 204                                                                    | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                                                                                                                                                                                                                                                          |
-| The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                       | From poc.4 on, the server isn't started by the install: run `sudo systemctl start orbbec-streamer`. Otherwise, the gateway starts only once a camera is active, and the first start may still be building the engine. Check `journalctl -u orbbec-streamer -f`.                                                                                                                                                                                                       |
-| The page doesn't load                                                                                                                 | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                 |
-| Another computer can't open the page                                                                                                  | Expected in this release: open it on the server PC.                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Symptom                                                                                                                                                   | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preflight` shows `FAIL  nvidia-driver` or `FAIL  driver-libraries`                                                                                       | No NVIDIA driver 580 or newer. Install it (for example `sudo apt install nvidia-open`), reboot, and run `orbbec-streamer-preflight` again.                                                                                                                                                                                                                                                                                                                                                                                 |
+| `preflight` shows `FAIL  cuda-runtime` or `FAIL  tensorrt`                                                                                                | NVIDIA's apt repository is missing. Add it (step 2), then run the `sudo apt install` command in the `fix:` line.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `WARN  orbbec-cameras`                                                                                                                                    | No camera is connected. Connect it to a USB 3 port.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| The log repeats `No configured cameras are active` (up to poc.9)                                                                                          | No camera was found at start. The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`.                                                                                                                                                                                                                                                                                        |
+| After an upgrade, the stats show `mask: failed` and the log shows an engine error, such as `Cannot open TensorRT engine: …`                               | You kept an edited `live.yaml` from poc.1 or poc.2, which names a fixed engine file. In the `mask:` section of `/etc/orbbec-streamer/live.yaml`, delete `rvm_engine_path` and set `rvm_onnx_path: "/usr/share/orbbec-streamer/models/rvm/rvm_mobilenetv3_b{batch}_640x576_ds0.5_float16.onnx"` and `rvm_engine_cache_dir: "/var/lib/orbbec-streamer/engines"`. Then run `sudo systemctl restart orbbec-streamer`; the first start builds the engine (3 to 4 minutes).                                                      |
+| The log shows `error while loading shared libraries: libcuda.so.1`                                                                                        | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| The Femto Bolt doesn't start; the log shows depth engine error 204                                                                                        | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                                                                                                                                                                                                                                                                                                               |
+| The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                                           | The server isn't running. From poc.10 the install starts it, unless a kept `live.yaml` sets `start_capture_on_launch: true`; up to poc.9 it doesn't. Run `sudo systemctl start orbbec-streamer`. Otherwise, up to poc.9 the gateway starts only once a camera is active, and the first start may still be building the engine. From poc.9 the gateway starts with the service; if the page connects but shows **Cameras closed**, select **Start cameras** on the server's card. Check `journalctl -u orbbec-streamer -f`. |
+| The server stops once, about 4 minutes after the first start, and starts again within seconds                                                             | Known issue in poc.7, fixed in poc.8: the stop comes when the segmentation engine build finishes. systemd restarts the server; no action needed.                                                                                                                                                                                                                                                                                                                                                                           |
+| Several cameras: the page shows the server needs setup and no point cloud                                                                                 | The camera poses aren't calibrated. See [Camera pose calibration](/docs/server/camera-calibration).                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Several cameras: the server stops after about 10 s with `no batch for 10005 ms …`, or refuses to start with `sync.enabled=false allows only one camera …` | Sync is off. See [More than one camera](#more-than-one-camera).                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| The page doesn't load                                                                                                                                     | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Another computer can't open the page                                                                                                                      | Expected in this release: open it on the server PC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |

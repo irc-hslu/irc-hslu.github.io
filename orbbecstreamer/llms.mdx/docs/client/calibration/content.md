@@ -8,7 +8,7 @@
 
 The server sends depth as a video in which each pixel is one of 1024 codes, and the client turns each code back into a distance. A depth-quantization calibration measures the depths your cameras see and produces a new code-to-distance mapping, called a **result**. The result comes into force only when you commit it, and then every client uses it.
 
-Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today. Against a real server you can start, follow and cancel a depth-quantization run, but not commit it yet: the client and server still follow two different proposals for when a calibration result is sent (change requests 0012 and 0023), and the fix waits on that decision. Against the mock server, committing works.
+Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today. Two server behaviours are proposed for when a run’s result is sent (change requests 0012 and 0023), and the protocol owner has not yet decided between them. The client follows both. The current server follows the 0023 one, where the solved run stays `running` and shows `Solved: awaiting commit`. The client tests run the mock server in both modes (add `?mockCalibration=0023` to the page address before adding the dev mock server to select the 0023 one); they do not replace a check against a real server.
 
 ## Depth quantization [#depth-quantization]
 
@@ -23,20 +23,24 @@ Open the setup view first: select **Set up** on the card. The session chip must 
 
    <img alt="Depth quantization during a run: the running chip, Cancel available, the four numbers and the Depth codes histogram" src="__img0" />
 
-3. Wait for `Result ready: revision 2, not in force until committed.` The state chip still shows the old revision.
+3. Wait for the result. The state chip still shows the old revision. Depending on the server, the box says one of:
+
+   * `Result ready: revision 2, not in force until committed.` (servers that follow CR 0012, and the mock server by default)
+   * `Solved: awaiting commit, not in force until committed.` (servers that follow CR 0023, which is what the current server does, and the mock server with `?mockCalibration=0023`; the chip stays **running** until you commit)
 
    <img alt="Depth quantization after a run: Commit highlighted, the Result ready box, elapsed (last run) 5.5 s, and the final histogram on the log scale" src="__img1" />
 
 4. Select **Commit**. A moment later the chip shows the new revision, on every client.
 
-To stop a run, select **Cancel**. Nothing is committed. The reasons an unavailable button shows as its tip:
+To stop a run, select **Cancel**. Nothing is committed. Leaving setup does the same: it cancels the run and discards a solved or ready result, and the setup view says `The client discarded the uncommitted depth quantization result.` The reasons an unavailable button shows as its tip:
 
-| Reason                                              | Meaning                                          |
-| --------------------------------------------------- | ------------------------------------------------ |
-| `the setup session is not active`                   | You don’t hold the lock                          |
-| `the depth-quantization calibration is running`     | **Start** and **Commit** wait until the run ends |
-| `the depth-quantization calibration is not running` | Nothing to cancel                                |
-| `no accepted depth-quantization result to commit`   | Run the calibration first                        |
+| Reason                                                                            | Meaning                                                                                         |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `the setup session is not active`                                                 | You don’t hold the lock                                                                         |
+| `the depth-quantization calibration is running`                                   | **Start** waits until the run ends, **Commit** until it has a result or reads `awaiting commit` |
+| `a depth-quantization commit was already accepted; waiting for the server update` | **Commit** was accepted; the new revision follows                                               |
+| `the depth-quantization calibration is not running`                               | Nothing to cancel                                                                               |
+| `no accepted depth-quantization result to commit`                                 | Run the calibration first                                                                       |
 
 ## Camera pose [#camera-pose]
 
@@ -48,7 +52,7 @@ The section shows its state chip and **Not available yet**.
 
 ## Fix calibration problems [#fix-calibration-problems]
 
-* **The result never came into force**: a result needs **Commit**. If you left setup or lost the lock first, the client threw the result away. After **Leave**, the setup view closes with no message, and the card’s **Depth** chip keeps the old revision. After a forced exit, the box in the setup view says `The client discarded the uncommitted depth quantization result.` Run the calibration again and commit it.
+* **The result never came into force**: a result needs **Commit**. If you left setup or lost the lock first, the client threw the result away. After **Leave** or a forced exit, the box in the setup view says `The client discarded the uncommitted depth quantization result.` Run the calibration again and commit it.
 * **You were forced out in the middle of a run**: the client committed nothing. When you’re back in setup, check the state chip: if it still shows **running**, the run went on without you. See [Set up a server](/docs/client/setup-workspace).
 * **`Start rejected (<code>): <message>`**, or the same for Cancel or Commit: the server refused the request. The code and message come from the server.
 * **`Commit failed (timeout): …`**: the server didn’t answer in time. The state chip tells you whether the new revision is in force. If it isn’t, and the result still shows, select **Commit** again.

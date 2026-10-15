@@ -138,6 +138,12 @@ the Operator Console's depth range screen uses.
    code of the profile in force) and `reconstructionErrorMm`. A field the
    server has not measured yet is `null`. The first `setup.warmup_seconds`
    collect nothing. The run ends by itself after `setup.maximum_duration_seconds`.
+   A run is solved only with enough valid samples: at least the valid pixels of
+   four full depth frames (4 x width x height, 1 474 560 at 640x576), which a
+   person-sized foreground reaches in about 5 to 15 s at 15 fps. Below
+   that it keeps collecting, and the server log shows what is missing. At the end of
+   the run it fails with `accepted: false` and a message such as
+   `too few valid depth samples between 500 and 5000 mm (25, at least 1474560 needed); point the cameras at the scene or adjust the range`.
 4. **Solved, awaiting commit.** The calibration stays `running` and its
    `message` reads `solved; awaiting commit`. No `server.calibration.result` is
    sent yet, and nothing is changed or saved.
@@ -149,6 +155,23 @@ the Operator Console's depth range screen uses.
    `server.metadata.revision-changed` and the new stream descriptors that
    carry the new profile.
 
+   The revision is saved in the same step as the profile, in
+   `<quantization_profile_path>.revision` (a small JSON file next to the
+   profile), so it survives a restart: after commits at revisions 2, 3 and 4 a
+   restart reports 4, and the next commit is 5. A revision is not reused for
+   different content, unless the `.revision` file is deleted, damaged or cannot
+   be written (the server then logs a warning); in that case numbering restarts
+   at 2. If the profile file has no matching `.revision` entry
+   (the offline tool or a hand edit replaced it, or an older server wrote
+   it), the server gives it the next revision and records that. A file that
+   cannot be used (the linear fallback) is new content as well, and so is a
+   changed configured range. A profile with no `.revision` file at all starts
+   at 2; with no profile and no `.revision` file the linear default is
+   revision 1 (recorded at start-up), and the first commit is 2 (the calibration record is
+   `missing` at revision 0 until then). Keep the `.revision` file with the
+   profile. The server writes it before it replaces the profile, so a commit
+   that cannot save the revision is rejected and leaves the old profile in place.
+
 Cancel, releasing the lock, a disconnect and an expired lease all abandon the
 run: the calibration returns to the state it had before, nothing is written,
 and no result is sent. A run that fails (for example, no depth was seen)
@@ -158,10 +181,10 @@ If the encoder ever refuses a committed profile (it checks what the server check
 
 The commit takes effect on the live stream. The encoder switches to the new
 table at the next frame set and starts that frame set with a keyframe, so a
-viewer never decodes new codes with the old table. Handing the new streams
-to viewers (wire-format §18 stream rotation) is not implemented yet, and no
-session receives media until CR 0009, so today only the encoder and the
-setup metadata change.
+viewer never decodes new codes with the old table. Each subscribed session's
+media streams rotate at that keyframe (wire-format §18): the old streams end,
+and new ones start with a header that names the new revision (see
+[Serve to browsers](./serving)).
 
 The server refuses to start a run with `calibration-unavailable` and a message
 that says what to do when any of these hold:
@@ -281,6 +304,7 @@ the GPU, so encoding stays one lookup per pixel.
 | `Existing depth profile range does not match live config; use --force to recalibrate`                                                  | You changed `minimum_depth_mm` or `maximum_depth_mm`. Run again with `--force`.                                                                                                                                                                                                                                                         |
 | Live server logs `depth quantization profile <path> ... covers 500..5000 mm but the configuration says ...` or `... is unusable (...)` | The live server does not stop: it uses the linear profile for the configured range and reports the depth-quantization calibration as `stale`. Recalibrate from the browser or with `--force`, or delete the file.                                                                                                                       |
 | A browser start is refused with `calibration-unavailable`                                                                              | The message names the cause; see [Calibrate from the browser](#calibrate-from-the-browser).                                                                                                                                                                                                                                             |
+| A browser run fails with `too few valid depth samples between ...`                                                                     | The run saw some depth in range, but less than four full frames' worth. Point the cameras at the scene, have a person stay in view, or adjust the range.                                                                                                                                                                                |
 | A browser run fails with `no masked depth between ... was seen`                                                                        | Nobody was in view, or the mask found no one. Have a person walk through the volume and check the mask status.                                                                                                                                                                                                                          |
 | `Required camera is unavailable: cam0` or `No configured cameras are available for depth calibration`                                  | Check USB and power, the `serial_number` values in `cameras`, and that no other process holds the cameras. Raise `run.camera_wait_timeout_ms` if the cameras take long to appear.                                                                                                                                                       |
 | `Depth calibration collected no valid masked in-range samples`                                                                         | Nothing in the foreground mask was inside the range. Put a person in view, check the depth range, lower `processing.bilateral_mask_threshold`, or make the run longer than the warm-up.                                                                                                                                                 |

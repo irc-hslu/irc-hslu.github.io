@@ -20,14 +20,14 @@ and [Serve to browsers](../serving).
 Internally the server names one phase for logs. On the wire the same state
 is split into independent fields, and the internal names never appear there.
 
-| Internal phase (log)      | When                                                         | On the wire                                     |
-| ------------------------- | ------------------------------------------------------------ | ----------------------------------------------- |
-| `NEEDS_SETUP`             | Camera pose missing, stale or failed; `autocalibrate: false` | `readiness=needs-setup`, `autocalibrate=false`  |
-| `WAITING_FOR_CALIBRATION` | Camera pose missing, stale or failed; `autocalibrate: true`  | `readiness=needs-setup`, `autocalibrate=true`   |
-| `CALIBRATING`             | A lease holder runs a camera-pose calibration                | Lock owned, `camera-pose` calibration `running` |
-| `READY`                   | Camera pose valid, media not requested                       | `readiness=ready`, `streaming=stopped`          |
-| `STREAMING`               | Camera pose valid, media requested, no calibration running   | `readiness=ready`, `streaming=streaming`        |
-| `PAUSED_FOR_SETUP`        | Ready, but media held for a setup operation                  | `readiness=ready`, `streaming=paused-for-setup` |
+| Internal phase (log)      | When                                                                       | On the wire                                          |
+| ------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `NEEDS_SETUP`             | Camera pose missing, stale or failed; `autocalibrate: false`               | `readiness=needs-setup`, `autocalibrate=false`       |
+| `WAITING_FOR_CALIBRATION` | Camera pose missing, stale or failed; `autocalibrate: true`                | `readiness=needs-setup`, `autocalibrate=true`        |
+| `CALIBRATING`             | A lease holder runs a camera-pose calibration                              | Lock owned, `camera-pose` calibration `running`      |
+| `READY`                   | Camera pose valid, media not requested, or requested but not yet delivered | `readiness=ready`, `streaming=stopped` or `starting` |
+| `STREAMING`               | Camera pose valid, media requested and delivered, no calibration running   | `readiness=ready`, `streaming=streaming`             |
+| `PAUSED_FOR_SETUP`        | Ready, but media held for a setup operation                                | `readiness=ready`, `streaming=paused-for-setup`      |
 
 Rules behind the table:
 
@@ -41,11 +41,17 @@ Rules behind the table:
   requested, the pose is valid and no calibration is running. `--live`
   requests media at start, so a valid pose shows `STREAMING` in the log. No
   bytes leave the server until serving exists.
+* **`starting` first.** After every start (the cameras open, the pose becomes
+  valid, a stream-profile switch restarts the rig) `streaming` reads
+  `starting` until the encoders have produced access units, then `streaming`
+  (protocol 1.1, wire-format §10; see
+  [Setup progress](./progress-and-sync#the-starting-phase)).
 * An `error` phase is not modelled yet.
 
 ```text
 startup ─► load + check camera-pose.json
              ├─ valid ─────────────► READY / STREAMING
+             ├─ missing or stale, one camera ► write identity pose, revision + 1 ─► READY / STREAMING
              └─ missing or stale ──► NEEDS_SETUP             (autocalibrate: false)
                                      WAITING_FOR_CALIBRATION (autocalibrate: true)
 lease holder starts calibration ───► CALIBRATING
@@ -54,15 +60,35 @@ lease holder starts calibration ───► CALIBRATING
    failure ─► failed (a recalibration keeps the old valid pose)
 ```
 
+A single-camera rig needs no calibration: the first camera is the reference,
+so at startup the server writes the identity pose for it (revision stored + 1,
+or 1) and starts ready. If the write fails it logs a warning and stays in
+`NEEDS_SETUP`. Several cameras always need a calibration.
+
 What makes a saved pose valid or stale, and the procedure to calibrate, are
 on [Camera pose calibration](../camera-calibration#startup-states).
 
+### Cameras open and closed [#cameras-open-and-closed]
+
+The setup state exists before any camera is open. Its `capture` dimension is
+`idle`, `opening`, `running`, `closing` or `failed` (wire-format §10). While
+it is not `running` the state lists no cameras and no bundles, `streaming` is
+`stopped`, and the calibration is checked against the configured cameras that
+device enumeration finds, so the readiness shows what it will be once they
+open. A client opens the cameras with `client.capture.start` and closes them
+with `client.capture.stop`; the server starts them itself only with
+`serving.start_capture_on_launch: true` (see
+[Cameras closed and capture start](../serving#cameras-closed-and-capture-start)).
+The opening commit lists the cameras with their intrinsics and the pose
+from `camera-pose.json`, and the single-camera identity pose is written then if
+it is needed. A stop keeps everything on disk.
+
 ### In the log [#in-the-log]
 
-At start, after the cameras are open:
+At start, with the cameras closed or open:
 
 ```text
-[info] setup at startup: phase=NEEDS_SETUP readiness=needs-setup camera_pose_calibration=missing (revision 0: no camera-pose calibration at config/dev/camera-pose.json) streaming=stopped metadata_revision=1
+[info] setup at startup: capture=idle phase=NEEDS_SETUP readiness=needs-setup camera_pose_calibration=missing (revision 0: no camera-pose calibration at config/dev/camera-pose.json) streaming=stopped metadata_revision=1
 ```
 
 After that, a `setup update` line appears whenever the phase, the camera-pose
@@ -76,11 +102,11 @@ A revision is a counter that goes up when something changes. Every change a
 client needs to interpret media carries one. Revisions never decrease, and
 content that affects interpretation changes only with a newer revision.
 
-| Revision                            | Starts at                                                                                                | Changes when                                                                    | Persisted                                                             |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `calibrationRevision` (camera pose) | The revision in `camera-pose.json`; `0` without a file. For a damaged file, the revision it still shows. | A calibration is committed: previous + 1, also when the previous pose was stale | Yes, in `camera-pose.json`                                            |
-| `depthQuantizationRevision`         | `1`                                                                                                      | Never while running. Changing the profile needs a restart.                      | No                                                                    |
-| `placementRevision`                 | The revision in `placement.json`; `0` without a file                                                     | A client commits a new placement (`client.placement.commit`): + 1               | Yes, in `calibration.placement_path`, saved before any client sees it |
+| Revision                            | Starts at                                                                                                | Changes when                                                                                                                                       | Persisted                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `calibrationRevision` (camera pose) | The revision in `camera-pose.json`; `0` without a file. For a damaged file, the revision it still shows. | A calibration is committed: previous + 1, also when the previous pose was stale                                                                    | Yes, in `camera-pose.json`                                            |
+| `depthQuantizationRevision`         | `1`                                                                                                      | Never while running. Changing the profile needs a restart.                                                                                         | No                                                                    |
+| `placementRevision`                 | The revision in `placement.json`; `0` without a file                                                     | A client commits a new placement (`client.placement.commit`): + 1. Stream descriptors and headers do not carry it, and nothing rotates (CR 0040 C) | Yes, in `calibration.placement_path`, saved before any client sees it |
 
 A damaged `camera-pose.json` or `placement.json` is not used, but its
 revision is still read where possible, so the next commit gets a higher one:
@@ -160,15 +186,15 @@ It does not contain camera poses, revisions or the setup phase. Poses are in
 
 ## What works today [#what-works-today]
 
-| Part                                                                                | Status                                                                                                                                 |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup state, readiness and revisions, built at start                                | Available (needs `streams.alignment: color_to_depth`)                                                                                  |
-| Loading and checking the saved camera pose                                          | Available                                                                                                                              |
-| Local calibration with the console lease (`--calibrate-camera-pose`)                | Available                                                                                                                              |
-| `setup.json`                                                                        | Available                                                                                                                              |
-| Snapshot and updates per client, lease commands, calibration and placement commands | Available over the control stream when `serving.enabled: true`. Camera-pose calibration only. No media is sent yet (CR 0009, proposed) |
-| `autocalibrate: true` in practice                                                   | Available with serving enabled: a client holding the lease may start a calibration                                                     |
-| Placement persistence                                                               | Implemented: a committed placement is saved before clients see it and restored at start                                                |
+| Part                                                                                | Status                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup state, readiness and revisions, built at start                                | Available (needs `streams.alignment: color_to_depth`)                                                                                                                                                                                                                                                                             |
+| Loading and checking the saved camera pose                                          | Available                                                                                                                                                                                                                                                                                                                         |
+| Local calibration with the console lease (`--calibrate-camera-pose`)                | Available                                                                                                                                                                                                                                                                                                                         |
+| `setup.json`                                                                        | Available                                                                                                                                                                                                                                                                                                                         |
+| Snapshot and updates per client, lease commands, calibration and placement commands | Available over the control stream when `serving.enabled: true`. Camera-pose calibration only. Media follows the setup state: held while not ready, not streaming or paused for setup; a commit that changes the descriptors rotates the media streams at the next keyframe (wire-format §18, see [Serve to browsers](../serving)) |
+| `autocalibrate: true` in practice                                                   | Available with serving enabled: a client holding the lease may start a calibration                                                                                                                                                                                                                                                |
+| Placement persistence                                                               | Implemented: a committed placement is saved before clients see it and restored at start                                                                                                                                                                                                                                           |
 
 Without `streams.alignment: color_to_depth` the server logs
 `setup state not built: client-facing setup requires streams.alignment=color_to_depth`
@@ -176,6 +202,7 @@ and runs the pipeline without a setup state.
 
 ## Related pages [#related-pages]
 
+* [Setup progress, sync telemetry and calibration data](./progress-and-sync): the tasks behind `starting`, the sync window and the camera-pose run data
 * [Camera pose calibration](../camera-calibration): calibrate, validity rules, troubleshooting
 * [Configuration](../configuration#calibration): `camera_pose_path`, `autocalibrate`
 * [Stream layout](../stream-layout): the bundles and descriptors the state describes

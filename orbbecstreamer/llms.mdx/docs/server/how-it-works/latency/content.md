@@ -48,7 +48,7 @@ so absolute capture-relative numbers may carry a constant offset;
 differences and everything after the SDK are exact.
 
 Not in the baseline: RVM segmentation (adds to GPU processing), the preview
-window, and the network (serving sends no media yet; see
+window, and the network (the baseline has no browser subscribed; see
 [Serve to browsers](../serving)).
 
 ## Targets [#targets]
@@ -118,6 +118,11 @@ session at shutdown. Compare `sdk->handoff` (the server's own part) and
 Every metric is explained in
 [Read the telemetry](../telemetry#latency-report), with reference values in
 [What good looks like](../telemetry#what-good-looks-like).
+
+A `capture->*` row that reads `unavailable: every sample is negative` (or a
+`negative samples counted as 0` note) means the camera's capture timestamp is
+later than the host clock, so the camera clock is not mapped to host time. The
+figure is not a latency; do not read it as 0 ms.
 
 Keep a quiet machine: CPU contention shows up as a higher `sdk->handoff` p99
 and `batch_wait`, because alignment runs on the CPU per camera.

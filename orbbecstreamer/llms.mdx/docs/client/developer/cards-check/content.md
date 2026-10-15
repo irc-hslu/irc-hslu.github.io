@@ -34,7 +34,7 @@ The scenario, in order:
 1. Both clients connect.
 2. A acquires the lock. B shows `held by Client A (…)`, and B’s **Acquire lock** is unavailable with the reason `the lock is held by Client A`.
 3. B sends an acquire anyway, through the model function the button calls (the unavailable button itself sends nothing). The mock server refuses it, and the page log (not B’s card) shows `Client B: Acquire lock rejected (lock-held): setup lock held by Client A`. `lock-held` is the mock server’s code; a real server may use another.
-4. B turns shared updates off, and A commits a placement. B still gets the new placement, because the change restarts the streams and B fetches the full state by itself.
+4. B turns shared updates off, and A commits a placement. A placement commit doesn’t restart the streams, and the payload is withheld from B. B fetches the full state by itself when the notice arrives, so it still gets the new placement.
 5. A runs a depth-quantization calibration. B shows it `running`. The result is withheld from B, so B’s card shows stale metadata until B refreshes. After A commits, B shows the calibration `valid` at a new revision.
 6. A releases the lock. B acquires it (A shows `held by Client B (…)`), then releases it.
 7. The mock drops B’s session. B’s card shows `error` and `reconnect scheduled`, and B’s **Reconnect** restores the session. With the sample recordings, the step also waits until B’s new session uploads frames and its bundle shows `ready, drawing`.

@@ -13,6 +13,8 @@ The setup view changes one server’s setup: its depth calibration and its place
 
 The setup view replaces **Servers** and **World anchors**, and asks for the setup lock at once. The header, **View** and the 3D view stay.
 
+The 3D view also jumps once to frame this server’s cloud, keeping your viewing direction. The fit comes from the server’s camera positions (with its placement) and depth range, not from the points. If the server has no geometry yet, the view frames once when its first picture arrives. Any input on the 3D view (a click or drag, scrolling, or a key press), **Leave** or closing the view cancels that wait, and **Enter setup** doesn’t frame again.
+
 <img alt="The setup view for the Dev mock server: SET UP and the name with Leave; the Locked by you, Active and 15 s lock chips; Camera pose with its red TODO; Depth quantization with Start, Cancel and Commit; Network, Not available yet" src="__img0" />
 
 * **Title**: **SET UP** and the server’s name, with **Leave**. After the session ends: **Back**, and **Enter setup** if the server is still connected.

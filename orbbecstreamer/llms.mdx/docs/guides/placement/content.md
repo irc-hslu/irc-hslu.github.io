@@ -33,9 +33,10 @@ the next start (see the [`calibration` keys](/docs/server/configuration#calibrat
 With `placement_path: ""`, the placement is kept in memory only and resets
 at every restart.
 
-The server sends no video to browsers yet, so you edit the placement
-without seeing your own camera's point cloud (see
-[Serve to browsers](/docs/server/serving#status)). To try the editor without
-a server, use the client's built-in mock server: see
+From v0.1.0-poc.7 the server sends live video, so you see your own
+camera's point cloud while you edit the placement (see
+[Serve to browsers](/docs/server/serving)). With poc.6 and earlier you edit
+it without video. A placement commit doesn't interrupt the video. To try the
+editor without a server, use the client's built-in mock server: see
 [Mock server](/docs/client/developer/mock-server) and
 [Placement check](/docs/client/developer/placement-check).

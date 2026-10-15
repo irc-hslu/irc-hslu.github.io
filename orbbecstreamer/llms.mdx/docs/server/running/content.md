@@ -4,7 +4,7 @@
 
 
 
-`orbbec_streamer --live <config>` runs the full pipeline: capture from the configured Orbbec cameras, GPU processing, NVENC HEVC encoding and terminal telemetry. The other flags check the hardware and the SDKs. The live pipeline serves browsers the control plane only, and only with `serving.enabled: true`; it sends no media yet, and encoded bundles go to the debug recorder only (see [Serve to browsers](./serving)).
+`orbbec_streamer --live <config>` runs the full pipeline: capture from the configured Orbbec cameras, GPU processing, NVENC HEVC encoding and terminal telemetry. The other flags check the hardware and the SDKs. The live pipeline serves browsers only with `serving.enabled: true`: the control plane to every session, and each bundle's media streams to the sessions subscribed to it (see [Serve to browsers](./serving)). Encoded bundles also go to the debug recorder when it is on.
 
 ## Before you start [#before-you-start]
 
@@ -118,11 +118,15 @@ With `record_gpu_inputs` or `record_gpu_outputs` on, files go to `debug_recordin
 ```text
 debug/live/
   setup.json                        always written, even with recording off
+  manifest.json                     record_gpu_outputs (raw .hevc): what the recording holds
   cam0/gpu-input-color.mkv          record_gpu_inputs: colour entering the GPU (FFV1)
   cam0/gpu-input-depth.mkv          record_gpu_inputs: depth entering the GPU (FFV1, 16-bit)
-  multicam/                         encoded output in concatenated_batch mode
-    gpu-output-layout.json          tile layout and depth packing
-    gpu-output-color.hevc           record_gpu_outputs: raw HEVC (Annex B)
+  cam0/gpu-output-layout.json       tile layout and depth packing
+  cam0/gpu-output-color.hevc        record_gpu_outputs: raw HEVC (Annex B), per_camera
+  cam0/gpu-output-depth.hevc
+  multicam/                         the same files, in concatenated_batch mode
+    gpu-output-layout.json
+    gpu-output-color.hevc
     gpu-output-depth.hevc
     gpu-output-color.mkv            locally_decode_gpu_outputs: decoded colour (FFV1)
     gpu-output-depth.mkv            decoded 10-bit depth codes (FFV1)
@@ -130,9 +134,30 @@ debug/live/
 ```
 
 * FFV1 is lossless, so inputs hold the exact frames. Annex B is the plain HEVC byte stream.
-* In `per_camera` mode encoded output goes to each camera's folder (`cam0/gpu-output-*`).
-* Folder names are the camera `id`s. Recordings run at the stream rate.
+* In `per_camera` mode encoded output goes to each camera's folder (`cam0/gpu-output-*`); in `concatenated_batch` mode it goes to `multicam/`.
+* Folder names are the camera `id`s. A camera `id` that is not a valid folder name (empty, `.` or `..`, or containing `/` or `\`, or longer than 128 characters or 255 bytes) has no encoded output recorded; the server logs the reason at start. Its `record_gpu_inputs` files, if enabled, are still written, under a folder name with the invalid characters replaced by `_`.
+* Recordings run at the stream rate.
 * Recordings are closed at shutdown; stop the server with a signal, never `kill -9`.
+
+### The recording manifest [#the-recording-manifest]
+
+`manifest.json` lets a reader play the raw `.hevc` files without the server. It follows protocol change 0038 in the revision agreed on the branch `client/cr-0038-recording-manifest` (status: proposed; the text on `main` is an older draft, so the format can still change). It is written with the raw `.hevc` output only, not with `locally_decode_gpu_outputs`, and only when the client-facing setup exists (`streams.alignment: color_to_depth`). It holds, as of the recording start:
+
+* server identity (`serverId`, `serverName`), `streamLayout` (`per-camera` or `concatenated`) and `frameRate` (the stream rate);
+* `startCaptureTimeUs`, the capture time of frame set 0 (the first frame set the recorder was offered) in server monotonic microseconds;
+* `cameras` (depth intrinsics and poses), `quantization` (including the 1024-entry LUT), `placement`, `calibrationRevision` and `metadataRevision`, in the same form as the live messages;
+* `bundles`: for each bundle the camera ids, tiles, the relative paths of its colour and depth files, and its `segments`;
+* `recording`: `state` and `droppedFrameSets`.
+
+**Frame set index.** The recorder numbers the frame sets it is offered 0, 1, 2, and so on, before its queue, one per batch. A frame set the queue drops still uses its number; frame sets that were never streamed (capture-rate decimation) do not. The number is the same in every bundle, so it is how a reader lines the bundles up. It is not derived from timestamps.
+
+**Segments.** Each bundle writes its colour and depth files independently. A file starts at the bundle's first frame set whose colour and depth are both IDR, and a `segment` records `firstFrameSetIndex` and, once closed, `accessUnits`. After a gap in a bundle (a dropped frame set, or a frame set without that bundle) the bundle discards frame sets until its own next IDR and starts a new segment. It does not wait for the other bundles, and the server never forces a keyframe for the recording. The frame sets a bundle discarded are the holes between its segments.
+
+**Lifecycle.** The server writes the manifest when the recording starts, `in-progress`, with every bundle listed and empty `segments`, so a crash still leaves a manifest. It rewrites it each time a bundle starts a segment (the previous segment gets its `accessUnits`, the new one is open), before the new segment's first access unit is appended, so access units after a gap are never counted in the previous segment. At a clean shutdown it writes `complete`, with every segment closed, after flushing the `.hevc` files to disk. Each write goes to a temporary file in the same folder, is flushed and renamed over `manifest.json`, and the folder is flushed too, so a reader never sees half a manifest. A bundle that never reached an IDR has nothing to play: at a clean shutdown the server leaves it out of the final manifest, deletes its empty files and logs it. If no bundle reached an IDR, or the recorder failed, the manifest stays `in-progress`.
+
+Because a recording can only start at an IDR, `debug_recording.record_gpu_outputs` is refused with `encoding.gop_length: 0`. A bundle waits up to one `gop_length` for its next IDR; after two GOPs without one the log warns (at most once per two GOPs and bundle).
+
+A recording that starts before the setup state exists waits for it; those frame sets are not recorded. If the setup state never appears, no `manifest.json` is written and the log says so. A `manifest.json` left by an earlier run is removed when the server starts recording. A camera `id` is also refused when `<id>/gpu-output-color.hevc` is longer than 255 bytes; the other cameras still record.
 
 ## Stop the server [#stop-the-server]
 
@@ -146,7 +171,7 @@ debug/live/
 
 Expected last line: `[info] live stop requested; pipeline stopped cleanly`.
 
-If a worker thread or a camera fails, the server stops the same way, logs `orbbec-streamer failed: <reason>` and exits with code 1. `Ctrl+C` while it still waits for cameras ends it at once with `live stop requested while waiting for cameras; nothing started`.
+If a worker thread or a camera fails, the cameras stop the same way. Without a setup plane (`streams.alignment` other than `color_to_depth`) the server then logs `orbbec-streamer failed: <reason>` and exits with code 1. With one, it stays up with `capture` set to `failed` and the reason in the log and in `capture.message` (see [Cameras closed and capture start](./serving#cameras-closed-and-capture-start)); it does not retry by itself. A server started with `serving.start_capture_on_launch: false` keeps the cameras closed until a client asks for them, so no camera lines appear in the log before that. `Ctrl+C` while it still waits for cameras ends it at once with `live stop requested while waiting for cameras; nothing started`.
 
 ## Troubleshooting [#troubleshooting]
 
