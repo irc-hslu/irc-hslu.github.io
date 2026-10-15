@@ -1050,7 +1050,15 @@ node real-image/check.mjs http://127.0.0.1:8080                    # the package
 | `--keep-dark`                                | Don't turn failures into WARN when the scene is dark.                                                                                                                           |
 | `--out DIR`, `--vite-port N`, `--cdp-port N` | Output folder, the script's own Vite port (5291) and Chrome's debugging port (9371).                                                                                            |
 
-`--synthetic` and `--recording` start this checkout's own Vite and stop it at the end. With a URL, the script only opens that page. A dev URL gives every check below. The packaged page is a production build, which strips the readback hook, so the script can only screenshot it: it reports a WARN for the missing checks, tells a missing server (FAIL) from a blank 3D view, and doesn't measure anything else.
+`--synthetic` and `--recording` start this checkout's own Vite and stop it at the end. With a URL, the script only opens that page. A dev URL gives every check below.
+
+The script's Chrome starts with an empty profile each run, so the dev page has no saved server, and a plain `npm run dev` offers no transport discovery. To check a live server, start the dev client on the server PC so that it takes discovery from the packaged page server, and allow its origin on the server:
+
+1. In `/etc/orbbec-streamer/live.yaml`, add `http://localhost:5173` to `serving.allowed_origins`, then `sudo systemctl restart orbbec-streamer`.
+2. In the `client` folder: `ORBBEC_DISCOVERY_FROM=http://127.0.0.1:8080 npm run dev`. The dev page now adds the server as the packaged page does, with its certificate hashes. Only a loopback address is accepted.
+3. In `client/scripts/qa`: `node real-image/check.mjs http://localhost:5173/`, plus `--cast` and `--expect-plane` to suit the scene.
+
+The packaged page is a production build, which strips the readback hook, so the script can only screenshot it: it reports a WARN for the missing checks, tells a missing server (FAIL) from a blank 3D view, and doesn't measure anything else.
 
 The exit code is 1 when any row is FAIL, and 3 when every camera is dark (see `--allow-dark`).
 
