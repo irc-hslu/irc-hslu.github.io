@@ -2797,8 +2797,10 @@ and at least one Orbbec camera connected:
 calibration chips. From poc.7, with one camera, the point cloud appears: the
 server writes the camera's identity pose at its first start, so there is no
 setup step. Several cameras need a camera-pose calibration with a ChArUco
-board first, which the team has not yet validated on hardware (see
-[Camera pose calibration](/docs/server/camera-calibration)); until then the
+board first, which the team has not yet validated on hardware (from
+v0.1.0-poc.11 in the Operator Console, see
+[Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses); up to
+poc.10 see [Camera pose calibration](/docs/server/camera-calibration)); until then the
 card shows the server needs setup and no point cloud. How much CPU the
 decoder needs depends on the PC; see
 [Check your browser](/docs/client/browser-requirements). If the card shows **Server
@@ -2906,7 +2908,7 @@ Nothing is built from source. To build from source instead, see
 [Build the server from source](/docs/getting-started/install-server).
 
 <Callout type="warn">
-  v0.1.0-poc.10 is a non-commercial proof of concept. Live video (from
+  v0.1.0-poc.11 is a non-commercial proof of concept. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
   [Serve to browsers](/docs/server/serving)). The team has not yet checked
@@ -2954,17 +2956,17 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.0.poc10-1_amd64.deb` from the
-    [v0.1.0-poc.10 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.10),
+    Download `orbbec-streamer_0.1.0.poc11-1_amd64.deb` from the
+    [v0.1.0-poc.11 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.11),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.0.poc10-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.0.poc11-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.0.poc10-1_amd64.deb: OK`.
+    `sha256sum` must print `orbbec-streamer_0.1.0.poc11-1_amd64.deb: OK`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -2973,7 +2975,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.0~poc10-1`. The install:
+    The package version inside the file is `0.1.0~poc11-1`. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
       `orbbec-operators` (see [Terminal console](/docs/operator/terminal-console#start-and-stop-without-sudo)), the state folder
@@ -3128,7 +3130,10 @@ Two or more cameras must be hardware-synchronised:
 
 4. Run `sudo systemctl restart orbbec-streamer`.
 
-5. Calibrate the camera poses with a printed ChArUco board; see
+5. Calibrate the camera poses with a printed ChArUco board. From
+   v0.1.0-poc.11, do it in the Operator Console; see
+   [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
+   Up to poc.10, do it on the server; see
    [Camera pose calibration](/docs/server/camera-calibration). Until then the
    server stays in “needs setup” and sends no video. The team has tested
    this calibration with synthetic cameras only, not yet on hardware. One
@@ -3315,7 +3320,7 @@ every file and what was masked.
 | The Femto Bolt doesn't start; the log shows depth engine error 204                                                                                        | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                                                                                                                                                                                                                                                                                                               |
 | The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                                           | The server isn't running. From poc.10 the install starts it, unless a kept `live.yaml` sets `start_capture_on_launch: true`; up to poc.9 it doesn't. Run `sudo systemctl start orbbec-streamer`. Otherwise, up to poc.9 the gateway starts only once a camera is active, and the first start may still be building the engine. From poc.9 the gateway starts with the service; if the page connects but shows **Cameras closed**, select **Start cameras** on the server's card. Check `journalctl -u orbbec-streamer -f`. |
 | The server stops once, about 4 minutes after the first start, and starts again within seconds                                                             | Known issue in poc.7, fixed in poc.8: the stop comes when the segmentation engine build finishes. systemd restarts the server; no action needed.                                                                                                                                                                                                                                                                                                                                                                           |
-| Several cameras: the page shows the server needs setup and no point cloud                                                                                 | The camera poses aren't calibrated. See [Camera pose calibration](/docs/server/camera-calibration).                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Several cameras: the page shows the server needs setup and no point cloud                                                                                 | The camera poses aren't calibrated. See [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses) (from poc.11) or [Camera pose calibration](/docs/server/camera-calibration).                                                                                                                                                                                                                                                                                                                               |
 | Several cameras: the server stops after about 10 s with `no batch for 10005 ms …`, or refuses to start with `sync.enabled=false allows only one camera …` | Sync is off. See [More than one camera](#more-than-one-camera).                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | The page doesn't load                                                                                                                                     | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Another computer can't open the page                                                                                                                      | Expected in this release: open it on the server PC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -3413,7 +3418,7 @@ live scene on real hardware.
 
 | Kind               | On the server                                                                                                                                                                                                                                                                               | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Camera pose        | One camera needs none: from v0.1.0-poc.7 the server writes its identity pose at start. Several cameras: works from the local console with a ChArUco board, tested with synthetic cameras and not yet validated on hardware. See [Camera pose calibration](/docs/server/camera-calibration). | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid; a missing pose must be calibrated on the server. The client has no camera-pose controls yet: its section shows a placeholder. See [Calibrate depth](/docs/client/calibration#camera-pose).                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Camera pose        | One camera needs none: from v0.1.0-poc.7 the server writes its identity pose at start. Several cameras: works from the local console with a ChArUco board, tested with synthetic cameras and not yet validated on hardware. See [Camera pose calibration](/docs/server/camera-calibration). | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid, unless the session has the operator role. From v0.1.0-poc.11, the Operator Console has the operator role on the server PC and calibrates a missing pose; see [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses). Up to poc.10, a missing pose must be calibrated on the server.                                                                                                                                                                                                                                                                                                                                           |
 | Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator).                                                                                                                                                                                     | The server runs it for a client that holds the setup lock (since v0.1.0-poc.4): it samples live, masked depth, and a solved run waits for a commit, which swaps the new profile in without a restart. From v0.1.0-poc.6, the client can also commit the run against a real server: it follows the server's "solved; awaiting commit" behaviour. This was tested against the mock server; a check on real hardware is pending. With poc.5, the client can start, watch and cancel a run but not commit it, so use the calibrator or `orbbec-console calibrate depth --commit` (see [Terminal console](/docs/operator/terminal-console#calibrate-from-a-script)). The full flow works against the client's [mock server](/docs/client/developer/mock-server). See [Calibrate depth](/docs/client/calibration#depth-quantization). |
 | Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.                                                                                                                                                                                            | Not available.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
@@ -3448,8 +3453,10 @@ does the same from a script with `orbbec-console calibrate depth --commit`.
 
 Run camera pose and depth quantization on the server:
 
-1. With several cameras, calibrate the camera pose from the server console
-   with `--calibrate-camera-pose`. See
+1. With several cameras, calibrate the camera pose. From v0.1.0-poc.11, use
+   the Operator Console; see
+   [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
+   Up to poc.10, use the server console with `--calibrate-camera-pose`; see
    [Camera pose calibration](/docs/server/camera-calibration). With one
    camera, poc.7 and later skip this step.
 2. Optionally, build a depth quantization profile with the calibrator. See
@@ -3555,6 +3562,12 @@ starting the server and opening the client on the server PC: see
 
 
 
+
+
+
+
+
+
 The **Operator Console** is a status page for one OrbbecStreamer server. It
 shows the server's cameras, readiness, streaming and calibration state.
 Up to v0.1.0-poc.5 it is **read-only**. From poc.6 it changes one thing:
@@ -3562,7 +3575,8 @@ the [depth range](#calibrate-the-depth-range) calibration. From poc.7 it
 also shows a [live preview](#watch-the-live-preview) of the cameras.
 From v0.1.0-poc.9 it also changes the
 [colour and depth sensor settings and the stream profile](#change-sensor-settings-and-the-stream-profile),
-for a session that has the [operator role](#the-operator-role).
+for a session that has the [operator role](#the-operator-role), and from
+v0.1.0-poc.11 it [calibrates the camera poses](#calibrate-the-camera-poses).
 Everything else is done in the
 client's [setup workspace](/docs/client/setup-workspace) or with the
 server's [camera calibration](/docs/server/camera-calibration).
@@ -3728,6 +3742,92 @@ run, and nothing is changed either:
 | **This will fail the same way again. Run the calibration again.**   | The server refused the commit for a reason a retry won't fix. Select **Run again**.                       |
 | **Commit again, or cancel.**                                        | The server couldn't save the result. Try the commit again.                                                |
 
+## Calibrate the camera poses [#calibrate-the-camera-poses]
+
+From v0.1.0-poc.11, the **Camera pose** screen (under **Calibration** in
+the left navigation, at `/operator/calibration/pose`) calibrates the
+camera poses: you move a printed ChArUco board through the cameras' views,
+and the server computes where each camera is. The setup checklist's
+**Calibration** step shows the same screen while the pose isn't valid.
+With one camera, you don't need it: the server writes that camera's
+identity pose at its first start.
+
+The screen needs the [operator role](#the-operator-role). With it, you can
+calibrate a missing pose although the package sets
+`calibration.autocalibrate: false`. Up to poc.10, calibrate a missing pose
+on the server instead; see
+[Camera pose calibration](/docs/server/camera-calibration).
+
+Before you start, print the board the screen describes, for example
+`ChArUco board: 7 × 5 squares, 80 mm squares, 60 mm markers, dictionary
+DICT_5X5_100.`, and fix it to something rigid and flat. See
+[Camera pose calibration](/docs/server/camera-calibration) for how to
+print it. You need one person to move the board.
+
+1. Select **Take setup lock**.
+
+2. Read the board line and `The run times out after 2:00.` On a rig that
+   is already **Ready**, the screen warns: `Recalibrating pauses streaming
+   for every viewer until you commit or cancel. The current poses stay in
+   force until then.`
+
+   <img alt="The Camera pose screen before a run: the board description and diagram, the time limit, the pause warning and Start camera-pose calibration" src="__img1" />
+
+3. Select **Start camera-pose calibration**. While the run lasts, the
+   colour, depth and stream-profile controls are refused.
+
+4. Move the board as the screen asks: hold it flat and still at each spot,
+   cover every highlighted region of every camera, and show it to two
+   cameras at once where they overlap. Under the live image, each camera's
+   tile shows the board's corners, a grid of regions (dashed while a region
+   still needs views), **Last view** (**Accepted**, or **Not accepted:**
+   and the reason), **Accepted views** and **Error**. On the right:
+   **Accepted views** for the rig, **Time left**, the stages
+   **Collecting**, **Solving** and **Result**, and **Camera links**, which
+   shows which cameras saw the board together. Below them, one instruction
+   tells you what to do next, for example `Show the board to Camera 2.` or
+   `Hold the board where Camera 2 and a neighbouring camera both see it.`
+
+   <img alt="The Camera pose screen during a run: a tile per camera with its coverage grid, the accepted views, time left, the Collecting stage, the camera links and the next instruction" src="__img2" />
+
+5. There is no button to end collecting. When enough views are in, the
+   stage moves to **Solving**, and the server tries a solve after each new
+   accepted view: keep showing the board at new spots. When a solve
+   succeeds, the screen shows **Proposed camera pose** with **Not in force
+   until committed** and the last error per camera.
+
+   <img alt="The Camera pose screen with a proposed pose: Not in force until committed, the last view error per camera, Commit camera pose and Discard proposal" src="__img3" />
+
+   *Captured against the client's mock server, so the cameras and figures are made up.*
+
+6. Select **Commit camera pose**. The screen reads **Camera pose committed
+   (revision N)** and `The new poses are in force.` The server's state
+   changes from **Needs setup** to **Ready**.
+
+7. Select **Leave setup**.
+
+A view counts only if its error is at most the limit the screen shows
+(`A view counts only if its error is at most 1.00 px` by default). That
+limit applies to each view, not to the final pose. Spread the views over
+every region and both distances: views from one spot can give a low error
+and still a wrong pose elsewhere.
+
+Nothing is committed without your click. **Cancel run** ends a run; with
+10 or more views it asks `Cancel and discard <N> collected views? Nothing
+is committed.` first. **Discard proposal** throws a proposed pose away. In
+both cases the previous pose stays in force.
+
+| Message                                                                                        | Meaning                                                                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Not accepted:** `Show the whole board.` and similar                                          | The last view didn't count. The instruction says what to change: show the whole board, hold it flat and still, turn it a little so it is not face-on, show it to two cameras at once, or move to a new spot. |
+| **The run timed out**                                                                          | No solution within the time limit. Select **Start again** and cover the regions the message names.                                                                                                           |
+| **Calibration failed** with `Not enough views from <cameras>: start again and cover its view.` | The solve failed for those cameras. Select **Start again**.                                                                                                                                                  |
+| **The run ended** with `The setup lock is no longer yours.`                                    | Your lease ended or another session took the lock over. Nothing was committed.                                                                                                                               |
+| `Capture stopped. Start capture, then start again.`                                            | The cameras closed during the run. Nothing was committed.                                                                                                                                                    |
+| `This server needs an operator to start camera-pose calibration. …`                            | The session doesn't have the operator role, and `calibration.autocalibrate` is `false`. Open the console on the server PC, or calibrate on the server.                                                       |
+| `This server does not report board guidance. …`                                                | A server older than poc.11. Move the board through every camera's view; only the counts are shown.                                                                                                           |
+| `Live images before setup completes are sent to operator sessions only. …`                     | The run belongs to a viewer session. Place the board by the counts and the coverage grid.                                                                                                                    |
+
 ## Take over the setup lock [#take-over-the-setup-lock]
 
 From poc.9, an operator session can take the setup lock from another
@@ -3832,9 +3932,9 @@ controls work without it.
 * The table below the view shows each camera's stream statistics, once a
   second.
 
-<img alt="Live preview in Colour tiles view: two camera tiles, and a table with frame sets per second, decode latency, dropped frame sets and the decoder for each camera" src="__img1" />
+<img alt="Live preview in Colour tiles view: two camera tiles, and a table with frame sets per second, decode latency, dropped frame sets and the decoder for each camera" src="__img4" />
 
-<img alt="Live preview in Cloud view: the two cameras' points drawn in 3D, with Pause drawing, Frame all and Reset view" src="__img2" />
+<img alt="Live preview in Cloud view: the two cameras' points drawn in 3D, with Pause drawing, Frame all and Reset view" src="__img5" />
 
 *Captured from the operator team's test harness: the pictures are a synthetic
 test pattern, not a camera, and the version badge reads `v0.0.0-dev`.*
@@ -3866,10 +3966,11 @@ state of one part of the setup:
 | **Calibration** | Camera poses, so the clouds line up. The depth range is optional.              |
 | **Live**        | Streams are available.                                                         |
 
-The License step is hidden in this release. The checklist only moves
+The License step is hidden in this release. Apart from the camera-pose
+screen in the **Calibration** step (from poc.11), the checklist only moves
 between steps; it doesn't set anything itself. Change settings on the
-screens above, and calibrate camera poses in the client's
-[setup workspace](/docs/client/setup-workspace).
+screens above. Up to poc.10, calibrate camera poses on the server; see
+[Camera pose calibration](/docs/server/camera-calibration).
 
 ## Cameras closed [#cameras-closed]
 
@@ -3910,12 +4011,12 @@ calibration can't start until the cameras run.
 Some rows read **Not reported** or **Not measured**: the server can't send
 that information yet. Each row names the protocol change it waits for.
 
-| Not shown yet                                 | Waits for            |
-| --------------------------------------------- | -------------------- |
-| Camera model, serial, firmware and USB link   | Protocol change 0027 |
-| License state and activation                  | Protocol change 0031 |
-| Network quality                               | Protocol change 0018 |
-| Camera-pose calibration and placement editing | Later phases         |
+| Not shown yet                               | Waits for            |
+| ------------------------------------------- | -------------------- |
+| Camera model, serial, firmware and USB link | Protocol change 0027 |
+| License state and activation                | Protocol change 0031 |
+| Network quality                             | Protocol change 0018 |
+| Placement editing                           | Later phases         |
 
 From v0.1.0-poc.10, the server sends hardware sync status (protocol change
 0029\), setup task progress such as the first-run engine build (0032), and

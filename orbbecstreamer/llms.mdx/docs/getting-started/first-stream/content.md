@@ -39,8 +39,10 @@ and at least one Orbbec camera connected:
 calibration chips. From poc.7, with one camera, the point cloud appears: the
 server writes the camera's identity pose at its first start, so there is no
 setup step. Several cameras need a camera-pose calibration with a ChArUco
-board first, which the team has not yet validated on hardware (see
-[Camera pose calibration](/docs/server/camera-calibration)); until then the
+board first, which the team has not yet validated on hardware (from
+v0.1.0-poc.11 in the Operator Console, see
+[Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses); up to
+poc.10 see [Camera pose calibration](/docs/server/camera-calibration)); until then the
 card shows the server needs setup and no point cloud. How much CPU the
 decoder needs depends on the PC; see
 [Check your browser](/docs/client/browser-requirements). If the card shows **Server

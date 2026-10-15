@@ -8,7 +8,7 @@ Nothing is built from source. To build from source instead, see
 [Build the server from source](/docs/getting-started/install-server).
 
 <Callout type="warn">
-  v0.1.0-poc.10 is a non-commercial proof of concept. Live video (from
+  v0.1.0-poc.11 is a non-commercial proof of concept. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
   [Serve to browsers](/docs/server/serving)). The team has not yet checked
@@ -56,17 +56,17 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.0.poc10-1_amd64.deb` from the
-    [v0.1.0-poc.10 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.10),
+    Download `orbbec-streamer_0.1.0.poc11-1_amd64.deb` from the
+    [v0.1.0-poc.11 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.11),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.0.poc10-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.0.poc11-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.0.poc10-1_amd64.deb: OK`.
+    `sha256sum` must print `orbbec-streamer_0.1.0.poc11-1_amd64.deb: OK`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -75,7 +75,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.0~poc10-1`. The install:
+    The package version inside the file is `0.1.0~poc11-1`. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
       `orbbec-operators` (see [Terminal console](/docs/operator/terminal-console#start-and-stop-without-sudo)), the state folder
@@ -230,7 +230,10 @@ Two or more cameras must be hardware-synchronised:
 
 4. Run `sudo systemctl restart orbbec-streamer`.
 
-5. Calibrate the camera poses with a printed ChArUco board; see
+5. Calibrate the camera poses with a printed ChArUco board. From
+   v0.1.0-poc.11, do it in the Operator Console; see
+   [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
+   Up to poc.10, do it on the server; see
    [Camera pose calibration](/docs/server/camera-calibration). Until then the
    server stays in “needs setup” and sends no video. The team has tested
    this calibration with synthetic cameras only, not yet on hardware. One
@@ -417,7 +420,7 @@ every file and what was masked.
 | The Femto Bolt doesn't start; the log shows depth engine error 204                                                                                        | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                                                                                                                                                                                                                                                                                                               |
 | The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                                           | The server isn't running. From poc.10 the install starts it, unless a kept `live.yaml` sets `start_capture_on_launch: true`; up to poc.9 it doesn't. Run `sudo systemctl start orbbec-streamer`. Otherwise, up to poc.9 the gateway starts only once a camera is active, and the first start may still be building the engine. From poc.9 the gateway starts with the service; if the page connects but shows **Cameras closed**, select **Start cameras** on the server's card. Check `journalctl -u orbbec-streamer -f`. |
 | The server stops once, about 4 minutes after the first start, and starts again within seconds                                                             | Known issue in poc.7, fixed in poc.8: the stop comes when the segmentation engine build finishes. systemd restarts the server; no action needed.                                                                                                                                                                                                                                                                                                                                                                           |
-| Several cameras: the page shows the server needs setup and no point cloud                                                                                 | The camera poses aren't calibrated. See [Camera pose calibration](/docs/server/camera-calibration).                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Several cameras: the page shows the server needs setup and no point cloud                                                                                 | The camera poses aren't calibrated. See [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses) (from poc.11) or [Camera pose calibration](/docs/server/camera-calibration).                                                                                                                                                                                                                                                                                                                               |
 | Several cameras: the server stops after about 10 s with `no batch for 10005 ms …`, or refuses to start with `sync.enabled=false allows only one camera …` | Sync is off. See [More than one camera](#more-than-one-camera).                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | The page doesn't load                                                                                                                                     | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Another computer can't open the page                                                                                                                      | Expected in this release: open it on the server PC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |

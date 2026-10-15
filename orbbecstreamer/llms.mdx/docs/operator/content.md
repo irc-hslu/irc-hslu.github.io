@@ -8,6 +8,12 @@
 
 
 
+
+
+
+
+
+
 The **Operator Console** is a status page for one OrbbecStreamer server. It
 shows the server's cameras, readiness, streaming and calibration state.
 Up to v0.1.0-poc.5 it is **read-only**. From poc.6 it changes one thing:
@@ -15,7 +21,8 @@ the [depth range](#calibrate-the-depth-range) calibration. From poc.7 it
 also shows a [live preview](#watch-the-live-preview) of the cameras.
 From v0.1.0-poc.9 it also changes the
 [colour and depth sensor settings and the stream profile](#change-sensor-settings-and-the-stream-profile),
-for a session that has the [operator role](#the-operator-role).
+for a session that has the [operator role](#the-operator-role), and from
+v0.1.0-poc.11 it [calibrates the camera poses](#calibrate-the-camera-poses).
 Everything else is done in the
 client's [setup workspace](/docs/client/setup-workspace) or with the
 server's [camera calibration](/docs/server/camera-calibration).
@@ -181,6 +188,92 @@ run, and nothing is changed either:
 | **This will fail the same way again. Run the calibration again.**   | The server refused the commit for a reason a retry won't fix. Select **Run again**.                       |
 | **Commit again, or cancel.**                                        | The server couldn't save the result. Try the commit again.                                                |
 
+## Calibrate the camera poses [#calibrate-the-camera-poses]
+
+From v0.1.0-poc.11, the **Camera pose** screen (under **Calibration** in
+the left navigation, at `/operator/calibration/pose`) calibrates the
+camera poses: you move a printed ChArUco board through the cameras' views,
+and the server computes where each camera is. The setup checklist's
+**Calibration** step shows the same screen while the pose isn't valid.
+With one camera, you don't need it: the server writes that camera's
+identity pose at its first start.
+
+The screen needs the [operator role](#the-operator-role). With it, you can
+calibrate a missing pose although the package sets
+`calibration.autocalibrate: false`. Up to poc.10, calibrate a missing pose
+on the server instead; see
+[Camera pose calibration](/docs/server/camera-calibration).
+
+Before you start, print the board the screen describes, for example
+`ChArUco board: 7 × 5 squares, 80 mm squares, 60 mm markers, dictionary
+DICT_5X5_100.`, and fix it to something rigid and flat. See
+[Camera pose calibration](/docs/server/camera-calibration) for how to
+print it. You need one person to move the board.
+
+1. Select **Take setup lock**.
+
+2. Read the board line and `The run times out after 2:00.` On a rig that
+   is already **Ready**, the screen warns: `Recalibrating pauses streaming
+   for every viewer until you commit or cancel. The current poses stay in
+   force until then.`
+
+   <img alt="The Camera pose screen before a run: the board description and diagram, the time limit, the pause warning and Start camera-pose calibration" src="__img1" />
+
+3. Select **Start camera-pose calibration**. While the run lasts, the
+   colour, depth and stream-profile controls are refused.
+
+4. Move the board as the screen asks: hold it flat and still at each spot,
+   cover every highlighted region of every camera, and show it to two
+   cameras at once where they overlap. Under the live image, each camera's
+   tile shows the board's corners, a grid of regions (dashed while a region
+   still needs views), **Last view** (**Accepted**, or **Not accepted:**
+   and the reason), **Accepted views** and **Error**. On the right:
+   **Accepted views** for the rig, **Time left**, the stages
+   **Collecting**, **Solving** and **Result**, and **Camera links**, which
+   shows which cameras saw the board together. Below them, one instruction
+   tells you what to do next, for example `Show the board to Camera 2.` or
+   `Hold the board where Camera 2 and a neighbouring camera both see it.`
+
+   <img alt="The Camera pose screen during a run: a tile per camera with its coverage grid, the accepted views, time left, the Collecting stage, the camera links and the next instruction" src="__img2" />
+
+5. There is no button to end collecting. When enough views are in, the
+   stage moves to **Solving**, and the server tries a solve after each new
+   accepted view: keep showing the board at new spots. When a solve
+   succeeds, the screen shows **Proposed camera pose** with **Not in force
+   until committed** and the last error per camera.
+
+   <img alt="The Camera pose screen with a proposed pose: Not in force until committed, the last view error per camera, Commit camera pose and Discard proposal" src="__img3" />
+
+   *Captured against the client's mock server, so the cameras and figures are made up.*
+
+6. Select **Commit camera pose**. The screen reads **Camera pose committed
+   (revision N)** and `The new poses are in force.` The server's state
+   changes from **Needs setup** to **Ready**.
+
+7. Select **Leave setup**.
+
+A view counts only if its error is at most the limit the screen shows
+(`A view counts only if its error is at most 1.00 px` by default). That
+limit applies to each view, not to the final pose. Spread the views over
+every region and both distances: views from one spot can give a low error
+and still a wrong pose elsewhere.
+
+Nothing is committed without your click. **Cancel run** ends a run; with
+10 or more views it asks `Cancel and discard <N> collected views? Nothing
+is committed.` first. **Discard proposal** throws a proposed pose away. In
+both cases the previous pose stays in force.
+
+| Message                                                                                        | Meaning                                                                                                                                                                                                      |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Not accepted:** `Show the whole board.` and similar                                          | The last view didn't count. The instruction says what to change: show the whole board, hold it flat and still, turn it a little so it is not face-on, show it to two cameras at once, or move to a new spot. |
+| **The run timed out**                                                                          | No solution within the time limit. Select **Start again** and cover the regions the message names.                                                                                                           |
+| **Calibration failed** with `Not enough views from <cameras>: start again and cover its view.` | The solve failed for those cameras. Select **Start again**.                                                                                                                                                  |
+| **The run ended** with `The setup lock is no longer yours.`                                    | Your lease ended or another session took the lock over. Nothing was committed.                                                                                                                               |
+| `Capture stopped. Start capture, then start again.`                                            | The cameras closed during the run. Nothing was committed.                                                                                                                                                    |
+| `This server needs an operator to start camera-pose calibration. …`                            | The session doesn't have the operator role, and `calibration.autocalibrate` is `false`. Open the console on the server PC, or calibrate on the server.                                                       |
+| `This server does not report board guidance. …`                                                | A server older than poc.11. Move the board through every camera's view; only the counts are shown.                                                                                                           |
+| `Live images before setup completes are sent to operator sessions only. …`                     | The run belongs to a viewer session. Place the board by the counts and the coverage grid.                                                                                                                    |
+
 ## Take over the setup lock [#take-over-the-setup-lock]
 
 From poc.9, an operator session can take the setup lock from another
@@ -285,9 +378,9 @@ controls work without it.
 * The table below the view shows each camera's stream statistics, once a
   second.
 
-<img alt="Live preview in Colour tiles view: two camera tiles, and a table with frame sets per second, decode latency, dropped frame sets and the decoder for each camera" src="__img1" />
+<img alt="Live preview in Colour tiles view: two camera tiles, and a table with frame sets per second, decode latency, dropped frame sets and the decoder for each camera" src="__img4" />
 
-<img alt="Live preview in Cloud view: the two cameras' points drawn in 3D, with Pause drawing, Frame all and Reset view" src="__img2" />
+<img alt="Live preview in Cloud view: the two cameras' points drawn in 3D, with Pause drawing, Frame all and Reset view" src="__img5" />
 
 *Captured from the operator team's test harness: the pictures are a synthetic
 test pattern, not a camera, and the version badge reads `v0.0.0-dev`.*
@@ -319,10 +412,11 @@ state of one part of the setup:
 | **Calibration** | Camera poses, so the clouds line up. The depth range is optional.              |
 | **Live**        | Streams are available.                                                         |
 
-The License step is hidden in this release. The checklist only moves
+The License step is hidden in this release. Apart from the camera-pose
+screen in the **Calibration** step (from poc.11), the checklist only moves
 between steps; it doesn't set anything itself. Change settings on the
-screens above, and calibrate camera poses in the client's
-[setup workspace](/docs/client/setup-workspace).
+screens above. Up to poc.10, calibrate camera poses on the server; see
+[Camera pose calibration](/docs/server/camera-calibration).
 
 ## Cameras closed [#cameras-closed]
 
@@ -363,12 +457,12 @@ calibration can't start until the cameras run.
 Some rows read **Not reported** or **Not measured**: the server can't send
 that information yet. Each row names the protocol change it waits for.
 
-| Not shown yet                                 | Waits for            |
-| --------------------------------------------- | -------------------- |
-| Camera model, serial, firmware and USB link   | Protocol change 0027 |
-| License state and activation                  | Protocol change 0031 |
-| Network quality                               | Protocol change 0018 |
-| Camera-pose calibration and placement editing | Later phases         |
+| Not shown yet                               | Waits for            |
+| ------------------------------------------- | -------------------- |
+| Camera model, serial, firmware and USB link | Protocol change 0027 |
+| License state and activation                | Protocol change 0031 |
+| Network quality                             | Protocol change 0018 |
+| Placement editing                           | Later phases         |
 
 From v0.1.0-poc.10, the server sends hardware sync status (protocol change
 0029\), setup task progress such as the first-run engine build (0032), and
