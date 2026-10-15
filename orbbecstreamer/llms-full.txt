@@ -7651,8 +7651,8 @@ With one camera, set `sync.enabled: false` and give the camera the `primary` rol
 ## Start [#start]
 
 ```sh
-orbbec-streamer --live --config config/multi-server/rig-a.yaml
-orbbec-streamer --live --config config/multi-server/rig-b.yaml
+orbbec-streamer --live config/multi-server/rig-a.yaml
+orbbec-streamer --live config/multi-server/rig-b.yaml
 ```
 
 Calibrate and commit placement on each server separately (the setup lease is per server). A placement commit on one server changes nothing on the other. The client reads each server's `placementRevision` and `server.placement.updated`.
