@@ -130,8 +130,7 @@ lists **Colour sensor**, **Depth sensor** and **Stream profile**; see
   Disconnected) and health (OK, Degraded or Error). Open a row for its depth
   intrinsics. **Refresh** asks the server for its current state again.
 * **Network**, for the [operator role](#the-operator-role) only, shows
-  the network estimates for every connected session, from the release
-  after v0.1.0. See [Network sensing](/docs/guides/network).
+  the network estimates for every connected session, from v0.1.1. See [Network sensing](/docs/guides/network).
 * **License** shows the server ID, with **Copy server id**.
 * **Setup checklist** walks through six steps (License, Cameras, Sensors,
   Profiles, Calibration, Live) and shows how far the server is. It opens by

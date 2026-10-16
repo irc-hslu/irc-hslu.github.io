@@ -10,9 +10,8 @@
 a server and a viewer. It only measures and reports. It does not change the
 bitrate, the encoder settings or what the server sends.
 
-It is part of protocol 1.2 (change 0018). It is not in v0.1.0. It arrives
-with the release after v0.1.0, and only between a server and a viewer that
-both support it. A viewer or server without it sees nothing new.
+It is part of protocol 1.2 (change 0018), from v0.1.1. It works only
+between a server and a viewer that both support it. A viewer or server without it sees nothing new.
 
 ## How it works [#how-it-works]
 
@@ -143,11 +142,26 @@ Other messages on the panel:
 ## Active probes [#active-probes]
 
 Active probes are short, deliberate bursts of test data that fill gaps when
-passive data is thin. They come later, in a future release. They are **off
-by default** and, when they arrive, they will have a hard budget and never
-run during calibration or a capture start.
+passive data is thin. From v0.1.1 the server has them, but they are **off
+by default**: the server offers them to no session and sends no probe
+traffic.
 
-This release sends no probe traffic.
+The packaged `/etc/orbbec-streamer/live.yaml` lists the key commented
+out. To try probes, set it under `serving:` and run
+`sudo systemctl restart orbbec-streamer`:
+
+```yaml
+serving:
+  network_probes: true
+```
+
+Turn them on at your own risk: probes add traffic on top of the live
+streams. Only viewers whose browser client supports probes take part. The
+release notes say when the default changes.
+
+A server older than v0.1.1 doesn't know the key and refuses to start with
+`Unsupported serving key: network_probes`. Before you downgrade, delete
+the line from `live.yaml`.
 
 ## See also [#see-also]
 
