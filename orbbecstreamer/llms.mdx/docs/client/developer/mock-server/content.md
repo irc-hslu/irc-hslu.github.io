@@ -199,3 +199,7 @@ In the browser, with the dev server running (`npm run dev` in `client/`):
   * The server must be `streaming`, with the bundle available.
   * If the snapshot has `autocalibrate` set, media is held until camera-pose is committed.
 * **`skipRevisions` does not make the client resync**: a forward revision gap is not treated as an error until change request 0007 is decided. Use `sendStaleRevision` to exercise the resync path.
+
+## Network sessions (CR 0018 H) [#network-sessions-cr-0018-h]
+
+The `networkSensing` and `networkSessions` options script `server.network.sessions` for operator sessions: 0, 1, 3 or 64 rows and variants for null estimates, lower bounds, each confidence, unknown enums and stale client reports. Both are off by default. See [Network sensing](/docs/client/developer/network-sensing) for the options and examples.
