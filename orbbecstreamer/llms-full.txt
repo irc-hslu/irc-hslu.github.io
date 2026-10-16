@@ -2916,14 +2916,17 @@ Nothing is built from source. To build from source instead, see
 [Build the server from source](/docs/getting-started/install-server).
 
 <Callout type="warn">
-  v0.1.0-poc.11 is a non-commercial proof of concept. Live video (from
+  v0.1.0 is the first complete release: install, start the cameras,
+  calibrate and view in a browser. It is a non-commercial proof of concept
+  (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
   [Serve to browsers](/docs/server/serving)). The team has not yet checked
   the picture content or depth calibration on a live scene on real
   hardware. Browsers on other computers in the LAN can view the cameras if
   you turn that on; the team has not yet tried it from a second machine. See
-  [Remote viewers on the LAN](#remote-viewers-on-the-lan).
+  [Remote viewers on the LAN](#remote-viewers-on-the-lan). The team has not
+  yet installed it on a clean machine with a GPU and cameras.
 </Callout>
 
 <Steps>
@@ -2964,17 +2967,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.0.poc11-1_amd64.deb` from the
-    [v0.1.0-poc.11 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0-poc.11),
+    Download `orbbec-streamer_0.1.0-1_amd64.deb` from the
+    [v0.1.0 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.0),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.0.poc11-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.0-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.0.poc11-1_amd64.deb: OK`.
+    `sha256sum` must print `orbbec-streamer_0.1.0-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `acce00a7d13a13c01d68584d53f9c71759230ee315c29c12921d1c953fa159df`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -2983,7 +2987,8 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.0~poc11-1`. The install:
+    The package version inside the file is `0.1.0-1`. It sorts above every
+    poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
       `orbbec-operators` (see [Terminal console](/docs/operator/terminal-console#start-and-stop-without-sudo)), the state folder
@@ -3181,7 +3186,8 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version. The first upgrade from
+Replace `<version>` with the new file's version, for example `0.1.0-1`.
+Upgrading from a poc package to v0.1.0 works the same way. The first upgrade from
 poc.9 or earlier to v0.1.0-poc.10 or later enables and starts the server,
 with the cameras closed. Later upgrades restart the server only if it was
 running, and never change whether it starts at boot. Exception: if a
