@@ -73,4 +73,4 @@ These are the problems people hit most when starting the client:
 
 * **The header shows a red No 3D view chip**: your browser can’t draw 3D. See [Check your browser](/docs/client/browser-requirements).
 
-* **Nothing works when you open the page from another computer**: the development server only answers on this computer (`localhost`). Browsers also turn off the features the client needs on plain `http://` pages that aren’t `localhost`. Open the client on the machine that runs it. The repository has no HTTPS setup for the development server yet.
+* **Nothing works when you open the page from another computer**: the development server only answers on this computer (`localhost`). Browsers also turn off the features the client needs on plain `http://` pages that aren’t `localhost`. Open the client on the machine that runs it, or serve it over HTTPS with a lab certificate: see [Serve the dev pages over HTTPS](/docs/client/developer/test-the-client#serve-the-dev-pages-over-https).
