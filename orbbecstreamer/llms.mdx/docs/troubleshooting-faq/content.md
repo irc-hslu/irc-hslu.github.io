@@ -98,9 +98,10 @@ server. Add the server by its URL instead: see
 [Add a server](/docs/client/add-a-server) or, for the console,
 [Connect by address instead](/docs/operator#connect-by-address-instead).
 
-**Why can't another computer on the network connect?** In this release the
-packaged web page and gateway listen on the server PC only. Open the page
-in Chrome or Edge on that PC. If you run your own config and connect by a
+**Why can't another computer on the network connect?** By default the
+packaged web page and gateway listen on the server PC only. To let LAN
+browsers view, see
+[Remote viewers on the LAN](/docs/getting-started/install-package#remote-viewers-on-the-lan). If you run your own config and connect by a
 LAN address, the gateway answers HTTP 421 unless that address is in the
 certificate or in `serving.host_names`, and the page's origin must be in
 `serving.allowed_origins` (see [Gateway](/docs/server/serving#gateway)).
