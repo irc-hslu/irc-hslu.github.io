@@ -33,7 +33,7 @@ The new stream starts at a recovery point. A depth-quantization commit gets one 
 | Transport choice          | `server/docs/architecture/adr/0002-webtransport-server.md`                                | Accepted: a Go gateway on `webtransport-go` (v0.13.0, quic-go v0.63.0) in front of the C++ server                              |
 | Gateway process           | `server/gateway/cmd/orbbec-gateway` (CMake target `orbbec_streamer_wt_gateway`)           | Built when Go is found. Spawned and supervised by the server: restarted with backoff, never left down for good                 |
 | HTTP/3 listener           | in the gateway                                                                            | Implemented: WebTransport at `https://<host>:<port>/orbbec`, TLS 1.3, origin allow-list, session caps; see [Gateway](#gateway) |
-| Core-to-gateway IPC v3    | C++ `server/src/network/GatewayIpc`, `GatewayTransport`; Go `server/gateway/internal/ipc` | In use                                                                                                                         |
+| Core-to-gateway IPC v4    | C++ `server/src/network/GatewayIpc`, `GatewayTransport`; Go `server/gateway/internal/ipc` | In use                                                                                                                         |
 | Session and control plane | `server/src/session/SessionHub`, `server/src/serving/GatewayServing`                      | Connected to the gateway; see [Session control](#session-control)                                                              |
 | Media fan-out             | `server/src/network/MediaFanout`, `server/src/serving/GatewayServing`                     | Sessions join on subscribe and leave on unsubscribe; hold while unavailable or paused; see [Media fan-out](#media-fan-out)     |
 | How a browser connects    | CR 0024 (proposed, PR #114)                                                               | The server's behaviour today is listed there; it is not yet part of the contract                                               |
@@ -110,7 +110,17 @@ The C++ core and the gateway talk over one `SOCK_SEQPACKET` Unix socket. Encoded
 
 * The core seals the memfd (no shrink, grow or later writes) before sending it. The receiver checks size and seals, then maps it read-only; anything else is `bad-memfd`.
 * Open sessions, open streams, partial control frames and remembered session ids are bounded (`IpcLimits`, Go `Limits`).
-* No message is larger than 32 872 bytes; a larger datagram is rejected as `oversized`.
+* No message is larger than 32 888 bytes; a larger datagram is rejected as `oversized`.
+
+#### Network statistics from the gateway [#network-statistics-from-the-gateway]
+
+Version 4 of the IPC adds one gateway-to-core message, `ConnStats`: a sample of one session's QUIC connection statistics. It feeds the network reports and the congestion scheduling that come later (CR 0018 and CR 0017). It is not a browser message and changes nothing on the wire to the client.
+
+* **Cadence.** The gateway samples each session at 4 Hz and forwards one when the session opens, then once per second, and earlier when the delivery rate, the round-trip time or the loss band changes on two samples in a row (never above 4 Hz). A sample carries the smoothed, latest and minimum round-trip time and its deviation (microseconds), the cumulative bytes and packets sent, received and lost, and two derived values for the last interval: an approximate delivery rate and a loss ratio. Both are approximations. The sent count includes retransmissions and the lost count can go down, so negative changes are counted as 0. Neither is goodput.
+* **Absent for now.** The congestion window, bytes in flight and ECN marks are not sent: quic-go does not expose them without a tracer, and the cost of a tracer is not measured yet.
+* **No effect on media.** The send never waits: if the IPC socket is full the sample is dropped, not queued, and the next one is newer. Stats never wait behind media credit, so the age of the latest sample stays under 2 s (a test checks it under media load).
+* **Age.** The gateway stamps each sample with its monotonic clock, the same clock the server reads, so the server knows the exact age of the latest sample of every session. Beyond 2 s a sample counts as stale.
+* **Counters.** `GatewayTransportStats` has `conn_stats_received` and `sessions_with_fresh_stats`; the gateway counts `ConnStatsSent`, `ConnStatsChanges` and `ConnStatsDropped`. Nothing is logged per sample.
 
 Tests: `gateway_ipc_contract_tests`, `gateway_ipc_fuzz_tests`, `gateway_transport_tests`, `gateway_process_tests`, `gateway_serving_tests`, `gateway_go_tests` (`go test -race`) and `gateway_loopback_integration_tests` (the server, the real gateway and native WebTransport clients on 127.0.0.1). The Go tests are skipped when Go is missing; see [Build and test](./build#test-targets-and-labels).
 
