@@ -49,7 +49,7 @@ Where two cameras see the same surface, the view blends their colours instead of
 These viewer features are coming soon:
 
 * A control to change the point size, points that grow when you get closer, and round points
-* Headset (WebXR) viewing
+* Headset viewing. It is experimental and off by default: add `?xr=1` to the page URL. See [Enter VR](/docs/client/developer/runtime-options#enter-vr-experimental-behind-a-flag). The team has not yet tried it on a headset.
 
 The view has no switches for colour only, depth only or the foreground mask. These are not planned yet.
 

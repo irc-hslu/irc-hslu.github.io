@@ -180,7 +180,7 @@ These are the common browser problems and their fixes:
 * **Every server card says the browser lacks HEVC decoding**: this browser can't decode HEVC exactly, and the built-in decoder didn't load. Open the browser's console: a `[decode path]` warning reads `Depth/colour cannot be decoded in this browser: the built-in decoder failed to load (<reason>)`. The reason is `HTTP 404` when the decoder file is missing from the server, `…failed its integrity check…` when the file was changed, or `blocked by the page's content security policy` when the page's policy lacks `'wasm-unsafe-eval'` in `script-src`. Fix the cause and reload the page; the client doesn't try again until then. You can still use the client to set up servers.
 * **A card says "Setup and control only: the picture 9000×576 is larger than the built-in decoder takes (max 8192 on a side, 3840×2160 area)"**: the built-in decoder takes pictures up to 8192 pixels on a side and 3840×2160 pixels in area (an 8-camera concatenated picture of 640×576 tiles is 5120×576 and fits). The card names the size the server announced; when the browser's own decoder was asked instead, it says "was refused by this browser's decoder (it may be too large)". The console also shows a `warn` line naming the bundle and channel. In the concatenated layout a server sends exactly one bundle, so 8 cameras mean one 5120-wide picture; a recording manifest with two bundles in the concatenated layout is refused with `Concatenated layout must expose exactly one bundle`.
 * **Your server sets a content security policy**: the built-in decoder needs `script-src 'self' 'wasm-unsafe-eval'` and `worker-src 'self'`. It needs no other change, no cross-origin isolation headers and no `SharedArrayBuffer`.
-* **Nothing works when you open the client from another computer**: plain `http://` pages are only secure on `localhost`. Open the client on the machine that runs it.
+* **Nothing works when you open the client from another computer**: plain `http://` pages are only secure on `localhost`. Open the client on the machine that runs it. A packaged install can also serve viewers on the LAN over HTTPS, on port 8443. See [Remote viewers on the LAN](/docs/getting-started/install-package#remote-viewers-on-the-lan).
 
 
 # Calibrate depth (https://irc-hslu.github.io/orbbecstreamer/docs/client/calibration)
@@ -1612,7 +1612,7 @@ On-demand rendering draws at most once per animation frame, and only after an up
 
 **Experimental.** `startAppRuntime(container, { xr: true })`, or `?xr=1` in the page URL (dev server and packaged build alike), adds an **Enter VR** button next to the side-panel toggle. Without WebXR in the browser there is no button; without VR support it is unavailable, and its tip says why. The flag is off by default; with it off the client creates and loads nothing for VR, and the page, the engine choice and `client.hello` are unchanged.
 
-With the flag on and VR supported, the renderer starts on WebGL2, because the 3D engine presents VR only on WebGL2. In the headset a status pill and a panel (Servers, View, Place, Exit VR) show the same servers as the desktop. Not built yet: capture-to-display times, delayed and stale states, the Notices list and some View toggles. No headset has run this yet: treat it as a test build.
+With the flag on and VR supported, the renderer starts on WebGL2, because the 3D engine presents VR only on WebGL2. In the headset a status pill and a panel (Servers, View, Place, Exit VR) show the same servers as the desktop. Each server row shows its capture-to-display time. A server is **Delayed** above 200 ms and **Stale** after more than 1 s without a new frame. Points between you and the open panel (or the pill) are drawn darker, so the text stays readable. On Vision Pro the points fade out near the edge of the play area. Where the headset supports it, both eyes are drawn in one pass (multiview). Not built yet: the Notices list and some View toggles. No headset has run this yet: treat it as a test build.
 
 Every page load also checks once whether this browser could present VR on WebGPU, and writes the answer under **Renderer notes** in the side panel header, for example `VR engine: WebGL2. WebGPU-XR probe failed (navigator.xr is absent).` This never delays start-up.
 
@@ -2746,7 +2746,7 @@ Where two cameras see the same surface, the view blends their colours instead of
 These viewer features are coming soon:
 
 * A control to change the point size, points that grow when you get closer, and round points
-* Headset (WebXR) viewing
+* Headset viewing. It is experimental and off by default: add `?xr=1` to the page URL. See [Enter VR](/docs/client/developer/runtime-options#enter-vr-experimental-behind-a-flag). The team has not yet tried it on a headset.
 
 The view has no switches for colour only, depth only or the foreground mask. These are not planned yet.
 
