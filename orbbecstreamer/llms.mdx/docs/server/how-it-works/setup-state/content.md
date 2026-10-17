@@ -134,13 +134,21 @@ with regular heartbeats, so a client that disappears cannot keep it.
 | Holders          | One connection at a time; others are rejected with `lock-held`                                                                                                                                                                                                                                                                                                                    |
 | Expiry           | 15 s after acquiring or the last heartbeat (fixed, not configurable)                                                                                                                                                                                                                                                                                                              |
 | Maximum lifetime | 30 min after acquiring (`setup.max_lease_lifetime_seconds`), however often the holder heartbeats. `expiresAtUs` stops advancing at that point, so every client sees the real end; then the lease ends as on expiry. The same connection must wait 15 s before acquiring again (refused with `rate-limited`); other clients may acquire at once. Applies to the console lease too. |
-| Heartbeat        | Every 5 s from the holder. A heartbeat moves the expiry (which every client sees) only if it gains at least 1 s; faster heartbeats are accepted and change nothing.                                                                                                                                                                                                               |
+| Heartbeat        | Every 5 s from the holder. A heartbeat moves the expiry (which every client sees) only if it gains at least 1 s, also on the last step before the maximum lifetime. When it moves, every client gets `server.lock.state` with the new `expiresAtUs`, and then the holder gets the ack. Any other heartbeat gets only the ack.                                                     |
 | Rate limit       | Per session, lock acquire, calibration start and commit, and placement commands: 10 at once, then 2 per second. Over the limit the command is refused with `rate-limited` and changes nothing. Lock release, calibration cancel and heartbeats are not counted, so a client can always give the lock back. A reconnect starts with a fresh budget.                                |
 | Lease id         | 128 random bits, sent only to the holding connection; never valid after a reconnect                                                                                                                                                                                                                                                                                               |
 | Ends on          | Release, disconnect, expiry, maximum lifetime. Ending the lease cancels a running calibration.                                                                                                                                                                                                                                                                                    |
 
 The lock state is broadcast to every client. Clients without the lock keep
 their normal control connection and see every state change.
+
+A client using protocol 1.1 or later gets `replyTo` on
+`server.calibration.result` and `server.placement.updated`. In the copy sent to
+the client whose commit caused the message, it is that request's `requestId`.
+Every other copy has `replyTo: null`. A protocol 1.0 client gets neither
+field. The calibration status items (in the snapshot and in
+`server.calibration.state`) carry `awaitingCommit` for protocol 1.1 clients.
+It is `true` only while a solved run waits for `client.calibration.commit`.
 `--live --calibrate-camera-pose` takes the lease as the local console,
 heartbeats it every 5 s and releases it when the run ends.
 

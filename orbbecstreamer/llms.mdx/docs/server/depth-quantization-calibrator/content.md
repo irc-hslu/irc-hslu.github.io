@@ -145,8 +145,10 @@ the Operator Console's depth range screen uses.
    the run it fails with `accepted: false` and a message such as
    `too few valid depth samples between 500 and 5000 mm (25, at least 1474560 needed); point the cameras at the scene or adjust the range`.
 4. **Solved, awaiting commit.** The calibration stays `running` and its
-   `message` reads `solved; awaiting commit`. No `server.calibration.result` is
-   sent yet, and nothing is changed or saved.
+   `message` reads `solved; awaiting commit`. Protocol 1.1 clients also get
+   `awaitingCommit: true` on the status, which is what they use to offer
+   Commit. No `server.calibration.result` is sent yet, and nothing is changed
+   or saved.
 5. **Commit.** The server writes the profile to
    `encoding.depth.quantization_profile_path` (atomically), raises the depth
    quantization revision and the calibration revision, and publishes in this
