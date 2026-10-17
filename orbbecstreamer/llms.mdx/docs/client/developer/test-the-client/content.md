@@ -78,6 +78,7 @@ To run a page without clicking, add a query parameter:
 * `?autorun=1` for the render, wiring, latency, cards, setup and placement checks
 * `?autorun=samples` for the decode check
 * `?engine=webgl2` or `?engine=webgpu` to force a backend, where the page supports it
+* `?xr=1` on the app itself (dev server and packaged build) turns on the experimental **Enter VR** button; see [Runtime options](/docs/client/developer/runtime-options#enter-vr-experimental-behind-a-flag)
 
 Each page sets `body[data-state]` to `done` or `failed` and puts its report on `window`, for example `window.__wiringCheckReport`. The wiring check’s `?readback=1` draws the read-back frame into an overlay, for headless screenshots that miss a WebGPU canvas. Its report JSON sits in a collapsed **report JSON** panel at the bottom right.
 

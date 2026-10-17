@@ -300,6 +300,14 @@ On-demand rendering draws at most once per animation frame, and only after an up
 
 `handle.dispose()` returns a `Promise<void>`. It resolves once the WebTransport sessions have settled `closed` and the GPU device is released, each wait bounded by 2 seconds, and it never rejects. Calling it twice returns the same promise, and callers that ignore the result keep working.
 
+## Enter VR (experimental, behind a flag) [#enter-vr-experimental-behind-a-flag]
+
+**Experimental.** `startAppRuntime(container, { xr: true })`, or `?xr=1` in the page URL (dev server and packaged build alike), adds an **Enter VR** button next to the side-panel toggle. Without WebXR in the browser there is no button; without VR support it is unavailable, and its tip says why. The flag is off by default; with it off the client creates and loads nothing for VR, and the page, the engine choice and `client.hello` are unchanged.
+
+With the flag on and VR supported, the renderer starts on WebGL2, because the 3D engine presents VR only on WebGL2. In the headset a status pill and a panel (Servers, View, Place, Exit VR) show the same servers as the desktop. Not built yet: capture-to-display times, delayed and stale states, the Notices list and some View toggles. No headset has run this yet: treat it as a test build.
+
+Every page load also checks once whether this browser could present VR on WebGPU, and writes the answer under **Renderer notes** in the side panel header, for example `VR engine: WebGL2. WebGPU-XR probe failed (navigator.xr is absent).` This never delays start-up.
+
 ## Troubleshooting [#troubleshooting]
 
 * **A subscribe returns `not-decode-compatible`**: expected with `media: 'none'`. The runtime told the server it decodes nothing, so `connection.compatibility` has `renderingCompatible: false` and `clientRole(compatibility)` (`client/src/state/compatibility.ts`) returns `control-only`. Start a runtime with `media: 'full'` to draw.
