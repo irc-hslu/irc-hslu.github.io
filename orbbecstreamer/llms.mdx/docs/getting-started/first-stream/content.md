@@ -6,8 +6,8 @@
   Live video in the browser needs v0.1.0-poc.7 or later. With poc.6 and
   earlier, a browser gets the server's status and setup but no video; use
   the server's telemetry and debug recordings (below) to see your capture.
-  In poc.7 the team has not yet checked the picture content or depth
-  calibration on a live scene on real hardware.
+  Up to v0.1.1 the team has not yet checked the picture content or depth
+  calibration on a live, lit scene on real hardware.
 </Callout>
 
 ## Connect a browser to the release package [#connect-a-browser-to-the-release-package]
@@ -26,8 +26,9 @@ and at least one Orbbec camera connected:
 
 2. In Chrome or Edge **on the server PC**, open
    [http://127.0.0.1:8080](http://127.0.0.1:8080) (or
-   `http://localhost:8080`). The gateway accepts only these two page
-   addresses.
+   `http://localhost:8080`). By default the gateway accepts only these two
+   page addresses; for other computers, see
+   [Remote viewers on the LAN](/docs/getting-started/install-package#remote-viewers-on-the-lan).
 
 3. The client finds the server by itself and adds it; you type nothing. A
    server card appears under **Servers**.
