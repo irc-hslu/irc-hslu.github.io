@@ -5450,13 +5450,15 @@ A successful run ends like this (numbers from a synthetic test rig):
 ```text
 [info] camera-pose calibration run 1 solved
 [info] camera-pose calibration committed: revision 1
-[info]   cam0 serverFromDepthCamera translation = (0.0000, 0.0000, 0.0000) m
-[info]   cam1 serverFromDepthCamera translation = (0.5989, 0.0020, -0.0020) m
+[info]   cam0 serverFromDepthCamera translation = (0.0000, 0.0000, 0.0000) m (+Y up)
+[info]   cam1 serverFromDepthCamera translation = (0.5989, -0.0020, -0.0020) m (+Y up)
 [info] setup update (session command): phase=STREAMING readiness=ready camera_pose_calibration=valid (revision 1) streaming=streaming metadata_revision=17
 ```
 
 Check the translations against the real rig. They are the positions of each
-camera's depth sensor, in metres, relative to the reference camera.
+camera's depth sensor, in metres, relative to the reference camera, in the
+frame clients receive: +X right, +Y up, +Z forward. A camera mounted above
+the reference camera has a positive y.
 
 ### What the result means [#what-the-result-means]
 
@@ -5471,11 +5473,21 @@ already aligned to the depth image (this is what
 pose with the depth camera's intrinsics. The result is the depth-sensor pose
 directly, with no colour-to-depth correction.
 
+The solver works in the OpenCV camera frame (+X right, +Y down, +Z
+forward), and the server keeps that frame internally and in the saved file.
+Clients get every pose in the wire frame (+X right, +Y up, +Z forward; see
+wire-format §9). The server converts a pose `M` at the boundary to
+`C·M·C`, with `C = diag(1, −1, 1, 1)`: the rotation stays a rotation, the
+identity stays the identity, and the y translation changes sign.
+`anchorFromServer` (the placement) is written by clients in the wire frame
+and is stored and sent back unchanged.
+
 ### The saved file [#the-saved-file]
 
 The result goes to `calibration.camera_pose_path`. The matrix is
 column-major, in metres, so the last column (entries 12–14) is the
-translation:
+translation. The file is in the OpenCV frame (+Y down), so its y
+translation has the opposite sign of the one in the log and on the wire:
 
 ```json
 {
