@@ -4,6 +4,8 @@
 
 A client fuses several rigs by connecting to one server per rig and laying out each server's per-camera clouds with that server's committed placement (`protocol/wire-format.md` §7, §9, §14, §18). The server side is plain: each instance is an ordinary single-server run. This page covers running two on one machine, for example one camera per instance.
 
+**Version.** Versions up to 0.1.1 cannot run two instances on one machine with real cameras. Enumeration opened every connected camera, so the second instance failed with `camera enumeration failed: uvc_open failed ... Return Code: -6` (the camera is busy) and stayed in `NEEDS_SETUP`, whichever instance started first. From 0.1.2 enumeration reads each camera's serial number from the device list without opening it, and only the camera named by `serial_number` is opened. A busy camera that is not yours no longer matters. If the camera you configured is busy, the instance fails and names its serial number and USB port.
+
 ## What each instance must own [#what-each-instance-must-own]
 
 Instances share nothing at run time; everything below is set in the instance's own config. Example configs for two instances are in `server/config/multi-server/` (`rig-a.yaml`, `rig-b.yaml`).
@@ -34,5 +36,7 @@ Calibrate and commit placement on each server separately (the setup lease is per
 ## Tested [#tested]
 
 `gateway_serving_tests` runs two servers (each with its own controller, hub and fake gateway, one camera each) with one client. It checks that the two `serverId` values differ, that a placement commit on each (lease and `expectedRevision`) is acknowledged and announced by that server only, and that media reaches the client from both. A config test checks that the shipped examples share no port, path or identity.
+
+`OrbbecDeviceCatalogUnitTests` uses a fake device list in which one camera is busy. It checks that listing opens no camera, that opening one serial touches only that camera, and that a busy camera you asked for fails with its serial number and port.
 
 Not yet checked: two real rigs on one machine under load (needs the second rig).

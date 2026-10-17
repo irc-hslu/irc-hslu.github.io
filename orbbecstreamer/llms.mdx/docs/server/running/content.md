@@ -86,9 +86,11 @@ A healthy start with two synchronised cameras, capture 30 / stream 15, `mask.bac
 [info] live config: cameras=2 wait_timeout_ms=5000 preview=true
 [info] live streams: depth=640x576@30 depth_u16 color=1280x720@30 rgb8
 [info] live encoding: enabled=true mode=concatenated_batch gpu=0 queue=2 gop=60 depth_quantization=linear ...
-[info] active camera: config_id=cam0 serial=CL8K0000000A name='Orbbec Femto Bolt' firmware='1.1.2'
-[info] active camera: config_id=cam1 serial=CL8K0000000B name='Orbbec Femto Bolt' firmware='1.1.2'
+[info] active camera: config_id=cam0 serial=CL8K0000000A name='Orbbec Femto Bolt'
+[info] active camera: config_id=cam1 serial=CL8K0000000B name='Orbbec Femto Bolt'
 [info] live selected 2 active camera(s), neglected 0 camera(s)
+[info] opened camera: serial=CL8K0000000A firmware='1.1.2'
+[info] opened camera: serial=CL8K0000000B firmware='1.1.2'
 [info] live queues: capacity=2 per GPU stage (drop oldest), encode=2, upload slots=41
 [info] frame rate: capture 30 fps, stream 15 fps (1 of every 2 captured batches goes on)
 Configured Orbbec sync: camera=orbbec:CL8K0000000A mode=4 depth_delay_us=0 ... global_timestamp=enabled
