@@ -9,7 +9,7 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 adds the media rate on the Network page and fixes from the live run. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
@@ -59,18 +59,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.1-1_amd64.deb` from the
-    [v0.1.1 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.1),
+    Download `orbbec-streamer_0.1.2-1_amd64.deb` from the
+    [v0.1.2 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.2),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.1-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.2-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.1-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `555c0725ce6f22a133745a31bb4b121aef220b437d05451ff270d33b3fd92032`.
+    `sha256sum` must print `orbbec-streamer_0.1.2-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `5a338af814e0dc20c8f7d3e1dbffbbeff4e0ced9d2aa26fbf9df56b0a5338998`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -79,7 +79,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.1-1`. It sorts above every
+    The package version inside the file is `0.1.2-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -278,10 +278,11 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.1-1`.
+Replace `<version>` with the new file's version, for example `0.1.2-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
-yours, `apt` asks whether to keep it: keep your version. The first upgrade from
+yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
+version. It is unchanged in v0.1.2, so an upgrade from v0.1.1 doesn't ask. The first upgrade from
 poc.9 or earlier to v0.1.0-poc.10 or later enables and starts the server,
 with the cameras closed. Later upgrades restart the server only if it was
 running, and never change whether it starts at boot. Exception: if a
@@ -316,7 +317,8 @@ calibration are kept.
   the unknown key. Downgrading from v0.1.0-poc.10 to poc.9 or earlier: also
   delete the `lan_viewers` line under `serving:` and restart; otherwise the
   older server refuses to start with `Unsupported serving key: lan_viewers`.
-  Downgrading from v0.1.1 to v0.1.0 or earlier with `network_probes` set:
+  Downgrading from v0.1.2 to v0.1.1 needs no change. Downgrading from
+  v0.1.1 or later to v0.1.0 or earlier with `network_probes` set:
   delete that line too (see [Active probes](/docs/guides/network#active-probes)).
 </Callout>
 

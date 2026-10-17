@@ -74,15 +74,35 @@ A card added by **Use this server** (or by the automatic connect) takes the cert
 
 The browser doesn’t tell the client which of these it is, so the card can’t say. The hint goes away once the server has answered once; later drops show the plain message below.
 
+### Close messages [#close-messages]
+
+When a connection ends, the card’s close box names why in bold and says what to do. Below it, `last close: …` keeps the raw reason, for example `closed by server (code 4, slow-consumer): control backlog`. Once the connection is back, only the raw reason stays.
+
+| Message                          | What happened                                                                                                                                                                                                                                                                                                                                                           | What to do                                                                                                                                                      |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Connection refused.**          | The connection failed at once. The browser doesn’t say why, so the card can’t either: no server running at that address and port, an untrusted certificate, this page’s address not on the server’s allow-list, a host name the server doesn’t accept, or a server that is full or stopping. In Chrome a closed port fails within milliseconds, exactly like a refusal. | Check the address and the certificate hash, and open the client from the server’s own page. A full server frees up; the client retries after at least 1 second. |
+| **Server did not answer.**       | Nothing came back within 10 seconds.                                                                                                                                                                                                                                                                                                                                    | Check the address and port, and that the server is running. A firewall that blocks UDP to that port looks the same.                                             |
+| **Server closed the session.**   | The server stopped or restarted (close code 0).                                                                                                                                                                                                                                                                                                                         | Nothing; the client reconnects when it is back.                                                                                                                 |
+| **Server rejected this client.** | The server found a protocol error in what the client sent (code 1).                                                                                                                                                                                                                                                                                                     | Update the client or the server so their versions match.                                                                                                        |
+| **Server error.**                | A fault on the server (code 2, or a code the protocol doesn’t define).                                                                                                                                                                                                                                                                                                  | The client reconnects. If it repeats, check the server log.                                                                                                     |
+| **Hello took too long.**         | The server got no hello within 10 seconds (code 3).                                                                                                                                                                                                                                                                                                                     | Usually a slow or lossy network; the client reconnects.                                                                                                         |
+| **This client fell behind.**     | The client read the server’s messages too slowly (code 4), for example in a busy or throttled tab.                                                                                                                                                                                                                                                                      | Close other heavy tabs; the client reconnects.                                                                                                                  |
+| **Server stream failed.**        | A stream write or read failed on the server (code 5), often a network drop.                                                                                                                                                                                                                                                                                             | Nothing; the client reconnects.                                                                                                                                 |
+| **Connection lost.**             | The connection dropped without a close from the server.                                                                                                                                                                                                                                                                                                                 | Nothing; the client reconnects.                                                                                                                                 |
+
+While the card shows the failed-attempts hint above, the close box shows only its bold reason, so the causes aren’t repeated.
+
+What the browser shows: only the server’s close code (0 to 5) and its reason reach the client. The answer the server gives before a session exists (421 for an unknown host name, 403 for a refused page address, 503 when it is full or stopping, 404 for a wrong path, 400 for a failed upgrade, and a refusal when it has too many connections) never does: the browser reports the same generic failure for all of them, and for an untrusted certificate too.
+
 These messages appear on the server card:
 
-* **Error status and `last close: transport error: …`**: the client couldn’t open the connection.
+* **Error** status, **Connection refused.** and `last close: transport error: …`: the client couldn’t open the connection.
   * Check that the server is running and that you can reach its host and port over UDP. WebTransport runs over UDP, not TCP. The packaged server’s gateway starts once a camera is active.
   * Check that your browser trusts the server’s certificate: add its hash, or use **Use this server**.
   * Check that the server allows this page’s address. The packaged server accepts `http://127.0.0.1:8080` and `http://localhost:8080` only. See [Serve to browsers](/docs/server/serving).
   * A browser without WebTransport fails this way on every try. See [Check your browser](/docs/client/browser-requirements).
 * **`last close: transport error: blocked by this page's Content Security Policy …`**: the site that serves the client doesn’t allow connections to this server’s address (its Content Security Policy `connect-src` doesn’t list it). The browser refuses before it sends anything. In Chrome and Edge the client recognises this and doesn’t retry; other browsers word the refusal differently, so there the card shows a plain `transport error` and the client keeps retrying with backoff. Check the address on the card first. If it’s right, ask whoever deploys the client to add the server’s `https://host:port` to `connect-src`. The policy only changes when the page loads, so reload the page and add the server again. **Reconnect** tries once more, but meets the same policy until you reload.
-* **`connect timeout`**: the server didn’t finish connecting within 10 seconds. It may be unreachable, or it may not answer. Check the server’s logs.
+* **Server did not answer.** and **`connect timeout`**: the server didn’t finish connecting within 10 seconds. It may be unreachable, or it may not answer. Check the server’s logs.
 * **`Protocol version mismatch; cannot connect.`**: the server uses another major version of the protocol. Update the client or the server. The client doesn’t retry.
 * **`last close: protocol error invalid-transform: …`**, or `invalid-quantization-profile`, `invalid-bundle-descriptor` or `invalid-message`: the server sent data that breaks the protocol, for example a placement that isn’t rigid. The client closes the connection and retries. Check the server’s calibration and placement, and report the text after the code.
 * **`last close: internal error: media channel …`** or **`media stream …`**: the client hit a bug while it read that server’s video. It closes only this connection, reconnects and starts again from a fresh snapshot; other servers keep streaming. If it repeats, report the full text.
@@ -780,6 +800,8 @@ Useful controls:
 
 * **Scenario**: `setStreaming`, `setBundleAvailability`, and calibration scripts passed in `createMockServer({ calibration })`: duration, progress interval, accepted or failed, new camera poses or a new depth profile, and a depth-code histogram per progress message (`depthHistogram`; `syntheticDepthHistogram` in `src/dev/devMock.ts` is a ready-made one). The shell’s “Add mock server” scripts a 6 s depth-quantization run with that histogram.
 * **Camera-pose data** (change 0033): a camera-pose run sends `server.calibration.progress` at run start, then at most 10 times a second, with `phase`, `lastSolveFailure`, `sharedObservations` and per camera the corners, accepted count, last observation and an 8 x 6 coverage grid; the camera-pose calibration entry carries `board`, `timeoutMs` and `maxReprojectionErrorPx` (`createMockServer({ cameraPose: { statusFields: false } })` omits them; `timeoutMs` sets the limit). Script it with `calibration['camera-pose'].pose`: `blindCameras` (never see the board), `isolatedCameras` (rejected `not-co-observed`, in no pair), `rejectReasons` (per camera, any kebab-case reason), `solveFailure` (keeps the run in `solving` with that `lastSolveFailure`), `neverSolves`, `minPairCountForRms`. A run that never solves ends at `timeoutMs`: result `accepted: false`, state `failed` (a valid pose stays `valid` with the message). A one-camera snapshot has no shared pairs. Cancel, lease loss, takeover and capture stop restore the pre-run record and stop progress; sensor and profile writes are refused `calibration-running` while a run exists.
+* **Refused connects** (§1a, change 0024): `createMockServer({ connectRefusal })` or `mock.refuseConnects(refusal | null)`. `{ kind: 'status', status: 421 | 404 | 403 | 503 | 400 }` and `{ kind: 'quic-busy' }` reject the opener at once with a browser-like `WebTransportError` that carries no status, as Chromium does; `{ kind: 'no-answer' }` never answers, so the client's connect deadline fires. `mock.refusedConnects` lists the answers given. Close codes after the hello: `closeSession(session, code, reason)`.
+* **Near-range depth**: `nearRangeQuantizationProfile()` (`src/media/playback/nearRangeProfile.ts`, 200 to 5000 mm, from a live server profile) as the snapshot's `quantization`. In the dev app, `?mockDepth=near` makes **Add mock server** serve it (snapshot only, no media).
 * **Faults**: `dropSession`, `closeSession`, `delaySession`, `stallSession` / `resumeSession`, `sendMalformed`, `skipRevisions`, `sendStaleRevision`, `refuseSnapshots`, `expireLease`, `holdLocalConsoleLease`, `session.dropFromNetwork()`.
 * **Inspection**: `sessions()`, `sessionOf(clientId)`, `lockHolder()`, `snapshot()`, `metadataRevision`, `getRequestLog()`, `session.requestCounts`, `session.role`, `session.mediaStats(bundleId)`.
 
@@ -939,7 +961,7 @@ The `networkSensing` and `networkSessions` options script `server.network.sessio
 
 Network sensing is the client side of [change request 0018](https://github.com/irc-hslu/orbbecstreamer/blob/main/protocol/changes/0018-network-calibration-stream.md) (protocol 1.2, feature `network-sensing`). It only measures and reports. It changes no bitrate, budget or encoder setting.
 
-This page covers what is built: passive sensing (slice C2) and the probe streams (slice C3). The card and panel that show the numbers, and the adaptation that uses them, are not built.
+This page covers what is built: passive sensing (slice C2), the probe streams (slice C3) and the numbers on the viewer’s server card (slice C1 for the viewer). The adaptation that uses them is not built.
 
 ## What happens in a session [#what-happens-in-a-session]
 
@@ -1047,17 +1069,18 @@ For each server, `connection.state.network` (`ServerRuntimeState.network`) holds
 | `client`             | The latest `client.network.report` this client sent, or `null`.      |
 | `sessions`           | The latest `server.network.sessions` (operator sessions), or `null`. |
 
-These values change about once a second. They are updated **without** notifying the state listeners, so cards and the renderer do not wake once a second. A reader that wants live numbers listens for the connection event `network-estimates` (`source`: `negotiated`, `server`, `client` or `sessions`) and then reads `state.network`. Nothing in the viewer shows the numbers. The Operator Console's network panel reads them through the exports below.
+These values change about once a second. They are updated **without** notifying the state listeners, so cards and the renderer do not wake once a second. A reader that wants live numbers listens for the connection event `network-estimates` (`source`: `negotiated`, `server`, `client` or `sessions`) and then reads `state.network`. The viewer’s server card shows one line from `networkSummaryOf` (below) under its strip, re-read on its shared live ticker, which stops while the panel or tab is hidden. The Operator Console's network panel reads them through the exports below.
 
 ## For the Operator Console (slice O1) [#for-the-operator-console-slice-o1]
 
 Pure functions of `ServerRuntimeState` (exported from `src/state`); re-read them on the `network-estimates` event.
 
-| Export                                                                                                      | Returns                                                                                                                                                                                                                                                                                                          |
-| ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `networkSessionsOf(state)`                                                                                  | The latest `server.network.sessions`, every `Est` field kept (`value`, `basis`, `source`, `windowMs`, `samples`, `confidence`, `lowerBound`). `null` unless the connection is up, `network-sensing` is negotiated (minor 2 and the feature on both sides), the session is `operator`, and a message has arrived. |
-| `networkSessionsReceivedAtUs`, `networkSessionsAgeUs(state, nowUs)`, `isNetworkSessionsStale(state, nowUs)` | When it arrived, its age, and whether nothing came for more than twice the 1 s cadence. The list stays in the export while stale.                                                                                                                                                                                |
-| `ownNetworkViewOf(state)`                                                                                   | This console's latest `client.network.report` in the row shape (`self: true`, `sessionRef: null`). Client-measured fields only: `rtt`, `s2c.burstRateBps`, `s2c.queueDelayP95Us`, `s2c.arrivalRateBps`, `probe.c2s`; the rest is `null`. `report` holds the whole report.                                        |
+| Export                                                                                                      | Returns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `networkSessionsOf(state)`                                                                                  | The latest `server.network.sessions`, every `Est` field kept (`value`, `basis`, `source`, `windowMs`, `samples`, `confidence`, `lowerBound`). `null` unless the connection is up, `network-sensing` is negotiated (minor 2 and the feature on both sides), the session is `operator`, and a message has arrived.                                                                                                                                                                                                                                                                                                               |
+| `networkSessionsReceivedAtUs`, `networkSessionsAgeUs(state, nowUs)`, `isNetworkSessionsStale(state, nowUs)` | When it arrived, its age, and whether nothing came for more than twice the 1 s cadence. The list stays in the export while stale.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `networkSummaryOf(state)`                                                                                   | Any role. What the card shows: `rateBps` (the server's `s2c.approxDeliveryRateBps`, else the client's own `s2c.arrivalRateBps`), `rttUs` (the server's `rtt.smoothedUs`, else the client's `rtt.smoothedUs`, else `rtt.pingMinUs`), each with `value`, `confidence`, `lowerBound` and `from` (`server` or `client`); `confidence` (the rate's, else the RTT's); `capacity` (the rate has `lowerBound: false` and medium or high confidence, D.1). An unknown confidence counts as `low` (arbiter A6; `confidenceLevel`). `null` unless connected with sensing; all fields `null` before the first report. Memoised per report. |
+| `ownNetworkViewOf(state)`                                                                                   | This console's latest `client.network.report` in the row shape (`self: true`, `sessionRef: null`). Client-measured fields only: `rtt`, `s2c.burstRateBps`, `s2c.queueDelayP95Us`, `s2c.arrivalRateBps`, `probe.c2s`; the rest is `null`. `report` holds the whole report.                                                                                                                                                                                                                                                                                                                                                      |
 
 Rules: unknown open strings (`peerScope`, `source`, hold reasons) pass through; a row with an unknown `scope` has its QUIC-derived estimates (`rtt`, `approxDeliveryRateBps`, `lossPpm`, `receivedRateBps`) set to `null`; a repeated `sessionRef` or a second `self` row is dropped with a warning. The field is `samples`, as in the change request. The list is cleared on disconnect and on every reconnect (the role is decided per session); the event then has `source: 'cleared'`. Silence raises no event: when the server stops sending, nothing in the client fires, so the console must re-read `isNetworkSessionsStale(state, nowUs)` on its own timer (once a second is enough). The Operator Console must pass `networkSensing: true` to its connection to negotiate the feature.
 
@@ -1098,6 +1121,8 @@ Still to run live: capture to present p50/p99 with probes forced by a 4 s GOP (l
 **`arrivalRateBps` is `null`.** The page is hidden or media is suspended, or the session is younger than one second.
 
 ## Mock options for the network panel [#mock-options-for-the-network-panel]
+
+`networkReports` (needs `networkSensing: true`; default off) makes the mock send a made-up `server.network.report` every `intervalUs` (default 1 s) to every session that negotiated the feature, any role, sequence from 0. Variants: `normal` (about 47 Mbit/s as a lower bound, RTT about 1.9 ms, medium confidence), `capacity` (no lower bound, high), `low-confidence`, `unknown-confidence` (read as low), `null-estimates`. Live: `mock.setNetworkReports(script | null)`. In the dev app, add `?mockNetwork=1` (or a variant name, for example `?mockNetwork=unknown-confidence`) to the page address before you select **Add mock server**.
 
 `networkSessions` (needs `networkSensing: true`; default off, so no message and no timer) makes the mock send `server.network.sessions` to operator sessions that negotiated the feature: once in the replay before `server.operator.replay-complete`, then every `intervalUs` (default 1 s, coalesced to at most 1 per second).
 
@@ -1786,6 +1811,8 @@ The render check and the perf harness report the compute path's measured numbers
 
 Results go to `client/scripts/qa/.out/`, which git ignores. The perf media and the test recording are synthetic and made with ffmpeg on first use. Usage, outputs and limits are in `client/scripts/qa/README.md`.
 
+The perf harness and `gpu-cost/run.mjs` stop a scenario when its page fails to load: a page error, a console error, or a page that never starts. They print the scenario and the cause and exit with status 1. `npm test` also checks that every client module name the QA pages import still exists, so renaming an export they use fails the gate. To compare a change, measure against the newest committed baseline in `client/scripts/qa/perf/baselines/`, with the same flags and 3 runs, and record `cat /proc/loadavg` at the start of each run.
+
 ## Browsers tested so far [#browsers-tested-so-far]
 
 These are the recorded results so far. Other browsers, and Windows and macOS, haven’t been tested yet.
@@ -2428,13 +2455,14 @@ Every server and recording gets a card under **Servers**. A server whose cameras
    * **reconnect scheduled**, **resynchronising**, or **waiting for the camera-pose calibration**: the connection is retrying, the client is fetching the server’s full state, or the server needs a camera-pose calibration.
    * the server’s own setup task, such as **Building the foreground model engine: 42%**, **starting**, or **Opening cameras failed** with the reason: shown while the server prepares to stream.
    * While the cameras are closed or failed: **N of M cameras found** (the cameras the server is set up for that it can see right now), and for **Camera start failed** the server’s own reason, for example `Orbbec property 1038 error`.
-4. **Boxes**, only when they apply: `conflict: …` when another card already shows this server, and `last close: …` with why the last connection ended.
+4. **Boxes**, only when they apply: `conflict: …` when another card already shows this server, and a close box when the last connection ended. The close box starts with a short reason in bold, such as **Connection refused.** or **This client fell behind.**, then what to do, then `last close: …` with the raw reason. See [Close messages](/docs/client/add-a-server#close-messages).
 5. **Calibration chips**: **Pose**, **Depth** and **Network**, each with its state (`missing`, `valid`, `stale`, `running` or `failed`) and revision, for example **Pose valid · r1**. Amber or red means the server can’t stream until it’s fixed; **Network** never stops streaming.
 6. **Strip**:
    * **Lock**: **Free**, **Yours · 12 s**, another client’s name, or **Unknown** while disconnected
    * **RTT**: the shortest round trip to the server
    * **Pairs**: colour and depth frames decoded this connection
    * **Dropped**: pairs decoded but not drawn. Records the client discarded before decoding them are not counted here; they show in Details.
+   * Under the strip, only when the server and the client measure the network together (network sensing, protocol 1.2): one line such as `At least 47 Mbit/s · RTT 1.9 ms · medium confidence`. The rate is how fast the server reaches this client; **at least** means the true rate may be higher, because the video doesn’t fill the link. The RTT here is smoothed, so it can differ from the strip’s shortest **RTT**. **low confidence** means the samples disagree; treat the numbers as rough. The line is absent until the first measurement.
 7. **Buttons**: see [What each button does](#what-each-button-does).
 8. **Details**: folded. See [Details](#details).
 
@@ -2471,7 +2499,7 @@ Select **Details** to unfold the full status:
 | **Calibration** | Each calibration’s state, revision and the server’s message                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | **Layout**      | `per-camera` or `concatenated`, then one row per bundle, for example `bundle-cam0: 1 camera, available; ready, drawing`                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Counts**      | `decoded`, `uploaded`, `dropped` and `streams` for this connection. Bundles the client stopped receiving don’t count as streams. When the client discarded records before decoding (before the decoder was ready, while waiting for a keyframe, with a full decode queue, or for an undecodable channel), `· N records discarded before decode` follows. It is absent at zero. Records the stream layer dropped while waiting for a keyframe, or read and dropped after you stopped receiving a bundle or after the server changed its metadata, aren’t in this count. |
-| **Network**     | `min RTT`, and the server’s budget, for example `active 40.0 Mbit/s, server maximum 100.0 Mbit/s, safe for this client 35.0 Mbit/s, network compatible`                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Network**     | `min RTT`, and the server’s budget, for example `active 40.0 Mbit/s, server maximum 100.0 Mbit/s, safe for this client 35.0 Mbit/s, network compatible`. With network sensing, also `estimated rate: at least 47.0 Mbit/s (server, medium confidence)` and `smoothed RTT: 1.90 ms (server, medium confidence)`; `server` or `client` says whose measurement it is, and `, path capacity` follows a rate the measurement trusts as the link’s capacity.                                                                                                                 |
 | **Shared**      | The **Receive updates** switch: on, the server sends you other clients’ calibration results and placement changes. Default on. While disconnected, the client sends your choice when it reconnects.                                                                                                                                                                                                                                                                                                                                                                    |
 
 A bundle row ends with its drawing status:
@@ -2510,7 +2538,7 @@ The lock’s expiry is in the server’s clock. Until the client has measured th
 * **Acquire lock is refused**: its tip names the holder. Ask them to release it, or wait: a lock runs out 15 seconds after its last renewal.
 * **The lock is gone after a reconnect**: a lock never survives a reconnect. Acquire it again.
 * **`Metadata is stale`**: select **Refresh** in the box.
-* **`last close: …`**: see [Add a server](/docs/client/add-a-server#fix-connection-problems).
+* A close box, such as **Connection refused.**: see [Close messages](/docs/client/add-a-server#close-messages).
 * **Pairs stays at 0**: a **Setup and control only** chip means your browser can’t decode the video. Otherwise, open **Details** and read the bundle rows.
 * **You want to replay a recording**: select **Remove**, then open it again.
 
@@ -2700,6 +2728,8 @@ Each wheel step zooms by about 2 % of the current distance, so zooming is fine u
 ## What you should see [#what-you-should-see]
 
 Once your browser decodes a server’s video, you should see a coloured point cloud on a dark background. Gaps appear where the depth reading was missing or out of range; the view hides those pixels instead of drawing them at the near or far limit. Until then, the view is dark and empty.
+
+The range comes from each server’s depth calibration, so a near-range server works too: one calibrated for 200 mm to 5 m draws points from 20 cm in front of its cameras.
 
 The following picture doesn’t come from the main client. It shows what the renderer draws with WebGL2, using the synthetic two-camera scene of the developer render check.
 
@@ -3122,7 +3152,7 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 adds the media rate on the Network page and fixes from the live run. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
@@ -3172,18 +3202,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.1-1_amd64.deb` from the
-    [v0.1.1 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.1),
+    Download `orbbec-streamer_0.1.2-1_amd64.deb` from the
+    [v0.1.2 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.2),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.1-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.2-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.1-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `555c0725ce6f22a133745a31bb4b121aef220b437d05451ff270d33b3fd92032`.
+    `sha256sum` must print `orbbec-streamer_0.1.2-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `5a338af814e0dc20c8f7d3e1dbffbbeff4e0ced9d2aa26fbf9df56b0a5338998`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -3192,7 +3222,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.1-1`. It sorts above every
+    The package version inside the file is `0.1.2-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -3391,10 +3421,11 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.1-1`.
+Replace `<version>` with the new file's version, for example `0.1.2-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
-yours, `apt` asks whether to keep it: keep your version. The first upgrade from
+yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
+version. It is unchanged in v0.1.2, so an upgrade from v0.1.1 doesn't ask. The first upgrade from
 poc.9 or earlier to v0.1.0-poc.10 or later enables and starts the server,
 with the cameras closed. Later upgrades restart the server only if it was
 running, and never change whether it starts at boot. Exception: if a
@@ -3429,7 +3460,8 @@ calibration are kept.
   the unknown key. Downgrading from v0.1.0-poc.10 to poc.9 or earlier: also
   delete the `lan_viewers` line under `serving:` and restart; otherwise the
   older server refuses to start with `Unsupported serving key: lan_viewers`.
-  Downgrading from v0.1.1 to v0.1.0 or earlier with `network_probes` set:
+  Downgrading from v0.1.2 to v0.1.1 needs no change. Downgrading from
+  v0.1.1 or later to v0.1.0 or earlier with `network_probes` set:
   delete that line too (see [Active probes](/docs/guides/network#active-probes)).
 </Callout>
 
@@ -3697,6 +3729,18 @@ up for your cameras.
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 {/* SKELETON for the core release (operator/design/release-core.md, M7).
     Not for publication until every step is filled and has been followed
     literally on a fresh rig install. Each TODO names the milestone that
@@ -3743,7 +3787,9 @@ order; each one ends with what you should see.
     **Opened as viewer**, the sensor and profile screens are read-only; the
     banner names the cause.
 
-    {/* TODO M1: Overview screenshot from the rig. */}
+        <img alt="Operator Console Overview: Connected, Setup lock: free, Ready and Streaming, one camera connected with sync OK, and a hint that the depth range is not calibrated" src="__img0" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark.*
   </Step>
 
   <Step>
@@ -3757,8 +3803,10 @@ order; each one ends with what you should see.
     cameras did not start, read the reason, check the camera's cable and power,
     and select **Start cameras** again.
 
-    With more than one camera, connect the sync cables and set up
-    `live.yaml` as in
+    The default config runs one camera. For a rig, add each camera's serial
+    number, mark exactly one as primary, connect the sync cables and set
+    `sync.enabled: true`. The comments at the top of
+    `/etc/orbbec-streamer/live.yaml` show how; your edits survive upgrades. See
     [More than one camera](/docs/getting-started/install-package#more-than-one-camera).
 
     In the Operator Console, open **Cameras & sync**. You should see one row
@@ -3766,6 +3814,14 @@ order; each one ends with what you should see.
     **Setup checklist**, the **Cameras** step checks that every camera is
     connected on a good link and captures in sync. See
     [What each panel shows](/docs/operator#what-each-panel-shows).
+
+        <img alt="Cameras & sync with one Femto Bolt: Connected, health OK, USB 3, sync role Standalone" src="__img1" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark. The serial number is blurred.*
+
+    In the first minute after **Start cameras**, a camera's health can read
+    **Degraded**: the camera drops a few frame sets at each start while it
+    syncs its clock. That is normal; it turns **OK** by itself.
 
     {/* TODO M4: hardware-sync status row and its healthy values (the console
         shows it as Not reported until protocol change 0029); what to do when a
@@ -3789,10 +3845,20 @@ order; each one ends with what you should see.
       **Apply profile**, then **Apply and restart streams**. Streams pause for a
       few seconds.
 
+    With person segmentation on (the default), v0.1.2 offers only the 640×576
+    depth profiles; see the
+    [known issue](/docs/operator#change-sensor-settings-and-the-stream-profile).
+
     You should see the **Sensors** and **Profiles** steps of the **Setup
     checklist** (see [The setup checklist](/docs/operator#the-setup-checklist))
     without errors, and `Settings are kept by the server for each camera and
     restored after a restart.` on the sensor screens.
+
+        <img alt="Colour sensor, read-only until you take the setup lock: Auto exposure on, Exposure 200, Gain 0, Auto white balance on" src="__img2" />
+
+        <img alt="Stream profile: the current profile, 640x576 depth, 1280x720 colour, 15 fps, above the profiles you can switch to" src="__img3" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark.*
 
     {/* TODO M4: first-run wizard, expected time about 5 minutes; screenshots of
         the sensor and profile screens. */}
@@ -3845,7 +3911,11 @@ order; each one ends with what you should see.
     has tested this calibration with synthetic cameras only, not yet on
     hardware.
 
-    {/* TODO M2: real screenshots from the rig run (B3). */}
+        <img alt="Camera pose calibration with one camera: Camera pose: valid · revision 1, the ChArUco board description and Start camera-pose calibration" src="__img4" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark. The pose shown is the identity pose the server writes for one camera; no board calibration was run.*
+
+    {/* TODO M2: real screenshots from the rig run (B3), two cameras with a board. */}
   </Step>
 
   <Step>
@@ -3900,6 +3970,10 @@ order; each one ends with what you should see.
     **You**, with round-trip time, the rates in both directions and loss from
     the server to each viewer. A `≥` before a rate means the real value is at
     least that high; see [Read the estimates](/docs/guides/network#read-the-estimates).
+
+        <img alt="The Network panel with two loopback sessions, the console (Operator, You) and one viewer, with rates, round-trip time and loss" src="__img5" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark. The viewer tab received no video, so **Media, Mbit/s** reads `— not measured`.*
 
     {/* TODO M6: the rig's healthy values, loopback and LAN viewer; screenshot. */}
   </Step>
@@ -4035,6 +4109,11 @@ The columns are **Session**, **Role**, **Peer**, **Server to client rate
 **Report age**. The small bars after a number show its confidence. Select
 **+** on a row for its **Measurement details**.
 
+From v0.1.2, **Media, Mbit/s** shows the rate of media the server hands to
+the session's connection; with v0.1.1 it reads `— not measured`. It is what
+the server sends, not what the path could carry. Nothing acts on these
+numbers yet.
+
 <img alt="A session's measurement details: each measure with its lower-bound mark, confidence and number of samples" src="__img1" />
 
 How to read the cells:
@@ -4066,9 +4145,9 @@ Other messages on the panel:
 ## Active probes [#active-probes]
 
 Active probes are short, deliberate bursts of test data that fill gaps when
-passive data is thin. From v0.1.1 the server has them, but they are **off
-by default**: the server offers them to no session and sends no probe
-traffic.
+passive data is thin. The server has them from v0.1.1 and the browser
+client from v0.1.2, but they are **off by default**: the server offers them
+to no session and sends no probe traffic.
 
 The packaged `/etc/orbbec-streamer/live.yaml` lists the key commented
 out. To try probes, set it under `serving:` and run
@@ -4079,8 +4158,8 @@ serving:
   network_probes: true
 ```
 
-Turn them on at your own risk: probes add traffic on top of the live
-streams. Only viewers whose browser client supports probes take part. The
+Leave them off. They are for the team's two-host measurements, which have
+not passed yet, and they add traffic on top of the live streams. The
 release notes say when the default changes.
 
 A server older than v0.1.1 doesn't know the key and refuses to start with
@@ -4369,6 +4448,13 @@ run, and nothing is changed either:
 
 ## Calibrate the camera poses [#calibrate-the-camera-poses]
 
+<Callout type="warn">
+  **Known issue in v0.1.2: camera-pose calibration results are mirrored in
+  Y.** Setups that use the default identity pose are not affected. Don't
+  commit a board calibration on v0.1.2; the fix is planned for the next
+  release.
+</Callout>
+
 From v0.1.0-poc.11, the **Camera pose** screen (under **Calibration** in
 the left navigation, at `/operator/calibration/pose`) calibrates the
 camera poses: you move a printed ChArUco board through the cameras' views,
@@ -4476,6 +4562,12 @@ server machine can take the lock over. Ask <name> to leave setup, or wait
 until it expires.`
 
 ## Change sensor settings and the stream profile [#change-sensor-settings-and-the-stream-profile]
+
+<Callout type="warn">
+  **Known issue in v0.1.2:** with person segmentation on (the default), only
+  the 640×576 depth profiles are available. Other sizes need
+  `mask.backend: fill_all`, which turns segmentation off.
+</Callout>
 
 From poc.9, the left navigation lists three more screens. They are for
 [operator sessions](#the-operator-role); a viewer sees `Colour settings are

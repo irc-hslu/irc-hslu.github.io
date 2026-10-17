@@ -2,6 +2,18 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 {/* SKELETON for the core release (operator/design/release-core.md, M7).
     Not for publication until every step is filled and has been followed
     literally on a fresh rig install. Each TODO names the milestone that
@@ -48,7 +60,9 @@ order; each one ends with what you should see.
     **Opened as viewer**, the sensor and profile screens are read-only; the
     banner names the cause.
 
-    {/* TODO M1: Overview screenshot from the rig. */}
+        <img alt="Operator Console Overview: Connected, Setup lock: free, Ready and Streaming, one camera connected with sync OK, and a hint that the depth range is not calibrated" src="__img0" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark.*
   </Step>
 
   <Step>
@@ -62,8 +76,10 @@ order; each one ends with what you should see.
     cameras did not start, read the reason, check the camera's cable and power,
     and select **Start cameras** again.
 
-    With more than one camera, connect the sync cables and set up
-    `live.yaml` as in
+    The default config runs one camera. For a rig, add each camera's serial
+    number, mark exactly one as primary, connect the sync cables and set
+    `sync.enabled: true`. The comments at the top of
+    `/etc/orbbec-streamer/live.yaml` show how; your edits survive upgrades. See
     [More than one camera](/docs/getting-started/install-package#more-than-one-camera).
 
     In the Operator Console, open **Cameras & sync**. You should see one row
@@ -71,6 +87,14 @@ order; each one ends with what you should see.
     **Setup checklist**, the **Cameras** step checks that every camera is
     connected on a good link and captures in sync. See
     [What each panel shows](/docs/operator#what-each-panel-shows).
+
+        <img alt="Cameras & sync with one Femto Bolt: Connected, health OK, USB 3, sync role Standalone" src="__img1" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark. The serial number is blurred.*
+
+    In the first minute after **Start cameras**, a camera's health can read
+    **Degraded**: the camera drops a few frame sets at each start while it
+    syncs its clock. That is normal; it turns **OK** by itself.
 
     {/* TODO M4: hardware-sync status row and its healthy values (the console
         shows it as Not reported until protocol change 0029); what to do when a
@@ -94,10 +118,20 @@ order; each one ends with what you should see.
       **Apply profile**, then **Apply and restart streams**. Streams pause for a
       few seconds.
 
+    With person segmentation on (the default), v0.1.2 offers only the 640×576
+    depth profiles; see the
+    [known issue](/docs/operator#change-sensor-settings-and-the-stream-profile).
+
     You should see the **Sensors** and **Profiles** steps of the **Setup
     checklist** (see [The setup checklist](/docs/operator#the-setup-checklist))
     without errors, and `Settings are kept by the server for each camera and
     restored after a restart.` on the sensor screens.
+
+        <img alt="Colour sensor, read-only until you take the setup lock: Auto exposure on, Exposure 200, Gain 0, Auto white balance on" src="__img2" />
+
+        <img alt="Stream profile: the current profile, 640x576 depth, 1280x720 colour, 15 fps, above the profiles you can switch to" src="__img3" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark.*
 
     {/* TODO M4: first-run wizard, expected time about 5 minutes; screenshots of
         the sensor and profile screens. */}
@@ -150,7 +184,11 @@ order; each one ends with what you should see.
     has tested this calibration with synthetic cameras only, not yet on
     hardware.
 
-    {/* TODO M2: real screenshots from the rig run (B3). */}
+        <img alt="Camera pose calibration with one camera: Camera pose: valid · revision 1, the ChArUco board description and Start camera-pose calibration" src="__img4" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark. The pose shown is the identity pose the server writes for one camera; no board calibration was run.*
+
+    {/* TODO M2: real screenshots from the rig run (B3), two cameras with a board. */}
   </Step>
 
   <Step>
@@ -205,6 +243,10 @@ order; each one ends with what you should see.
     **You**, with round-trip time, the rates in both directions and loss from
     the server to each viewer. A `≥` before a rate means the real value is at
     least that high; see [Read the estimates](/docs/guides/network#read-the-estimates).
+
+        <img alt="The Network panel with two loopback sessions, the console (Operator, You) and one viewer, with rates, round-trip time and loss" src="__img5" />
+
+    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark. The viewer tab received no video, so **Media, Mbit/s** reads `— not measured`.*
 
     {/* TODO M6: the rig's healthy values, loopback and LAN viewer; screenshot. */}
   </Step>

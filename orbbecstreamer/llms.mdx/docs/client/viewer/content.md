@@ -32,6 +32,8 @@ Each wheel step zooms by about 2 % of the current distance, so zooming is fine u
 
 Once your browser decodes a server’s video, you should see a coloured point cloud on a dark background. Gaps appear where the depth reading was missing or out of range; the view hides those pixels instead of drawing them at the near or far limit. Until then, the view is dark and empty.
 
+The range comes from each server’s depth calibration, so a near-range server works too: one calibrated for 200 mm to 5 m draws points from 20 cm in front of its cameras.
+
 The following picture doesn’t come from the main client. It shows what the renderer draws with WebGL2, using the synthetic two-camera scene of the developer render check.
 
 <img alt="A point cloud of a checkerboard wall with an orange sphere in front of it, and a gap in the wall behind the sphere. This is test data drawn by the client’s renderer on a test page, because the capture browser couldn’t decode HEVC video" src="__img0" />

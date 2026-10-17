@@ -127,6 +127,8 @@ The render check and the perf harness report the compute path's measured numbers
 
 Results go to `client/scripts/qa/.out/`, which git ignores. The perf media and the test recording are synthetic and made with ffmpeg on first use. Usage, outputs and limits are in `client/scripts/qa/README.md`.
 
+The perf harness and `gpu-cost/run.mjs` stop a scenario when its page fails to load: a page error, a console error, or a page that never starts. They print the scenario and the cause and exit with status 1. `npm test` also checks that every client module name the QA pages import still exists, so renaming an export they use fails the gate. To compare a change, measure against the newest committed baseline in `client/scripts/qa/perf/baselines/`, with the same flags and 3 runs, and record `cat /proc/loadavg` at the start of each run.
+
 ## Browsers tested so far [#browsers-tested-so-far]
 
 These are the recorded results so far. Other browsers, and Windows and macOS, haven’t been tested yet.

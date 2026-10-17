@@ -111,6 +111,11 @@ The columns are **Session**, **Role**, **Peer**, **Server to client rate
 **Report age**. The small bars after a number show its confidence. Select
 **+** on a row for its **Measurement details**.
 
+From v0.1.2, **Media, Mbit/s** shows the rate of media the server hands to
+the session's connection; with v0.1.1 it reads `— not measured`. It is what
+the server sends, not what the path could carry. Nothing acts on these
+numbers yet.
+
 <img alt="A session's measurement details: each measure with its lower-bound mark, confidence and number of samples" src="__img1" />
 
 How to read the cells:
@@ -142,9 +147,9 @@ Other messages on the panel:
 ## Active probes [#active-probes]
 
 Active probes are short, deliberate bursts of test data that fill gaps when
-passive data is thin. From v0.1.1 the server has them, but they are **off
-by default**: the server offers them to no session and sends no probe
-traffic.
+passive data is thin. The server has them from v0.1.1 and the browser
+client from v0.1.2, but they are **off by default**: the server offers them
+to no session and sends no probe traffic.
 
 The packaged `/etc/orbbec-streamer/live.yaml` lists the key commented
 out. To try probes, set it under `serving:` and run
@@ -155,8 +160,8 @@ serving:
   network_probes: true
 ```
 
-Turn them on at your own risk: probes add traffic on top of the live
-streams. Only viewers whose browser client supports probes take part. The
+Leave them off. They are for the team's two-host measurements, which have
+not passed yet, and they add traffic on top of the live streams. The
 release notes say when the default changes.
 
 A server older than v0.1.1 doesn't know the key and refuses to start with

@@ -192,6 +192,13 @@ run, and nothing is changed either:
 
 ## Calibrate the camera poses [#calibrate-the-camera-poses]
 
+<Callout type="warn">
+  **Known issue in v0.1.2: camera-pose calibration results are mirrored in
+  Y.** Setups that use the default identity pose are not affected. Don't
+  commit a board calibration on v0.1.2; the fix is planned for the next
+  release.
+</Callout>
+
 From v0.1.0-poc.11, the **Camera pose** screen (under **Calibration** in
 the left navigation, at `/operator/calibration/pose`) calibrates the
 camera poses: you move a printed ChArUco board through the cameras' views,
@@ -299,6 +306,12 @@ server machine can take the lock over. Ask <name> to leave setup, or wait
 until it expires.`
 
 ## Change sensor settings and the stream profile [#change-sensor-settings-and-the-stream-profile]
+
+<Callout type="warn">
+  **Known issue in v0.1.2:** with person segmentation on (the default), only
+  the 640×576 depth profiles are available. Other sizes need
+  `mask.backend: fill_all`, which turns segmentation off.
+</Callout>
 
 From poc.9, the left navigation lists three more screens. They are for
 [operator sessions](#the-operator-role); a viewer sees `Colour settings are
