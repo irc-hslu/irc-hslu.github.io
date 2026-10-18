@@ -30,10 +30,11 @@ An unavailable button stays visible. Hover over it, or focus it with the keyboar
 
 <img alt="The View section: the Blend switch on, the status line Blending overlapping cameras., Points open with its five settings and Reset points, and Blend tuning open with its eight fields at their defaults and Reset tuning" src="__img1" />
 
-| Control          | What it changes                                                                                                                                       | Default | When to change it                                                    |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
-| **Blend**        | On: where cameras overlap, their colours mix smoothly. Off: the dot nearest to you wins. Needs WebGPU; with WebGL2 the switch is off and unavailable. | On      | Turn it off when the view is slow: blending draws every point twice. |
-| **Reset tuning** | Sets the eight **Blend tuning** fields below back to their defaults. **Blend** stays as it is.                                                        |         | After experimenting                                                  |
+| Control          | What it changes                                                                                                                                                                                                                        | Default | When to change it                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
+| **Blend**        | On: where cameras overlap, their colours mix smoothly. Off: the dot nearest to you wins. Works with WebGPU and, where the graphics card can, with WebGL2; otherwise the switch is off and unavailable.                                 | On      | Turn it off when the view is slow: blending draws every point twice. |
+| **Blend anyway** | Shown with WebGL2 when the client turned blending off by itself (software drawing, or too slow). Turns it back on until you reload the page. See [When blending turns itself off](/docs/client/viewer#when-blending-turns-itself-off). |         | When you want blending even if the view gets slower                  |
+| **Reset tuning** | Sets the eight **Blend tuning** fields below back to their defaults. **Blend** stays as it is.                                                                                                                                         |         | After experimenting                                                  |
 
 ### Points [#points]
 

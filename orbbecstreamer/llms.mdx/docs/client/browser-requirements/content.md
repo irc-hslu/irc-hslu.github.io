@@ -6,11 +6,11 @@
 
 The client needs three browser features to show point clouds. Without one of them, the client still connects to servers, shows their status and sets them up, but draws no point clouds.
 
-| Feature                                                                                           | What the client uses it for                                          | Without it                                                                                    |
-| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| WebTransport                                                                                      | Connecting to a live server                                          | Adding a server fails to connect. Recordings still play.                                      |
-| WebCodecs video decoding with HEVC Main (8-bit) and HEVC Main10 (10-bit), or the built-in decoder | Decoding the colour and depth video                                  | No point clouds. Setup and control still work.                                                |
-| WebGPU, or WebGL2 as a fallback                                                                   | Drawing the point clouds. Blending overlapping cameras needs WebGPU. | Without either: no point clouds; setup and control still work. With WebGL2 only: no blending. |
+| Feature                                                                                           | What the client uses it for                                                                                                                            | Without it                                                                                                                            |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| WebTransport                                                                                      | Connecting to a live server                                                                                                                            | Adding a server fails to connect. Recordings still play.                                                                              |
+| WebCodecs video decoding with HEVC Main (8-bit) and HEVC Main10 (10-bit), or the built-in decoder | Decoding the colour and depth video                                                                                                                    | No point clouds. Setup and control still work.                                                                                        |
+| WebGPU, or WebGL2 as a fallback                                                                   | Drawing the point clouds and blending overlapping cameras. With WebGL2, blending needs 16-bit float render targets, which current graphics cards have. | Without either: no point clouds; setup and control still work. With WebGL2 on software drawing (SwiftShader): no blending by default. |
 
 HEVC is the video format the servers send. At startup the client also checks that your browser decodes it exactly, by decoding two tiny built-in streams and comparing the pixels with a known-good result. A channel that passes is decoded by the browser. A channel that fails is decoded by the client's own WebAssembly HEVC decoder, which runs in one background worker per stream; the client downloads it (about 1.1 MB, 0.37 MB compressed) only when a channel needs it. If that decoder can't load, the channel isn't decoded: the server's card says **Setup and control only** and names the missing HEVC decoding, and its point cloud isn't shown. The browser only turns these features on for secure pages: pages served over `https://`, or from `http://localhost`. The development server at `http://localhost:5173` counts as secure.
 
@@ -25,7 +25,7 @@ HEVC is the video format the servers send. At startup the client also checks tha
 
 <img alt="The header: OrbbecStreamer, the protocol version, the theme button, and the green WebGPU and WebCodecs chips" src="__img0" />
 
-With WebGL2, the **View** section reads `Blending needs WebGPU; with WebGL2 the nearest point is drawn.` When something is missing:
+With WebGL2, the **View** section says whether it blends; see [Switch blending on or off](/docs/client/viewer#switch-blending-on-or-off). When something is missing:
 
 * **WebGPU that can't draw**: the client uses WebGL2 and says why in an amber notice. See [When WebGPU can't draw](#when-webgpu-cant-draw).
 * **No WebGPU and no WebGL2**: a red **No 3D view** chip. Its tip reads `renderer: rendering-incompatible. Rendering incompatible: neither WebGPU nor WebGL2 is available. …`, and the decoder chip turns amber: `Decoding is off`.
@@ -36,14 +36,16 @@ With WebGL2, the **View** section reads `Blending needs WebGPU; with WebGL2 the 
 
 Some browsers offer WebGPU that runs only in software, or that stops as soon as it draws its first frame. One example is Chrome on Linux with an NVIDIA GPU, started without the Vulkan flags. At startup the client checks this: it draws one frame with WebGPU and makes sure the GPU survives it. If WebGPU fails that check, the client uses WebGL2, and an amber notice under the header chips says which case it was:
 
-* **WebGPU runs only in software in this browser, so the 3D view uses WebGL2 (no blending).**
-* **WebGPU did not work in this browser, so the 3D view uses WebGL2 (no blending).**
+* **WebGPU runs only in software in this browser, so the 3D view uses WebGL2.**
+* **WebGPU did not work in this browser, so the 3D view uses WebGL2.**
+
+WebGL2 blends overlapping cameras too, unless it also draws in software; the **View** section says which.
 
 Each notice ends with a **What to do** link to this section. The **i** button after the chips lists the details, for example `the WebGPU device was lost at its first frame (Device was destroyed.)`. A hardware GPU whose first frame fails gets one more try after half a second before the client switches to WebGL2.
 
 If the GPU stops while you're watching and doesn't recover within 5 seconds, the same place shows **The GPU stopped responding and did not recover, so nothing is drawn. Reload the page to start the 3D view again.** After the reload the client runs its startup check again.
 
-To get WebGPU and blending back:
+To get WebGPU back:
 
 1. In Chrome or Edge, open `chrome://gpu` and check the **WebGPU** line.
 2. On Linux with an NVIDIA GPU, start Chrome with `--use-angle=vulkan --enable-features=Vulkan`. WebGPU then runs on the GPU.
@@ -58,7 +60,7 @@ In 0.1.2 and earlier, the client stayed on WebGPU in this case: no point cloud a
 | Chrome for Testing 155, Linux, NVIDIA GPU | Verified   | Built-in (WASM HEVC)                                     | None found: WebTransport, WebGPU and WebGL2 work; Chrome has no HEVC decoding of its own here.  |
 | Google Chrome or Microsoft Edge, Windows  | Not tested | Expected: the browser's own hardware HEVC, else built-in | Whether the 10-bit depth frames can be read is unknown; if not, the built-in decoder is needed. |
 | Google Chrome or Microsoft Edge, macOS    | Not tested | Expected: the browser's own hardware HEVC, else built-in | As on Windows.                                                                                  |
-| Firefox                                   | Not tested | Expected: built-in (no HEVC in WebCodecs)                | WebGPU depends on version and platform; WebGL2 fallback means no blending.                      |
+| Firefox                                   | Not tested | Expected: built-in (no HEVC in WebCodecs)                | WebGPU depends on version and platform; the WebGL2 fallback blends where the graphics card can. |
 | Safari                                    | Not tested | Expected: the browser's own HEVC, else built-in          | WebTransport support depends on the Safari version; without it only recordings play.            |
 
 For a LAN viewer, the page and every server must be on `https:` with a certificate the browser trusts, or the server's certificate hash pinned (see [Add a server](/docs/client/add-a-server)).
@@ -99,7 +101,7 @@ Every configuration kept 15 frames per second on every camera, with no dropped f
 These are the common browser problems and their fixes:
 
 * **No 3D view on a desktop browser**: hardware acceleration may be off. Turn on **Use graphics acceleration when available** in the browser settings. In Chrome or Edge, open `chrome://gpu` to check the WebGL2 and WebGPU status.
-* **Points don't blend and a notice says WebGPU did not work**: see [When WebGPU can't draw](#when-webgpu-cant-draw).
+* **Points don't blend and a notice says WebGPU did not work**: see [When WebGPU can't draw](#when-webgpu-cant-draw) and the **View** section's status line ([When blending turns itself off](/docs/client/viewer#when-blending-turns-itself-off)).
 * **A camera's video stops decoding in the browser**: if the browser's own decoder fails on one stream, or keeps giving depth frames without 10-bit values, the client moves that stream to the built-in decoder. The stream keeps going from its next keyframe. Other cameras keep the browser's decoder, and the next stream of the same camera tries the browser's decoder again. Only when streams from two different cameras or servers fail does the client use the built-in decoder for that channel for the rest of the page's life. The console shows `[decode path]` warnings such as `Decode path: one depth stream switched to the built-in decoder (WebCodecs decoder failed; …)`. If the built-in decoder can't load either, the card shows **1 bundle off · decoder failed**.
 * **Every server card says the browser lacks HEVC decoding**: this browser can't decode HEVC exactly, and the built-in decoder didn't load. Open the browser's console: a `[decode path]` warning reads `Depth/colour cannot be decoded in this browser: the built-in decoder failed to load (<reason>)`. The reason is `HTTP 404` when the decoder file is missing from the server, `…failed its integrity check…` when the file was changed, or `blocked by the page's content security policy` when the page's policy lacks `'wasm-unsafe-eval'` in `script-src`. Fix the cause and reload the page; the client doesn't try again until then. You can still use the client to set up servers.
 * **A card says "Setup and control only: the picture 9000×576 is larger than the built-in decoder takes (max 8192 on a side, 3840×2160 area)"**: the built-in decoder takes pictures up to 8192 pixels on a side and 3840×2160 pixels in area (an 8-camera concatenated picture of 640×576 tiles is 5120×576 and fits). The card names the size the server announced; when the browser's own decoder was asked instead, it says "was refused by this browser's decoder (it may be too large)". The console also shows a `warn` line naming the bundle and channel. In the concatenated layout a server sends exactly one bundle, so 8 cameras mean one 5120-wide picture; a recording manifest with two bundles in the concatenated layout is refused with `Concatenated layout must expose exactly one bundle`.
