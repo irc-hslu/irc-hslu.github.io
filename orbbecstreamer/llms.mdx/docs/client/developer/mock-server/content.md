@@ -189,6 +189,7 @@ In the browser, with the dev server running (`npm run dev` in `client/`):
 * **The app**: in the side panel of [http://localhost:5173/](http://localhost:5173/), **Add mock server** under **Servers** adds a mock as a new server card, with the source `mock mock://dev-mock-…`.
   * It is snapshot-only (`snapshot only, no media`). Only where a local copy of the unpublished sample recordings exists in `client/reference/hevc-web/` does it serve them (`reference recording`); see [Sample recordings](/docs/client/developer/test-the-client#sample-recordings).
   * The section exists only in the dev server. A production build (`npm run build`) contains no mock code.
+* **Both bundle layouts**: `src/tests/bundleLayouts.test.ts` plays a mock server in `per-camera` (one bundle per camera) and `concatenated` (one bundle, tiles side by side) layout with 1, 2 and 4 cameras. It checks the bundle and tile counts, that each camera's cloud lands at its own place, and that no pair is dropped. The decoder is synthetic: no HEVC is decoded.
 * **Two clients of one mock**: the [cards check](/docs/client/developer/cards-check), [setup check](/docs/client/developer/setup-check) and [placement check](/docs/client/developer/placement-check) pages.
 
 ## Fix mock server problems [#fix-mock-server-problems]

@@ -40,6 +40,7 @@
   - [Add a server](https://irc-hslu.github.io/orbbecstreamer/docs/client/add-a-server): Connect the client to a capture server from the server PC’s page or by its address and certificate hash, or add the built-in mock server to try the client without hardware.
   - [Read a server card](https://irc-hslu.github.io/orbbecstreamer/docs/client/server-card): What each part of a server card means, what its buttons do, and how to fix a refused lock, stale data or a lost connection.
   - [Move around the 3D view](https://irc-hslu.github.io/orbbecstreamer/docs/client/viewer): What the 3D view shows, how to orbit, pan and zoom, how overlapping cameras are blended, and what to do when nothing is drawn.
+  - [View in VR](https://irc-hslu.github.io/orbbecstreamer/docs/client/view-in-vr): Experimental headset viewing. It is off by default; turn it on with ?xr=1 on an HTTPS page that the headset trusts.
   - [Play a recording](https://irc-hslu.github.io/orbbecstreamer/docs/client/playback): Play a server's debug recording, or a hand-made colour and depth recording, in the client without a server or a camera.
   - [Set up a server](https://irc-hslu.github.io/orbbecstreamer/docs/client/setup-workspace): Open the setup view for one server, hold its setup lock while you calibrate or place it, and leave again.
   - [Calibrate depth](https://irc-hslu.github.io/orbbecstreamer/docs/client/calibration): Run a depth-quantization calibration from the setup view, watch its progress, and commit or cancel the result.

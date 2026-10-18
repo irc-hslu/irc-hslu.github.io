@@ -6,19 +6,20 @@ The OrbbecStreamer client is a web page that shows 3D point clouds from one or m
 
 ## Find the page for your task [#find-the-page-for-your-task]
 
-| Task                                       | Page                                                          |
-| ------------------------------------------ | ------------------------------------------------------------- |
-| Install and start the client               | [Run the client](/docs/client/dev-build)                      |
-| Find out what your browser supports        | [Check your browser](/docs/client/browser-requirements)       |
-| Connect to a server, or to the mock server | [Add a server](/docs/client/add-a-server)                     |
-| Understand a server’s status               | [Read a server card](/docs/client/server-card)                |
-| Orbit, pan, zoom and blend cameras         | [Move around the 3D view](/docs/client/viewer)                |
-| Play recorded files instead of a server    | [Play a recording](/docs/client/playback)                     |
-| Hold a server’s setup lock                 | [Set up a server](/docs/client/setup-workspace)               |
-| Run and commit a depth calibration         | [Calibrate depth](/docs/client/calibration)                   |
-| Move a server for everyone                 | [Place a server in the scene](/docs/client/placement-editing) |
-| Line up servers in your view only          | [Move an anchor in your view](/docs/client/world-anchors)     |
-| Look up any control, its range and default | [What you can tweak](/docs/client/what-you-can-tweak)         |
+| Task                                                              | Page                                                          |
+| ----------------------------------------------------------------- | ------------------------------------------------------------- |
+| Install and start the client                                      | [Run the client](/docs/client/dev-build)                      |
+| Find out what your browser supports                               | [Check your browser](/docs/client/browser-requirements)       |
+| Connect to a server, or to the mock server                        | [Add a server](/docs/client/add-a-server)                     |
+| Understand a server’s status                                      | [Read a server card](/docs/client/server-card)                |
+| Orbit, pan, zoom and blend cameras                                | [Move around the 3D view](/docs/client/viewer)                |
+| View the point clouds in a headset (experimental, off by default) | [View in VR](/docs/client/view-in-vr)                         |
+| Play recorded files instead of a server                           | [Play a recording](/docs/client/playback)                     |
+| Hold a server’s setup lock                                        | [Set up a server](/docs/client/setup-workspace)               |
+| Run and commit a depth calibration                                | [Calibrate depth](/docs/client/calibration)                   |
+| Move a server for everyone                                        | [Place a server in the scene](/docs/client/placement-editing) |
+| Line up servers in your view only                                 | [Move an anchor in your view](/docs/client/world-anchors)     |
+| Look up any control, its range and default                        | [What you can tweak](/docs/client/what-you-can-tweak)         |
 
 ## What works today [#what-works-today]
 
