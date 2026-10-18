@@ -27,9 +27,29 @@ HEVC is the video format the servers send. At startup the client also checks tha
 
 With WebGL2, the **View** section reads `Blending needs WebGPU; with WebGL2 the nearest point is drawn.` When something is missing:
 
+* **WebGPU that can't draw**: the client uses WebGL2 and says why in an amber notice. See [When WebGPU can't draw](#when-webgpu-cant-draw).
 * **No WebGPU and no WebGL2**: a red **No 3D view** chip. Its tip reads `renderer: rendering-incompatible. Rendering incompatible: neither WebGPU nor WebGL2 is available. …`, and the decoder chip turns amber: `Decoding is off`.
 * **No WebCodecs**: an amber decoder chip; its tip reads `decoders: WebCodecs VideoDecoder is unavailable: control and setup only.`
 * **No HEVC decoding**: the card’s **Setup and control only** chip; its tip reads, for example, `Setup and control only: this browser lacks HEVC colour decoding and HEVC Main10 depth decoding.`
+
+## When WebGPU can't draw [#when-webgpu-cant-draw]
+
+Some browsers offer WebGPU that runs only in software, or that stops as soon as it draws its first frame. One example is Chrome on Linux with an NVIDIA GPU, started without the Vulkan flags. At startup the client checks this: it draws one frame with WebGPU and makes sure the GPU survives it. If WebGPU fails that check, the client uses WebGL2, and an amber notice under the header chips says which case it was:
+
+* **WebGPU runs only in software in this browser, so the 3D view uses WebGL2 (no blending).**
+* **WebGPU did not work in this browser, so the 3D view uses WebGL2 (no blending).**
+
+Each notice ends with a **What to do** link to this section. The **i** button after the chips lists the details, for example `the WebGPU device was lost at its first frame (Device was destroyed.)`. A hardware GPU whose first frame fails gets one more try after half a second before the client switches to WebGL2.
+
+If the GPU stops while you're watching and doesn't recover within 5 seconds, the same place shows **The GPU stopped responding and did not recover, so nothing is drawn. Reload the page to start the 3D view again.** After the reload the client runs its startup check again.
+
+To get WebGPU and blending back:
+
+1. In Chrome or Edge, open `chrome://gpu` and check the **WebGPU** line.
+2. On Linux with an NVIDIA GPU, start Chrome with `--use-angle=vulkan --enable-features=Vulkan`. WebGPU then runs on the GPU.
+3. Reload the client. The header chip says **WebGPU** and the notice is gone.
+
+In 0.1.2 and earlier, the client stayed on WebGPU in this case: no point cloud appeared, **Dropped** counted every pair, and the **View** section kept saying `Preparing blending… plain points meanwhile.`
 
 ## Browsers tested so far [#browsers-tested-so-far]
 
@@ -55,6 +75,8 @@ With Chrome's default settings on a Linux PC with an NVIDIA GPU, Chrome now show
 These are the common browser problems and their fixes:
 
 * **No 3D view on a desktop browser**: hardware acceleration may be off. Turn on **Use graphics acceleration when available** in the browser settings. In Chrome or Edge, open `chrome://gpu` to check the WebGL2 and WebGPU status.
+* **Points don't blend and a notice says WebGPU did not work**: see [When WebGPU can't draw](#when-webgpu-cant-draw).
+* **A camera's video stops decoding in the browser**: if the browser's own decoder fails on one stream, or keeps giving depth frames without 10-bit values, the client moves that stream to the built-in decoder. The stream keeps going from its next keyframe. Other cameras keep the browser's decoder, and the next stream of the same camera tries the browser's decoder again. Only when streams from two different cameras or servers fail does the client use the built-in decoder for that channel for the rest of the page's life. The console shows `[decode path]` warnings such as `Decode path: one depth stream switched to the built-in decoder (WebCodecs decoder failed; …)`. If the built-in decoder can't load either, the card shows **1 bundle off · decoder failed**.
 * **Every server card says the browser lacks HEVC decoding**: this browser can't decode HEVC exactly, and the built-in decoder didn't load. Open the browser's console: a `[decode path]` warning reads `Depth/colour cannot be decoded in this browser: the built-in decoder failed to load (<reason>)`. The reason is `HTTP 404` when the decoder file is missing from the server, `…failed its integrity check…` when the file was changed, or `blocked by the page's content security policy` when the page's policy lacks `'wasm-unsafe-eval'` in `script-src`. Fix the cause and reload the page; the client doesn't try again until then. You can still use the client to set up servers.
 * **A card says "Setup and control only: the picture 9000×576 is larger than the built-in decoder takes (max 8192 on a side, 3840×2160 area)"**: the built-in decoder takes pictures up to 8192 pixels on a side and 3840×2160 pixels in area (an 8-camera concatenated picture of 640×576 tiles is 5120×576 and fits). The card names the size the server announced; when the browser's own decoder was asked instead, it says "was refused by this browser's decoder (it may be too large)". The console also shows a `warn` line naming the bundle and channel. In the concatenated layout a server sends exactly one bundle, so 8 cameras mean one 5120-wide picture; a recording manifest with two bundles in the concatenated layout is refused with `Concatenated layout must expose exactly one bundle`.
 * **Your server sets a content security policy**: the built-in decoder needs `script-src 'self' 'wasm-unsafe-eval'` and `worker-src 'self'`. It needs no other change, no cross-origin isolation headers and no `SharedArrayBuffer`.
