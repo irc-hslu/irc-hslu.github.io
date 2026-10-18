@@ -29,9 +29,19 @@ The blend settings are in the same object; the app exposes them in its **View** 
 | `renderMode`            | `on-demand` | `on-demand` draws only when something changed. `continuous` draws every animation frame.                                                                                                                                                                                                                         |
 | `parkWhenIdle`          | `true`      | With `on-demand`, the render loop stops after one animation frame without a draw and restarts on the next change or camera input. An idle view then costs no animation frames and no GPU submissions. Never stops in WebXR or with `continuous`. A host that moves the camera from code calls `requestRender()`. |
 | `computePoints`         | `true`      | The WebGPU compute path, which blending needs. `false` keeps plain dots. Ignored with WebGL2.                                                                                                                                                                                                                    |
+| `webgl2Blend`           | `false`     | Blending on WebGL2, with the same formulas as WebGPU, while `blend` is on. Needs 16-bit float render targets; desktop only (WebXR keeps plain dots). `stats().webgl2Blend` says whether it draws. Not yet in the **View** section. See [WebGL2 blending](#webgl2-blending).                                      |
 | `antialias`             | `false`     | Multisample antialiasing                                                                                                                                                                                                                                                                                         |
 | `desynchronized`        | `true`      | Low-latency WebGL2 canvas, which may tear                                                                                                                                                                                                                                                                        |
 | `preserveDrawingBuffer` | `false`     | Keeps the drawing buffer for canvas readback, for dev pages and screenshots                                                                                                                                                                                                                                      |
+
+### WebGL2 blending [#webgl2-blending]
+
+`webgl2Blend: true` draws WebGL2 views like WebGPU's blended view. On the lab machine the render check's synthetic scenes match WebGPU on at least 99.8 % of the compared pixels, within 3/255, mean colour difference (CIEDE2000) at most 0.02. Two differences remain:
+
+* **Border band.** WebGL2 drops a dot whose centre is just outside the view, where WebGPU clips it pixel by pixel. So a band up to half a dot wide at the edge of the view can differ: 1 pixel at the default 2-pixel dots, up to 32 pixels at the largest 64-pixel dots. The same happens at the camera's near plane, 1 cm in front of the camera.
+* **Scene depth.** As on WebGPU, the blended cloud does not hide the grid or the placement gizmo behind it. With plain WebGL2 dots it does.
+
+To compare it with WebGPU yourself, see the render check's `blend=webgl2` in [Test the client](/docs/client/developer/test-the-client).
 
 ## Connection timing [#connection-timing]
 
