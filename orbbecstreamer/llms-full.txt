@@ -2867,10 +2867,10 @@ Select **Enter VR**. Inside the headset you see the point clouds and a small sta
 Select the pill to open the panel. Select **Close**, or press B or Y on a Quest controller, to close it. The panel has three tabs: **Servers**, **View** and **Place**.
 
 * **Servers** lists each server with its state and capture-to-display time. At the bottom are **Seated** and **Larger text**, and **Exit VR**.
-* **View** has **Point size**, **Shape** (**Square** or **Round**), **Snap turn**, **Comfort vignette**, **World anchors** and **Cameras**.
+* **View** has **Point size**, **Shape** (**Square** or **Round**) and **Snap turn**.
 * **Place** has **Life size**, **Tabletop**, **Recentre**, and **Turn**, **Scale** and **Height** controls.
 
-Not built yet: the **Notices** list. The **Comfort vignette**, **World anchors** and **Cameras** toggles are in the panel but do nothing yet.
+Not built yet: the **Notices** list, a comfort vignette, and markers for world anchors and cameras. The panel does not show controls for them.
 
 ## Move the scene [#move-the-scene]
 
