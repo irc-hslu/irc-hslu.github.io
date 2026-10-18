@@ -192,13 +192,6 @@ run, and nothing is changed either:
 
 ## Calibrate the camera poses [#calibrate-the-camera-poses]
 
-<Callout type="warn">
-  **Known issue in v0.1.2: camera-pose calibration results are mirrored in
-  Y.** Setups that use the default identity pose are not affected. Don't
-  commit a board calibration on v0.1.2; the fix is planned for the next
-  release.
-</Callout>
-
 From v0.1.0-poc.11, the **Camera pose** screen (under **Calibration** in
 the left navigation, at `/operator/calibration/pose`) calibrates the
 camera poses: you move a printed ChArUco board through the cameras' views,
@@ -308,7 +301,7 @@ until it expires.`
 ## Change sensor settings and the stream profile [#change-sensor-settings-and-the-stream-profile]
 
 <Callout type="warn">
-  **Known issue in v0.1.2:** with person segmentation on (the default), only
+  **Known issue in v0.1.2 and v0.1.3:** with person segmentation on (the default), only
   the 640×576 depth profiles are available. Other sizes need
   `mask.backend: fill_all`, which turns segmentation off.
 </Callout>
@@ -412,7 +405,12 @@ Viewer sessions, and the client, keep waiting for the committed pose; up to
 poc.9 the console then reads **No preview yet. This server is not set up.** A tile that has no picture yet reads
 **Waiting for first frame**. The preview needs WebGPU and an HEVC decoder,
 as the client does; how much CPU decoding takes depends on the PC (see
-[Check your browser](/docs/client/browser-requirements)).
+[Check your browser](/docs/client/browser-requirements)). From v0.1.3, if
+WebGPU runs only in software or fails at its first frame, the preview draws
+with WebGL2, without blending, and shows an amber notice with a **What to
+do** link. It shows one too if the GPU stops while you watch and doesn't
+recover. See
+[When WebGPU can't draw](/docs/client/browser-requirements#when-webgpu-cant-draw).
 
 ## The setup checklist [#the-setup-checklist]
 

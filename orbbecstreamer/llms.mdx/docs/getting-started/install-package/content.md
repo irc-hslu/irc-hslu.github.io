@@ -9,13 +9,14 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 adds the media rate on the Network page and fixes from the live run. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
-  [Serve to browsers](/docs/server/serving)). The team has not yet checked
-  the picture content or depth calibration on a live scene on real
-  hardware. Browsers on other computers in the LAN can view the cameras if
+  [Serve to browsers](/docs/server/serving)). The team has checked the depth
+  picture on a live scene once, on a development build in a dark room; it
+  has not yet checked the colour picture or depth calibration on a live,
+  lit scene on real hardware. Browsers on other computers in the LAN can view the cameras if
   you turn that on; the team has not yet tried it from a second machine. See
   [Remote viewers on the LAN](#remote-viewers-on-the-lan). The team has not
   yet installed it on a clean machine with a GPU and cameras.
@@ -33,6 +34,19 @@ Nothing is built from source. To build from source instead, see
       The package neither contains nor installs a driver.
     * **One or more Orbbec cameras** on USB 3. Two or more also need sync
       cables between them; see [More than one camera](#more-than-one-camera).
+
+    <Callout type="info" title="Recommended hardware (provisional; measured on stand-ins)">
+      The team tested the server on an RTX 4090. For 2 cameras it expects the
+      server PC to need at least an RTX 3060-class GPU, 8 CPU cores and 16 GB of
+      RAM; the team has not tested that minimum yet. From v0.1.3 the machine
+      check warns when the PC is below it (see [Check the machine](#check-the-machine)).
+
+      A computer that views the cameras needs a CPU with 4 cores and 8 threads
+      at 3.0 GHz or faster, 8 GB of RAM, a GPU that supports WebGL2, a current
+      Chrome or Edge, and wired 1 Gbit/s Ethernet. See
+      [Minimum viewer hardware](/docs/client/browser-requirements#minimum-viewer-hardware)
+      for how it was measured.
+    </Callout>
 
     Check the driver:
 
@@ -59,18 +73,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.2-1_amd64.deb` from the
-    [v0.1.2 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.2),
+    Download `orbbec-streamer_0.1.3-1_amd64.deb` from the
+    [v0.1.3 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.3),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.2-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.3-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.2-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `5a338af814e0dc20c8f7d3e1dbffbbeff4e0ced9d2aa26fbf9df56b0a5338998`.
+    `sha256sum` must print `orbbec-streamer_0.1.3-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `b6a74f36cd340190d50e8ba1b46ab73bd0c492763fc46c2df7ba0d69e7bd0d48`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -79,7 +93,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.2-1`. It sorts above every
+    The package version inside the file is `0.1.3-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -134,6 +148,13 @@ Nothing is built from source. To build from source instead, see
 
     Every `FAIL` or `WARN` line is followed by a `fix:` line that says what to
     do. `--json` prints the same results as JSON.
+
+    From v0.1.3 three more lines compare the PC with the recommended hardware
+    above: `floor-gpu`, `floor-cpu` and `floor-ram`. Below it they print `WARN`,
+    never `FAIL`, so the install goes ahead; the server may still run with
+    fewer cameras. `floor-gpu` rates only GeForce GPUs (RTX 30-series xx60 or
+    newer, with at least 8 GB of memory); for other GPUs it reads `not
+    classified`.
   </Step>
 
   <Step>
@@ -278,11 +299,14 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.2-1`.
+Replace `<version>` with the new file's version, for example `0.1.3-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
 yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
-version. It is unchanged in v0.1.2, so an upgrade from v0.1.1 doesn't ask. The first upgrade from
+version. It is unchanged in v0.1.2 and v0.1.3, so an upgrade from v0.1.1 or v0.1.2 doesn't ask.
+From v0.1.3 camera poses are no longer mirrored in Y. A camera-pose
+calibration committed on v0.1.2 stays valid and now shows correctly, but a
+placement chosen while the scene looked mirrored may need placing again. The first upgrade from
 poc.9 or earlier to v0.1.0-poc.10 or later enables and starts the server,
 with the cameras closed. Later upgrades restart the server only if it was
 running, and never change whether it starts at boot. Exception: if a
@@ -317,7 +341,7 @@ calibration are kept.
   the unknown key. Downgrading from v0.1.0-poc.10 to poc.9 or earlier: also
   delete the `lan_viewers` line under `serving:` and restart; otherwise the
   older server refuses to start with `Unsupported serving key: lan_viewers`.
-  Downgrading from v0.1.2 to v0.1.1 needs no change. Downgrading from
+  Downgrading from v0.1.3 to v0.1.2, or from v0.1.2 to v0.1.1, needs no change. Downgrading from
   v0.1.1 or later to v0.1.0 or earlier with `network_probes` set:
   delete that line too (see [Active probes](/docs/guides/network#active-probes)).
 </Callout>

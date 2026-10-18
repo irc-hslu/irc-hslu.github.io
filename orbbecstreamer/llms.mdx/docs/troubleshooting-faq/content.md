@@ -22,7 +22,7 @@ Chrome or Edge on the server PC: see
 [First stream](/docs/getting-started/first-stream). Up to poc.6 the server
 sends no video to browsers; use a recording instead (see
 [Play a recording](/docs/client/playback)). The team has not yet checked the
-picture content on real hardware, so report anything that looks wrong (see
+colour picture on a live, lit scene on real hardware, so report anything that looks wrong (see
 [Collect a support report](/docs/getting-started/install-package#collect-a-support-report)).
 
 **Why does the video stop when I switch tabs?** When the client's tab has

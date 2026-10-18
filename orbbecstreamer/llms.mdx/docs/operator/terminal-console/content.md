@@ -263,12 +263,26 @@ From poc.5, these options may also come before a command, for example
 
 By default the console reads the server's address and certificate hashes
 from `/etc/orbbec-streamer/tls/public/transport.json` before every
-connection, so a rotated certificate needs no action.
+connection, so a rotated certificate needs no action. This works from
+v0.1.3. In v0.1.2 the package writes that file in an older format, and the
+console reports `unreachable`; pass `--server https://127.0.0.1:4443/orbbec`
+and `--cert-hash` with the `sha256Hex` of the file's first entry. The hash
+changes when the certificate rotates.
+
+From v0.1.3 the address in that file is `https://127.0.0.1:4443/orbbec` unless you set
+another one. If you moved the server's WebTransport endpoint, add
+`transport_url = https://<IP address>:<port>/orbbec` under `[tls]` in
+`/etc/orbbec-streamer/tls.conf` and run
+`sudo systemctl start orbbec-tls-renew.service`, or wait up to an hour for
+its timer. It rewrites the file even when no certificate is due. The host must be an IP
+address, not a name. Any other value is ignored with a warning, and the
+default stays.
 
 ## Troubleshooting [#troubleshooting]
 
 | Symptom                                                   | Cause and fix                                                                                                                                                |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `unreachable` in v0.1.2 although the server runs          | The console can't read that version's address file. Pass `--server` and `--cert-hash`, or upgrade to v0.1.3; see [Other options](#other-options).            |
 | `orbbec-console: command not found`                       | It ships from poc.4 on. Check with `dpkg -l orbbec-streamer`.                                                                                                |
 | Starting asks for admin rights or prints a `sudo` command | You aren't in `orbbec-operators`, or haven't logged in again since joining. See [Start and stop without sudo](#start-and-stop-without-sudo).                 |
 | **REFUSED BY SERVER** while the server runs               | See [When the server refuses the console](#when-the-server-refuses-the-console). In poc.4 this is expected.                                                  |

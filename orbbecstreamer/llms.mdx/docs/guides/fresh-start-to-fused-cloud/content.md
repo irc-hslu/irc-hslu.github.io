@@ -118,7 +118,7 @@ order; each one ends with what you should see.
       **Apply profile**, then **Apply and restart streams**. Streams pause for a
       few seconds.
 
-    With person segmentation on (the default), v0.1.2 offers only the 640×576
+    With person segmentation on (the default), v0.1.2 and v0.1.3 offer only the 640×576
     depth profiles; see the
     [known issue](/docs/operator#change-sensor-settings-and-the-stream-profile).
 
@@ -206,7 +206,10 @@ order; each one ends with what you should see.
     each camera's pictures, and the table below shows frame sets per second,
     decode latency and dropped frame sets. While a tile has no picture it reads
     **Waiting for first frame**. The preview needs WebGPU and an HEVC decoder;
-    see [Check your browser](/docs/client/browser-requirements).
+    see [Check your browser](/docs/client/browser-requirements). If WebGPU
+    can't draw, the preview uses WebGL2, without blending, and shows a notice
+    with a **What to do** link; see
+    [When WebGPU can't draw](/docs/client/browser-requirements#when-webgpu-cant-draw).
 
     {/* TODO M1: real (not test-pattern) preview screenshots; what a correct
         fused cloud looks like. */}
