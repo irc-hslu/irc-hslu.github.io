@@ -86,7 +86,7 @@ if (content !== null) {
 }
 ```
 
-`(u, v)` are tile-relative logical pixels: the origin is at the top left, `v` grows downward, and a pixel's centre is at its integer coordinate. Pixel `(0, 0)` covers `-0.5` to `0.5` on each axis. This follows the client's interim convention, pending protocol change 0011.
+`(u, v)` are tile-relative logical pixels: the origin is at the top left, `v` grows downward, and a pixel's centre is at its integer coordinate. Pixel `(0, 0)` covers `-0.5` to `0.5` on each axis. This is the contract's convention (§9, change 0011 option A), the one the Orbbec SDK and OpenCV intrinsics use.
 
 ## Check tile views in a browser [#check-tile-views-in-a-browser]
 

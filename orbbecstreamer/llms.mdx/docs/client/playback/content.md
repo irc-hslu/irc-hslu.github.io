@@ -10,7 +10,7 @@ A recording is a folder with a small description file, `manifest.json`, and raw 
 
 A recording has no setup to change: it refuses the setup lock, calibration and placement with the code `unsupported-by-file-source`. It shows the setup as it was when the recording started.
 
-The manifest format is the proposed change request 0038 and may still change. The client marks it `INTERIM(0038)` in its source.
+The manifest format is Appendix B of the protocol contract (change 0038, accepted 2026-10-17). Its schema is `protocol/schema/recording-manifest.json`.
 
 ## Play a server recording [#play-a-server-recording]
 

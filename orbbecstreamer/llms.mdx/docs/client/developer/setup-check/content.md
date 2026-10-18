@@ -31,9 +31,9 @@ The scenario, in order:
 
 1. Both clients connect, and **Set up** is available on A’s card.
 2. A enters setup: A holds the lock with a countdown, B shows it held by A.
-3. A starts a depth-quantization run. Progress with a histogram appears, then `Result ready: revision 2, not in force until committed.` B still shows revision 1.
+3. A starts a depth-quantization run. Progress with a histogram appears, then `Solved: awaiting commit, not in force until committed.` B still shows revision 1.
 4. A commits. A and B show `valid, revision 2`.
-5. A starts another run and cancels it. The revision stays at 2, and the mock holds no result.
+5. A starts another run and cancels it. The revision stays at 2, no result is sent, and the mock holds no solved run.
 6. A starts a third run, and the mock expires the lease in the middle of it. A shows `Forced out of setup. The server ended the setup lease.` and `Nothing was committed.` The revision stays at 2.
 7. B acquires the lock, and A enters setup again. A shows `Could not enter setup. The setup lock is held by Client B.` B then releases the lock.
 8. A enters setup again and leaves: `Left setup: the setup lock was released.`, and both clients show the lock free.

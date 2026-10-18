@@ -14,7 +14,7 @@ How it behaves:
 * **Sessions**: one `MockServer` holds one server state. Every client that opens it gets its own session, and a reconnect opens a new session.
 * **Time**: it comes only from the scheduler you pass in. With a `ManualScheduler`, every run is deterministic.
 * **Media**: it comes from a recording (`.hevc` colour and depth files plus a manifest), the same format as recording playback. Without a recording the server has no media.
-* **Open contract questions**: where the protocol contract is still open, the mock follows the client’s pending change requests (0007, 0008, 0009, 0012, 0014), listed at the top of `mockServer.ts` and on [Contract gaps and interim behaviour](/docs/client/developer/interim-behaviour). A real server may behave differently until those are decided.
+* **Contract readings**: the mock follows the contract, including the 2026-10-17 rulings (replies and `replyTo` §3b, change 0008; calibration results and `awaitingCommit` §11, change 0023; revision steps §10, change 0007). Where the contract is still open (change 0014) it follows the client’s proposal, listed at the top of `mockServer.ts` and on [Contract gaps and interim behaviour](/docs/client/developer/interim-behaviour).
 
 ## Use the mock server [#use-the-mock-server]
 
@@ -200,7 +200,7 @@ In the browser, with the dev server running (`npm run dev` in `client/`):
   * The client must subscribe, or list the bundle in `preferredBundleIds`.
   * The server must be `streaming`, with the bundle available.
   * If the snapshot has `autocalibrate` set, media is held until camera-pose is committed.
-* **`skipRevisions` does not make the client resync**: a forward revision gap is not treated as an error until change request 0007 is decided. Use `sendStaleRevision` to exercise the resync path.
+* **`skipRevisions` does not make the client resync**: change 0007 makes any step other than +1 unexpected (§10), but the client does not enforce the +1 step yet. Use `sendStaleRevision` to exercise the resync path.
 
 ## Network sessions (CR 0018 H) [#network-sessions-cr-0018-h]
 
