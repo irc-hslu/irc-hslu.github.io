@@ -4,6 +4,8 @@
 
 
 
+
+
 The server sends depth as a video in which each pixel is one of 1024 codes, and the client turns each code back into a distance. A depth-quantization calibration measures the depths your cameras see and produces a new code-to-distance mapping, called a **result**. The result comes into force only when you commit it, and then every client uses it.
 
 Each calibration section in the setup view has a state chip, for example **valid · r3**: the state (`missing`, `valid`, `stale`, `running` or `failed`) and the revision in force. Hover over it for the server’s message. Only depth quantization works in the client today. A solved run stays **running** until you commit it; the server sends a result only when you commit or when the run fails.
@@ -22,6 +24,8 @@ Open the setup view first: select **Set up** on the card. The session chip must 
    <img alt="Depth quantization during a run: the running chip, Cancel available, the four numbers and the Depth codes histogram" src="__img0" />
 
 3. Wait until the run is solved. The chip stays **running** with the old revision, **Commit** becomes available, and the box says `Solved: awaiting commit, not in force until committed.`
+
+   <img alt="The Depth quantization section after a run: the chip still reads running with the old revision, Commit is highlighted, the box says Solved: awaiting commit, not in force until committed, elapsed (last run) 5.5 s, and the final histogram with the log scale selected" src="__img1" />
 
 4. Select **Commit**. A moment later the chip shows **valid** at the new revision, on every client.
 

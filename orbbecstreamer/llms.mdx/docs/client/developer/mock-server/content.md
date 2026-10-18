@@ -181,7 +181,7 @@ To start the mock in setup with autocalibration, pass a snapshot with `readiness
 
 * A client connects and receives a snapshot. With a recording, it receives paired colour and depth frames after it subscribes.
 * The setup lock is exclusive. It stays held while its owner heartbeats every 5 s, and it expires 15 s after the last heartbeat.
-* A calibration commit or placement commit reaches every client as a revision notice. Clients that opted in to shared updates, and the client that made the change, also receive the placement or calibration result itself. A placement commit restarts the media streams, which resume with a keyframe.
+* A calibration result or placement update reaches clients that opted in to shared updates, and the client that made the change, as the message itself. Every other client gets a revision notice at the same revision in its place (change 0007). A placement commit is two revisions: the update, then a placement revision notice to every client. It restarts no media stream (change 0040).
 * Each fault drives the client’s recovery path: a resync, a reconnect, or `resync-failed` followed by a reconnect.
 
 In the browser, with the dev server running (`npm run dev` in `client/`):
@@ -200,7 +200,7 @@ In the browser, with the dev server running (`npm run dev` in `client/`):
   * The client must subscribe, or list the bundle in `preferredBundleIds`.
   * The server must be `streaming`, with the bundle available.
   * If the snapshot has `autocalibrate` set, media is held until camera-pose is committed.
-* **`skipRevisions` does not make the client resync**: change 0007 makes any step other than +1 unexpected (§10), but the client does not enforce the +1 step yet. Use `sendStaleRevision` to exercise the resync path.
+* **`skipRevisions` makes the client resync**: change 0007 makes any step other than +1 unexpected (§10). The client logs the gap, asks for one snapshot and stays connected. `sendStaleRevision` exercises the same path with a step backwards.
 
 ## Network sessions (CR 0018 H) [#network-sessions-cr-0018-h]
 
