@@ -116,12 +116,13 @@ With WebGL2, the client turns blending off by itself when it would make the view
 
 **What blending costs with WebGL2, and when big rigs fall back:**
 
-* On a strong graphics card, 1 or 2 cameras blend at no visible cost.
-* Around 4 cameras, blending costs about 3.4 ms of GPU time per frame and about 14 % of the frame rate (50 to 43 frames per second).
-* Large rigs, such as 8 cameras at 1920×576 (about 17 ms per frame), fall back to the nearest dot automatically, after 2 seconds. Weaker graphics cards are expected to fall back with fewer cameras (not measured).
+* Blending times itself while the view runs, so it sees the clock the graphics card really uses. A card on a light scene often stays at its idle clock, and blending costs more there.
+* On a strong graphics card, 1 or 2 cameras blend at no visible cost, even at the idle clock.
+* Around 4 cameras, blending takes about 2.7 ms of GPU time per frame at the idle clock (under the 6.7 ms limit), and about 14 % of the frame rate (50 to 43 frames per second).
+* Large rigs, such as 8 cameras at 1920×576, take about 12 ms per frame at the idle clock and fall back to the nearest dot automatically, after 2 seconds. At full clock the same rig takes about 3 ms and keeps blending. Weaker graphics cards are expected to fall back with fewer cameras (not measured).
 * **Blend anyway** forces blending on.
 
-Measured 2026-10-18 on synthetic scenes, NVIDIA RTX 4090 only (Chrome for Testing 155); an unrelated background job was present but idle. With WebGPU, blending is cheaper. The GPU was mostly at its idle clock (P8, 210 MHz) during these runs, so these numbers likely overstate the cost on this card; a re-measurement with the clocks held up is planned.
+Measured 2026-10-18 (operator freeze 10:03-10:35 UTC) on synthetic scenes, NVIDIA RTX 4090 only (Chrome for Testing 155), 3 runs, medians; an unrelated background job was present but idle. "Idle clock": the card chose its own clock (mostly P8, 210 MHz). "Full clock": a separate GPU load held the card at P2 (2670 MHz) and shared the GPU with the view.
 
 Plain dots are drawn instead. To blend anyway:
 

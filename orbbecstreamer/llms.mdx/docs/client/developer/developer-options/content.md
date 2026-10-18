@@ -59,13 +59,37 @@ How it measures:
 
 `forceWebgl2Blend()` (the **Blend anyway** button in the **View** section) turns blending on until the page reloads, past the SwiftShader default and the fallback. A render target that reads incomplete for one frame (Chrome does this for a fresh R16UI target in about half the runs) draws plain dots for that frame and is checked again; only after 3 frames does blending go off.
 
-Measured cost (synthetic scenes, NVIDIA RTX 4090 only, Chrome for Testing 155, 2026-10-18, `perf/run.mjs` 3 runs, medians; an unrelated background job was present but idle): The GPU was mostly at its idle clock (P8, 210 MHz) during these runs, so these numbers likely overstate the cost on this card; a re-measurement with the clocks held up is planned.
+Measured cost (synthetic scenes, NVIDIA RTX 4090 only, Chrome for Testing 155, 2026-10-18, operator freeze 10:03-10:35 UTC, `perf/blend3-freeze.sh` 3 runs, medians; an unrelated background job was present but idle). GPU ms is weight + visibility + accumulation + resolve, each the median of the timer samples in a 20 s window (30 s for the mock servers).
 
-* 1 or 2 cameras (640×576): 1.3 or 2.1 ms GPU per frame, no frame-rate change.
-* 4 cameras: 3.4 ms GPU per frame, about 14 % fewer frames per second (50 to 43).
-* 8 cameras at 1920×576: 16.8 ms GPU per frame, over the 6.7 ms limit at 60 Hz: `'auto'` falls back to nearest after 2 s. Weaker GPUs are expected to fall back with fewer cameras (not measured).
+* **Idle clock**: the card chose its own clock: P8 (210 MHz SM, 405 MHz memory) in almost every sample. The 8 × 1920×576 blend scene raised it to P5 (about 705 MHz).
+* **Clock keeper on**: a separate GPU load (`perf/clockguard.mjs`) held P2 (2670 MHz, memory 10251 MHz) in every sample and shared the GPU with the scene. The per-pass medians are not inflated by it, but per-frame totals and p95s can be, and frame times change (68 against 60 fps on light scenes).
+
+| Scene                     | GPU ms, idle clock | GPU ms, clock keeper on | `'auto'` at 60 Hz (limit 6.7 ms), idle clock |
+| ------------------------- | ------------------ | ----------------------- | -------------------------------------------- |
+| 1 camera, 640×576         | 1.33               | 0.12                    | keeps blending                               |
+| 2 cameras                 | 1.80               | 0.18                    | keeps blending                               |
+| 4 cameras                 | 2.70               | 0.34                    | keeps blending                               |
+| 3 mock servers with media | 4.51               | 0.42                    | keeps blending                               |
+| 8 cameras at 1920×576     | 12.2               | 3.17                    | falls back after 2 s                         |
+
+`'auto'` measures live: it reads the pass timings of the running view, so it judges the clock the card really uses. At the idle clock, 1-4 cameras stay under the 6.7 ms limit; the large rig falls back unless the card runs faster (at full clock it took 3.17 ms and would keep blending). Weaker GPUs are expected to fall back with fewer cameras (not measured).
+
+Frame times at the idle clock, nearest -> blend (compare only within one setting):
+
+| Scene                     | fps          | frame p50 / p95 ms              |
+| ------------------------- | ------------ | ------------------------------- |
+| 1 camera                  | 60.4 -> 60.5 | 16.66 / 16.79 -> 16.66 / 16.82  |
+| 2 cameras                 | 60.4 -> 60.2 | 16.66 / 16.83 -> 16.66 / 19.24  |
+| 4 cameras                 | 50.4 -> 43.4 | 19.85 / 21.18 -> 23.14 / 26.37  |
+| 3 mock servers with media | 31.5 -> 29.8 | 31.4 / 59.17 -> 33.31 / 66.54   |
+| 8 cameras at 1920×576     | 10.4 -> 12.4 | 97.15 / 104.05 -> 79.72 / 91.95 |
+
+The large rig ran faster with blending forced on because its extra GPU work raised the clock from P8 to P5; nearest stayed at P8.
+
+Changed 2026-10-18: the weight-pass timing no longer counts the depth upload that the driver defers to the texture's first draw. The earlier figure for the large rig (16.8 ms) was mostly that upload, and `'auto'` counted it as blend cost. Large rigs whose card runs at a higher clock may now keep blending.
+
+* WebGPU against WebGL2 (8×1920×576, RTX 4090, equal clock (keeper on), one scene): the WebGPU compute path took 5.56 ms (compaction + visibility + accumulation, resolve not timed) against 3.17 ms for the WebGL2 passes. One scene, not a general ranking.
 * `forceWebgl2Blend()` (**Blend anyway**) forces it on.
-* Three mock servers with media ran faster with blending (23.3 against 19.8 fps). That is unexplained, probably decode-bound variance, not a speed-up from blending.
 
 Two differences from WebGPU remain:
 
