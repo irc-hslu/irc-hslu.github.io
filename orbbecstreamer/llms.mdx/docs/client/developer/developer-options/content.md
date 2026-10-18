@@ -59,7 +59,7 @@ How it measures:
 
 `forceWebgl2Blend()` (the **Blend anyway** button in the **View** section) turns blending on until the page reloads, past the SwiftShader default and the fallback. A render target that reads incomplete for one frame (Chrome does this for a fresh R16UI target in about half the runs) draws plain dots for that frame and is checked again; only after 3 frames does blending go off.
 
-Measured cost (synthetic scenes, NVIDIA RTX 4090 only, Chrome for Testing 155, 2026-10-18, `perf/run.mjs` 3 runs, medians; an unrelated background job was present but idle):
+Measured cost (synthetic scenes, NVIDIA RTX 4090 only, Chrome for Testing 155, 2026-10-18, `perf/run.mjs` 3 runs, medians; an unrelated background job was present but idle): The GPU was mostly at its idle clock (P8, 210 MHz) during these runs, so these numbers likely overstate the cost on this card; a re-measurement with the clocks held up is planned.
 
 * 1 or 2 cameras (640×576): 1.3 or 2.1 ms GPU per frame, no frame-rate change.
 * 4 cameras: 3.4 ms GPU per frame, about 14 % fewer frames per second (50 to 43).

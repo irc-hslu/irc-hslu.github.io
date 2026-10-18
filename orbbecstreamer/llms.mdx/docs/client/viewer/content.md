@@ -121,7 +121,7 @@ With WebGL2, the client turns blending off by itself when it would make the view
 * Large rigs, such as 8 cameras at 1920×576 (about 17 ms per frame), fall back to the nearest dot automatically, after 2 seconds. Weaker graphics cards are expected to fall back with fewer cameras (not measured).
 * **Blend anyway** forces blending on.
 
-Measured 2026-10-18 on synthetic scenes, NVIDIA RTX 4090 only (Chrome for Testing 155); an unrelated background job was present but idle. With WebGPU, blending is cheaper.
+Measured 2026-10-18 on synthetic scenes, NVIDIA RTX 4090 only (Chrome for Testing 155); an unrelated background job was present but idle. With WebGPU, blending is cheaper. The GPU was mostly at its idle clock (P8, 210 MHz) during these runs, so these numbers likely overstate the cost on this card; a re-measurement with the clocks held up is planned.
 
 Plain dots are drawn instead. To blend anyway:
 
