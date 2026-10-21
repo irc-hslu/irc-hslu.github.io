@@ -57,7 +57,7 @@ On a screen with tile views but no 3D view, call `runtime.setSceneDrawing(false)
 | `unavailable` | `gpu-setup-failed`    | The canvas couldn't be configured on the GPU device, or the tile couldn't be bound. A warning is logged (`[tile views]`). The view retries after the GPU device is restored.                                            |
 | `unavailable` | `closed`              | `close()` was called or the server entry was removed. This state is final.                                                                                                                                              |
 
-`onStateChange` fires only when the kind, the reason or the tile size changes, never once per frame. `view.frameSetNumber` gives the frame set on screen; read it when you need it.
+`onStateChange` fires only when the kind, the reason or the tile size changes, never once per frame. `view.frameSetNumber` gives the frame set on screen and `view.captureTimestampUs` its capture time (a `bigint` in server microseconds, null while nothing is shown); read them when you need them. For a board-detection overlay pass both to `connection.boardDetections.overlayFor(cameraId, { frameSetNumber, captureTimestampUs })`: an exact frame-set match wins, otherwise the newest earlier detection within 100 ms is used.
 
 ## Depth colours [#depth-colours]
 
