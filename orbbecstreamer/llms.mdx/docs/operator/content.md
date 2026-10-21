@@ -143,12 +143,21 @@ System.
 
 ## Calibrate the depth range [#calibrate-the-depth-range]
 
-From poc.6, the **Depth range** screen (under **Calibration** in the left
-navigation, or **Open depth range** on the setup checklist) runs the
+From poc.6, the **Depth range calibration** screen (**Depth calibration
+plot** under **Calibration** in the left navigation, called **Depth
+range** up to v0.1.3, or **Open depth range** on the setup checklist) runs the
 depth-range calibration: the server samples the depth it sees and fits the
 mapping from depth to video codes to it. See
 [Calibration](/docs/guides/calibration) for what it does and what the
 server needs first.
+
+From v0.1.4 the Overview also has a **Depth calibration plot** row that
+opens this screen and shows the committed range, for example `Open the
+plot · committed range 500 to 4000 mm, revision 2`. The histogram of depth
+codes exists only while a run is going or right after one: the server
+keeps the committed range, not the plot. With no run, the screen says `No
+plot to show.`, names the last committed range and says to take the setup
+lock and start a depth-range calibration to get one.
 
 1. Select **Take setup lock**. The line then reads `You hold the setup
    lock.` If another session holds it, the screen names it and you can
@@ -206,11 +215,17 @@ calibrate a missing pose although the package sets
 on the server instead; see
 [Camera pose calibration](/docs/server/camera-calibration).
 
-Before you start, print the board the screen describes, for example
-`ChArUco board: 7 × 5 squares, 80 mm squares, 60 mm markers, dictionary
-DICT_5X5_100.`, and fix it to something rigid and flat. See
+Before you start, print the board the screen describes, and fix it to
+something rigid and flat. The screen names it, for example `ChArUco board:
+4 × 6 squares, 105 mm squares, 79 mm markers, dictionary DICT_4X4_50.`
+(the default from v0.1.4; see
+[Calibration board](/docs/getting-started/install-package#calibration-board)).
+From v0.1.4 the screen draws that board and offers **Download board (SVG,
+print at 100 %)**, with `Print at 100 % and check one square measures
+105 mm.` Print the file at 100 % and measure one square. Up to v0.1.3 the
+screen shows only a diagram of the squares. See
 [Camera pose calibration](/docs/server/camera-calibration) for how to
-print it. You need one person to move the board.
+print the board from the server. You need one person to move the board.
 
 1. Select **Take setup lock**.
 
@@ -301,7 +316,7 @@ until it expires.`
 ## Change sensor settings and the stream profile [#change-sensor-settings-and-the-stream-profile]
 
 <Callout type="warn">
-  **Known issue in v0.1.2 and v0.1.3:** with person segmentation on (the default), only
+  **Known issue in v0.1.2, v0.1.3 and v0.1.4:** with person segmentation on (the default), only
   the 640×576 depth profiles are available. Other sizes need
   `mask.backend: fill_all`, which turns segmentation off.
 </Callout>
@@ -407,8 +422,12 @@ poc.9 the console then reads **No preview yet. This server is not set up.** A ti
 as the client does; how much CPU decoding takes depends on the PC (see
 [Check your browser](/docs/client/browser-requirements)). From v0.1.3, if
 WebGPU runs only in software or fails at its first frame, the preview draws
-with WebGL2, without blending, and shows an amber notice with a **What to
-do** link. It shows one too if the GPU stops while you watch and doesn't
+with WebGL2 and shows an amber notice with a **What to do** link. From
+v0.1.4 WebGL2 blends overlapping cameras; it turns blending off where it
+can't work well (software drawing, no 16-bit float targets, or too slow),
+and in the client **Blend anyway** in the **View** section forces it; see
+[When blending turns itself off](/docs/client/viewer#when-blending-turns-itself-off).
+v0.1.3 draws plain points. It shows one too if the GPU stops while you watch and doesn't
 recover. See
 [When WebGPU can't draw](/docs/client/browser-requirements#when-webgpu-cant-draw).
 

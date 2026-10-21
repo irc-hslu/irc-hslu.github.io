@@ -118,7 +118,7 @@ order; each one ends with what you should see.
       **Apply profile**, then **Apply and restart streams**. Streams pause for a
       few seconds.
 
-    With person segmentation on (the default), v0.1.2 and v0.1.3 offer only the 640×576
+    With person segmentation on (the default), v0.1.2 to v0.1.4 offer only the 640×576
     depth profiles; see the
     [known issue](/docs/operator#change-sensor-settings-and-the-stream-profile).
 
@@ -142,7 +142,7 @@ order; each one ends with what you should see.
 
     This step is optional. Without it the server uses a linear depth range.
     Follow [Calibrate the depth range](/docs/operator#calibrate-the-depth-range):
-    on **Depth range**, select **Take setup lock**, then **Start depth-range
+    on **Depth calibration plot** (**Depth range** up to v0.1.3), select **Take setup lock**, then **Start depth-range
     calibration**, and have one person walk through the whole capture volume,
     near and far. The cameras must be running and the segmentation engine
     ready; see [Calibration](/docs/guides/calibration#before-a-depth-run-from-a-browser).
@@ -165,8 +165,12 @@ order; each one ends with what you should see.
 
     With several cameras, the server needs a camera-pose calibration before it
     sends video. Print the ChArUco board that the **Camera pose** screen
-    describes (see [Camera pose calibration](/docs/server/camera-calibration)
-    for printing) and fix it to something rigid and flat. One person moves the
+    describes: from v0.1.4 the screen draws it, and **Download board (SVG,
+    print at 100 %)** saves it at its real size (see also
+    [Camera pose calibration](/docs/server/camera-calibration)). The default
+    from v0.1.4 is 4 × 6 squares of 105 mm; see
+    [Calibration board](/docs/getting-started/install-package#calibration-board).
+    Fix it to something rigid and flat. One person moves the
     board.
 
     In the Operator Console, open **Camera pose** under **Calibration**, select
@@ -207,7 +211,7 @@ order; each one ends with what you should see.
     decode latency and dropped frame sets. While a tile has no picture it reads
     **Waiting for first frame**. The preview needs WebGPU and an HEVC decoder;
     see [Check your browser](/docs/client/browser-requirements). If WebGPU
-    can't draw, the preview uses WebGL2, without blending, and shows a notice
+    can't draw, the preview uses WebGL2 and shows a notice
     with a **What to do** link; see
     [When WebGPU can't draw](/docs/client/browser-requirements#when-webgpu-cant-draw).
 

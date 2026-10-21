@@ -9,7 +9,7 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
@@ -73,18 +73,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.3-1_amd64.deb` from the
-    [v0.1.3 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.3),
+    Download `orbbec-streamer_0.1.4-1_amd64.deb` from the
+    [v0.1.4 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.4),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.3-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.4-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.3-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `b6a74f36cd340190d50e8ba1b46ab73bd0c492763fc46c2df7ba0d69e7bd0d48`.
+    `sha256sum` must print `orbbec-streamer_0.1.4-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `b587914516bea45d6270b72c76df6ca01ea3860022ed9d8a3a52175e51cb7859`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -93,7 +93,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.3-1`. It sorts above every
+    The package version inside the file is `0.1.4-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -256,7 +256,9 @@ Two or more cameras must be hardware-synchronised:
 
 4. Run `sudo systemctl restart orbbec-streamer`.
 
-5. Calibrate the camera poses with a printed ChArUco board. From
+5. Calibrate the camera poses with a printed ChArUco board: the one in
+   `calibration.board` of your `live.yaml`, or the default 4 × 6 board
+   (see [Calibration board](#calibration-board)). From
    v0.1.0-poc.11, do it in the Operator Console; see
    [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
    Up to poc.10, do it on the server; see
@@ -299,14 +301,16 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.3-1`.
+Replace `<version>` with the new file's version, for example `0.1.4-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
 yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
-version. It is unchanged in v0.1.2 and v0.1.3, so an upgrade from v0.1.1 or v0.1.2 doesn't ask.
+version. It is unchanged in v0.1.2, v0.1.3 and v0.1.4, so an upgrade from v0.1.1 or later doesn't ask.
 From v0.1.3 camera poses are no longer mirrored in Y. A camera-pose
 calibration committed on v0.1.2 stays valid and now shows correctly, but a
-placement chosen while the scene looked mirrored may need placing again. The first upgrade from
+placement chosen while the scene looked mirrored may need placing again.
+From v0.1.4 the default calibration board changes; see
+[Calibration board](#calibration-board). The first upgrade from
 poc.9 or earlier to v0.1.0-poc.10 or later enables and starts the server,
 with the cameras closed. Later upgrades restart the server only if it was
 running, and never change whether it starts at boot. Exception: if a
@@ -341,7 +345,8 @@ calibration are kept.
   the unknown key. Downgrading from v0.1.0-poc.10 to poc.9 or earlier: also
   delete the `lan_viewers` line under `serving:` and restart; otherwise the
   older server refuses to start with `Unsupported serving key: lan_viewers`.
-  Downgrading from v0.1.3 to v0.1.2, or from v0.1.2 to v0.1.1, needs no change. Downgrading from
+  Downgrading from v0.1.4 to v0.1.3, from v0.1.3 to v0.1.2, or from v0.1.2 to v0.1.1, needs no change, but
+  without a `calibration.board` block, v0.1.3 and earlier expect the old 7 × 5 board. Downgrading from
   v0.1.1 or later to v0.1.0 or earlier with `network_probes` set:
   delete that line too (see [Active probes](/docs/guides/network#active-probes)).
 </Callout>
@@ -365,6 +370,34 @@ version to keep.
   cause and the fix, and the 5-second stats show `mask: failed`. Take the package's version and re-apply your edits, or fix the
   `mask:` section as in [Troubleshooting](#troubleshooting).
 </Callout>
+
+### Calibration board [#calibration-board]
+
+From v0.1.4 the default camera-pose board is a ChArUco board of 4 × 6
+squares of 105 mm, with 79 mm markers, dictionary `DICT_4X4_50`. Up to
+v0.1.3 it was 7 × 5 squares of 80 mm, with 60 mm markers, dictionary
+`DICT_5X5_100`. The package's `live.yaml` names no board, so the server
+uses the default. The **Camera pose** screen shows the board the server
+expects; print that one.
+
+To keep using a board printed for v0.1.3 or earlier, add it to the
+`calibration:` section of `/etc/orbbec-streamer/live.yaml` and run
+`sudo systemctl restart orbbec-streamer`:
+
+```yaml
+calibration:
+  board:
+    squares_x: 7
+    squares_y: 5
+    square_length_m: 0.08
+    marker_length_m: 0.06
+    dictionary: "DICT_5X5_100"
+```
+
+A camera-pose calibration you already committed stays valid either way;
+the board matters only for the next run. See
+[Camera pose calibration](/docs/server/camera-calibration#configuration)
+for the keys.
 
 ## Remote viewers on the LAN [#remote-viewers-on-the-lan]
 

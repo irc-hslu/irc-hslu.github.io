@@ -36,8 +36,8 @@ minimum, so check **valid samples** before you commit. Only one calibration run 
 the lock or disconnecting abandons the run and keeps the profile in force.
 
 The [Operator Console](/docs/operator) shows each kind's state under
-**Calibration** on its Overview. From poc.6, its **Depth range** screen
-also runs and commits a depth-quantization calibration: see
+**Calibration** on its Overview. From poc.6, its **Depth range calibration** screen (**Depth
+calibration plot** in the navigation from v0.1.4) also runs and commits a depth-quantization calibration: see
 [Calibrate the depth range](/docs/operator#calibrate-the-depth-range). The
 [terminal console](/docs/operator/terminal-console#calibrate-from-a-script)
 does the same from a script with `orbbec-console calibrate depth --commit`.
