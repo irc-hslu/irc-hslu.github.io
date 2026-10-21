@@ -17,6 +17,10 @@ When you open the [setup view](/docs/client/setup-workspace), the 3D view frames
 
 The client never commits a draft by itself. Leaving setup, losing the lock or reconnecting never sends it.
 
+## Who can edit [#who-can-edit]
+
+Editing and committing a placement need the operator role, which the server gives only to a page opened on the server machine from the configured console address (see [Set up a server](/docs/client/setup-workspace)). Elsewhere the card shows **Viewer** and **Edit** is off with the tip `needs the operator role (open on the server machine)`. You can still see the server’s placement.
+
 ## Start a draft [#start-a-draft]
 
 1. On the server’s card, select **Set up**. See [Set up a server](/docs/client/setup-workspace).

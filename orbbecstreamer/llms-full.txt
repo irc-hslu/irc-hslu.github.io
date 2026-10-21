@@ -926,6 +926,7 @@ Useful controls:
 * **Camera-pose data** (change 0033): a camera-pose run sends `server.calibration.progress` at run start, then at most 10 times a second, with `phase`, `lastSolveFailure`, `sharedObservations` and per camera the corners, accepted count, last observation and an 8 x 6 coverage grid; the camera-pose calibration entry carries `board`, `timeoutMs` and `maxReprojectionErrorPx` (`createMockServer({ cameraPose: { statusFields: false } })` omits them; `timeoutMs` sets the limit). Script it with `calibration['camera-pose'].pose`: `blindCameras` (never see the board), `isolatedCameras` (rejected `not-co-observed`, in no pair), `rejectReasons` (per camera, any kebab-case reason), `solveFailure` (keeps the run in `solving` with that `lastSolveFailure`), `neverSolves`, `minPairCountForRms`. A run that never solves ends at `timeoutMs`: result `accepted: false`, state `failed` (a valid pose stays `valid` with the message). A one-camera snapshot has no shared pairs. Cancel, lease loss, takeover and capture stop restore the pre-run record and stop progress; sensor and profile writes are refused `calibration-running` while a run exists.
 * **Refused connects** (§1a, change 0024): `createMockServer({ connectRefusal })` or `mock.refuseConnects(refusal | null)`. `{ kind: 'status', status: 421 | 404 | 403 | 503 | 400 }` and `{ kind: 'quic-busy' }` reject the opener at once with a browser-like `WebTransportError` that carries no status, as Chromium does; `{ kind: 'no-answer' }` never answers, so the client's connect deadline fires. `mock.refusedConnects` lists the answers given. Close codes after the hello: `closeSession(session, code, reason)`.
 * **Near-range depth**: `nearRangeQuantizationProfile()` (`src/media/playback/nearRangeProfile.ts`, 200 to 5000 mm, from a live server profile) as the snapshot's `quantization`. In the dev app, `?mockDepth=near` makes **Add mock server** serve it (snapshot only, no media).
+* **Role**: the dev mock grants `operator` (`roleGrant`), as a server does for a page opened on the server machine. `?mockRole=viewer` makes **Add mock server** grant `viewer`: setup and placement are then disabled with "needs the operator role (open on the server machine)" (change 0048).
 * **Faults**: `dropSession`, `closeSession`, `delaySession`, `stallSession` / `resumeSession`, `sendMalformed`, `skipRevisions`, `sendStaleRevision`, `refuseSnapshots`, `expireLease`, `holdLocalConsoleLease`, `session.dropFromNetwork()`.
 * **Inspection**: `sessions()`, `sessionOf(clientId)`, `lockHolder()`, `snapshot()`, `metadataRevision`, `getRequestLog()`, `session.requestCounts`, `session.role`, `session.mediaStats(bundleId)`.
 
@@ -2163,6 +2164,10 @@ When you open the [setup view](/docs/client/setup-workspace), the 3D view frames
 
 The client never commits a draft by itself. Leaving setup, losing the lock or reconnecting never sends it.
 
+## Who can edit [#who-can-edit]
+
+Editing and committing a placement need the operator role, which the server gives only to a page opened on the server machine from the configured console address (see [Set up a server](/docs/client/setup-workspace)). Elsewhere the card shows **Viewer** and **Edit** is off with the tip `needs the operator role (open on the server machine)`. You can still see the server’s placement.
+
 ## Start a draft [#start-a-draft]
 
 1. On the server’s card, select **Set up**. See [Set up a server](/docs/client/setup-workspace).
@@ -2605,15 +2610,15 @@ The icon buttons show their name as a tip, on hover and on keyboard focus; **Esc
 
 <img alt="The tip over the release-lock icon: Release lock, This client does not hold the lock" src="__img1" />
 
-| Button                       | What it does                                                                                                                                                                                                                                                 | Unavailable when                                                                                          |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| **Start cameras**            | Asks the server to open its cameras. Shown only while the chip reads **Cameras closed** or **Camera start failed**; after a failure it tries again. The card shows **Opening cameras**, then **Ready** or **Streaming**. The server can take up to a minute. | Not connected; a recording; another client holds the lock (`the lock is held by <name>`)                  |
-| **Set up**                   | Opens the setup view and takes the lock. See [Set up a server](/docs/client/setup-workspace).                                                                                                                                                                | Not connected; a recording (`a recording has no setup or lock`); setup is open for this or another server |
-| Lock (**Acquire lock**)      | Takes the setup lock only                                                                                                                                                                                                                                    | Not connected; you hold it; another client holds it; a recording                                          |
-| Open lock (**Release lock**) | Gives the lock back                                                                                                                                                                                                                                          | Not connected; you don’t hold it; a recording                                                             |
-| Circular arrow (**Refresh**) | Fetches the server’s full state                                                                                                                                                                                                                              | Not connected; a refresh is running                                                                       |
-| Plug (**Reconnect**)         | Connects again at once                                                                                                                                                                                                                                       | Connecting or connected                                                                                   |
-| Bin (**Remove**)             | Disconnects and removes the card and its point clouds                                                                                                                                                                                                        | Never                                                                                                     |
+| Button                       | What it does                                                                                                                                                                                                                                                 | Unavailable when                                                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Start cameras**            | Asks the server to open its cameras. Shown only while the chip reads **Cameras closed** or **Camera start failed**; after a failure it tries again. The card shows **Opening cameras**, then **Ready** or **Streaming**. The server can take up to a minute. | Not connected; a recording; another client holds the lock (`the lock is held by <name>`)                                                                                                   |
+| **Set up**                   | Opens the setup view and takes the lock. See [Set up a server](/docs/client/setup-workspace).                                                                                                                                                                | Not connected; a recording (`a recording has no setup or lock`); the role is **Viewer** (`needs the operator role (open on the server machine)`); setup is open for this or another server |
+| Lock (**Acquire lock**)      | Takes the setup lock only                                                                                                                                                                                                                                    | Not connected; you hold it; another client holds it; a recording; the role is **Viewer** (`needs the operator role (open on the server machine)`)                                          |
+| Open lock (**Release lock**) | Gives the lock back                                                                                                                                                                                                                                          | Not connected; you don’t hold it; a recording                                                                                                                                              |
+| Circular arrow (**Refresh**) | Fetches the server’s full state                                                                                                                                                                                                                              | Not connected; a refresh is running                                                                                                                                                        |
+| Plug (**Reconnect**)         | Connects again at once                                                                                                                                                                                                                                       | Connecting or connected                                                                                                                                                                    |
+| Bin (**Remove**)             | Disconnects and removes the card and its point clouds                                                                                                                                                                                                        | Never                                                                                                                                                                                      |
 
 The result of your last action appears under the buttons, for example `Acquire lock: accepted; waiting for the server's lock state`, `Refresh: snapshot received`, or `<action> rejected (<code>): <message>` when the server refused.
 
@@ -2668,6 +2673,7 @@ The lock’s expiry is in the server’s clock. Until the client has measured th
 * **The card says `Cameras closed` and shows no video**: select **Start cameras**. If the button is off and says the lock is held, ask the holder to release it. The server refuses to start a calibration while its cameras are off, so start them before you set up.
 * **`Camera start failed`**: read the reason on the card, check the cable and power of the camera it names, then select **Start cameras** again.
 * **A server older than this client shows no `Cameras closed` chip**: its cameras are always open. **Start cameras** is off with `this server does not report its cameras`.
+* **The card says Viewer and Set up is off** (`needs the operator role (open on the server machine)`): setup and placement need the operator role. The server gives it only to a page opened on the server machine from the console address in the server’s configuration. On any other machine the card's role line reads **Role: Viewer · setup and placement need the operator role (open on the server machine)**, and **Set up**, **Acquire lock** and **Edit** are off. On the server machine it reads **Role: Operator**. Viewing, **Start cameras** and **Refresh** still work.
 * **Acquire lock is refused**: its tip names the holder. Ask them to release it, or wait: a lock runs out 15 seconds after its last renewal.
 * **The lock is gone after a reconnect**: a lock never survives a reconnect. Acquire it again.
 * **`Metadata is stale`**: select **Refresh** in the box.
@@ -2683,6 +2689,10 @@ The lock’s expiry is in the server’s clock. Until the client has measured th
 
 
 The setup view changes one server’s setup: its depth calibration and its placement. It holds the server’s setup lock, so no other client can change the server while you work. It never commits anything by itself: a result or a placement change reaches the server only when you select its **Commit** button.
+
+## Who can set up [#who-can-set-up]
+
+Setting up needs the operator role. The server gives it only to a page opened on the server machine, from the console address set in the server’s configuration. Elsewhere the card shows **Viewer** after the server name and address, and **Set up**, **Acquire lock** and placement **Edit** are off with the tip `needs the operator role (open on the server machine)`. Viewing the server is not affected.
 
 ## Open the setup view [#open-the-setup-view]
 
@@ -6249,16 +6259,30 @@ To export the ONNX files for development, run
 
 Depth filtering on the GPU; see [GPU processing](./how-it-works/gpu-processing#bilateral-depth-filter).
 
-| Key                               | Type                                      | Default             | Description                                                                           |
-| --------------------------------- | ----------------------------------------- | ------------------- | ------------------------------------------------------------------------------------- |
-| `depth_filter_backend`            | `bilateral_cuda`, `identity_copy`, `none` | `bilateral_cuda`    | Depth filter.                                                                         |
-| `bilateral_spatial_sigma_ratio`   | float                                     | `0.0034722` (2/576) | Spatial sigma as a fraction of the smaller image side. Positive.                      |
-| `bilateral_radius_ratio`          | float                                     | `0.0034722` (2/576) | Window radius as a fraction of the smaller image side. Non-negative.                  |
-| `bilateral_color_sigma`           | float                                     | `60.0`              | Colour-difference sigma. Non-negative.                                                |
-| `bilateral_maximum_radius_pixels` | integer                                   | `16`                | Largest allowed resolved radius; a larger one stops start-up (no clamping). Positive. |
-| `bilateral_mask_threshold`        | integer                                   | `128`               | 0 to 255. Read only by the depth calibrator; the live filter uses a fixed 128.        |
+| Key                                                           | Type                                      | Default             | Description                                                                                                                                                                                                     |
+| ------------------------------------------------------------- | ----------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `depth_filter_backend`                                        | `bilateral_cuda`, `identity_copy`, `none` | `bilateral_cuda`    | Depth filter.                                                                                                                                                                                                   |
+| `bilateral_spatial_sigma_ratio`                               | float                                     | `0.0034722` (2/576) | Spatial sigma as a fraction of the smaller image side. Positive.                                                                                                                                                |
+| `bilateral_radius_ratio`                                      | float                                     | `0.0034722` (2/576) | Window radius as a fraction of the smaller image side. Non-negative.                                                                                                                                            |
+| `bilateral_color_sigma`                                       | float                                     | `60.0`              | Colour-difference sigma. Non-negative.                                                                                                                                                                          |
+| `bilateral_maximum_radius_pixels`                             | integer                                   | `16`                | Largest allowed resolved radius; a larger one stops start-up (no clamping). Positive.                                                                                                                           |
+| `mask_foreground_threshold`                                   | integer                                   | `128`               | 0 to 255. Foreground when the mask is at least this. Used by the filter, the seam passes and the depth calibrator.                                                                                              |
+| `bilateral_mask_threshold`                                    | integer                                   |                     | Deprecated and ignored (it never had an effect before 0.1.6; the effective value was 128). Still checked (0 to 255); the server logs one warning at start-up if it is present. Use `mask_foreground_threshold`. |
+| `bilateral_depth_sigma_mm`                                    | float                                     | `10`                | Depth range term of the filter, in millimetres; flat within one sigma. 0 and 0 for the ratio turns it off. Non-negative.                                                                                        |
+| `bilateral_depth_sigma_ratio`                                 | float                                     | `0.01`              | Relative part of the range sigma (times the depth). Non-negative.                                                                                                                                               |
+| `bilateral_fill_holes`                                        | bool                                      | `false`             | `true`: a pixel without depth takes its neighbours' mean, as before the seam passes.                                                                                                                            |
+| `seam_filter_enabled`                                         | bool                                      | `true`              | Colour occlusion test and flying-pixel and silhouette passes.                                                                                                                                                   |
+| `occlusion_test_enabled`                                      | bool                                      | `true`              | The colour occlusion test alone (needs `color_to_depth`).                                                                                                                                                       |
+| `occlusion_tolerance_mm`, `occlusion_tolerance_ratio`         | float                                     | `20`, `0.02`        | Occlusion tolerance, `max(mm, ratio × depth)`. Non-negative.                                                                                                                                                    |
+| `occlusion_zbuffer_downsample`                                | integer                                   | `2`                 | 1 to 4.                                                                                                                                                                                                         |
+| `occlusion_neighbourhood_px`                                  | integer                                   | `1`                 | 0 to 2.                                                                                                                                                                                                         |
+| `flying_pixel_radius_px`                                      | integer                                   | `1`                 | 0 to 3; 0 turns the flying-pixel test off.                                                                                                                                                                      |
+| `flying_pixel_jump_mm`, `flying_pixel_jump_ratio`             | float                                     | `30`, `0.03`        | Depth step above which neighbours are different surfaces. Non-negative, not both 0 while the radius is above 0.                                                                                                 |
+| `seam_erode_px`, `seam_search_px`, `seam_foreground_erode_px` | integer                                   | `2`, `4`, `1`       | Mask erosion at depth jumps: 0 to 4, `seam_erode_px` to 8, 0 to 2.                                                                                                                                              |
 
-The four range checks on `bilateral_*` apply only with `bilateral_cuda`.
+The new keys are described on [Seam quality](./seam-quality); they are checked
+when the file is loaded, with any backend. The four range checks on the older
+`bilateral_*` keys apply only with `bilateral_cuda`.
 
 ### `encoding` [#encoding]
 
@@ -6516,7 +6540,7 @@ line like these (numbers depend on your scene):
 
 ```text
 [info] calibration camera: config_id=cam0 serial=CL8K0000000A physical_index=0 name='...'
-[info] depth calibration started: total_duration_s=60 warmup_s=5 collection_s=55 range=500..5000 mm mask_threshold=32 output='config/dev/depth-quantization.json'
+[info] depth calibration started: total_duration_s=60 warmup_s=5 collection_s=55 range=500..5000 mm mask_threshold=128 output='config/dev/depth-quantization.json'
 [info] depth calibration complete: path='config/dev/depth-quantization.json' selected=adaptive_quantile calibration_mae_mm(linear/selected)=.../... maximum_gap_mm=... valid_samples=... invalid=... below=... above=... frames=... rejected(upload/processing)=.../... upload_slot_drops=... quantiles_mm(p01/p05/p50/p95/p99)=.../.../.../.../...
 ```
 
@@ -6669,7 +6693,7 @@ actually runs. They are ignored when an existing profile is reused.
 | `encoding.depth.adaptive_uniform_mix`              | `0.30`                               | Default for `--uniform-mix`.                     |
 | `setup.maximum_duration_seconds`                   | `60`                                 | Default for `--duration-s` (1–60).               |
 | `setup.warmup_seconds`                             | `5`                                  | Discarded start of the run.                      |
-| `processing.bilateral_mask_threshold`              | `32`                                 | Minimum mask value (0–255) for a pixel to count. |
+| `processing.mask_foreground_threshold`             | `128`                                | Minimum mask value (0–255) for a pixel to count. |
 | `cameras`, `sync`, `streams`, `mask`, `processing` |                                      | Same meaning as for the live server.             |
 
 ## Code layout [#code-layout]
@@ -6690,10 +6714,13 @@ The calibrator runs the same camera sync, GPU upload, foreground mask and
 depth filter as the live server, but no encoder, preview or debug recording.
 If `mask.backend` is `none`, it uses `fill_all` (every pixel is foreground).
 If `processing.depth_filter_backend` is `none`, it uses depth unfiltered.
+The filter has the same range term, hole policy and flying-pixel and silhouette
+passes as the live one ([Seam quality](./seam-quality)), except the colour
+occlusion test, which needs the camera's colour calibration.
 
 1. For the first `setup.warmup_seconds` nothing is collected.
 2. For the rest of the run, the calibrator counts every depth pixel whose
-   mask value is at least `processing.bilateral_mask_threshold` and whose
+   mask value is at least `processing.mask_foreground_threshold` and whose
    depth is inside the configured range. It counts invalid, too-close and
    too-far pixels separately and does not use them for the fit.
 3. It mixes this histogram with an even spread over the range. With
@@ -6777,7 +6804,7 @@ does not write it.
 | A browser run fails with `too few valid depth samples between ...`                                                                     | The run saw some depth in range, but less than four full frames' worth. Point the cameras at the scene, have a person stay in view, or adjust the range.                                                                                                                                                                                |
 | A browser run fails with `no masked depth between ... was seen`                                                                        | Nobody was in view, or the mask found no one. Have a person walk through the volume and check the mask status.                                                                                                                                                                                                                          |
 | `Required camera is unavailable: cam0` or `No configured cameras are available for depth calibration`                                  | Check USB and power, the `serial_number` values in `cameras`, and that no other process holds the cameras. Raise `run.camera_wait_timeout_ms` if the cameras take long to appear.                                                                                                                                                       |
-| `Depth calibration collected no valid masked in-range samples`                                                                         | Nothing in the foreground mask was inside the range. Put a person in view, check the depth range, lower `processing.bilateral_mask_threshold`, or make the run longer than the warm-up.                                                                                                                                                 |
+| `Depth calibration collected no valid masked in-range samples`                                                                         | Nothing in the foreground mask was inside the range. Put a person in view, check the depth range, lower `processing.mask_foreground_threshold`, or make the run longer than the warm-up.                                                                                                                                                |
 | `Calibration duration must be in [1, 60] seconds` or `Calibration duration must exceed setup.warmup_seconds`                           | Fix `--duration-s` or the `setup` section.                                                                                                                                                                                                                                                                                              |
 | `Adaptive uniform mix must be in [0, 1]`                                                                                               | Fix `--uniform-mix` or `encoding.depth.adaptive_uniform_mix`.                                                                                                                                                                                                                                                                           |
 | Error while loading or building the RVM engine                                                                                         | `mask.backend: rvm` needs the ONNX at `mask.rvm_onnx_path` (the tool builds a missing engine before it starts, 3 to 4 minutes the first time) or the `mask.rvm_engine_path` override. Fix the path, or calibrate with `mask.backend: fill_all` (then background pixels are counted too).                                                |
@@ -7549,17 +7576,22 @@ settle after a stall.
 colour-guided bilateral filter on each camera's depth
 ([Configuration](../configuration#processing)). For each depth pixel:
 
-* If its mask value is below 128, the output is 0 (invalid). This is where
-  the background is removed. The threshold is fixed;
-  `processing.bilateral_mask_threshold` does not change it.
+* If its mask value is below `processing.mask_foreground_threshold` (128 by
+  default), the output is 0 (invalid). This is where the background is
+  removed.
+* If the [seam passes](../seam-quality) flagged it (hidden from the colour
+  sensor, a depth mixture across a jump, or mask overreach behind a nearer
+  surface), the output is 0.
 * Otherwise the output is a weighted mean of the non-zero depth values in a
-  square window around it, using only foreground neighbours. The weight
-  falls off with pixel distance (spatial sigma) and with the RGB colour
-  difference to the centre pixel (colour sigma), so depth edges that follow
-  colour edges stay sharp.
-* A foreground pixel with no depth gets a value from its neighbours when any
-  of them has one, so small holes are filled. With no valid neighbour it
-  stays 0.
+  square window around it, using only foreground, unflagged neighbours. The
+  weight falls off with pixel distance (spatial sigma), with the RGB colour
+  difference to the centre pixel (colour sigma) and with the depth difference
+  (range term, flat within `bilateral_depth_sigma_mm`), so depth edges stay
+  sharp and no value between two surfaces is made. A neighbour across a depth
+  jump never contributes.
+* A foreground pixel with no depth stays 0 (`bilateral_fill_holes: false`).
+  With `true` it takes a value from its neighbours when any has one, as the
+  filter did before the seam passes.
 
 | Key                               | Default | Effect                                                                                           |
 | --------------------------------- | ------- | ------------------------------------------------------------------------------------------------ |
@@ -8814,8 +8846,8 @@ pinhole intrinsics (`fx`, `fy`, `cx`, `cy`) it receives.
    ```
 
    The translation is in millimetres, unlike the metre-based poses elsewhere.
-   The colour lens and the extrinsic are stored for native-colour work and are
-   not used by rectification.
+   Rectification itself does not use the colour lens or the extrinsic; the
+   colour occlusion test of [Seam quality](./seam-quality) does.
 2. **Builds one map per camera.** From the depth intrinsics and distortion it
    computes a remap table once, on the CPU, with OpenCV's
    `initUndistortRectifyMap`, and uploads it to the GPU. The rectified image
@@ -9324,6 +9356,182 @@ The Orbbec SDK logs to `Log/OrbbecSDK.log.txt` in the working directory; look th
 | `-h`, `--help`                           | none        | Prints the flags.                                                                                                                                                                           |
 
 Exit codes: `0` success, `1` run-time error (`orbbec-streamer failed: <reason>`), `2` invalid flag combination, or a CLI11 parse error code (for example `109` for an unknown flag).
+
+
+# Seam quality (https://irc-hslu.github.io/orbbecstreamer/docs/server/seam-quality)
+
+
+
+Colour is aligned to depth by the Orbbec SDK (`streams.alignment:
+color_to_depth`). At a silhouette that alignment can put the colour of the
+person onto the depth of the wall behind them. A client then shows a
+head-coloured patch lying flat on the wall, or a thin curtain of points in the
+air between the head and the wall. This page describes the three GPU passes
+that remove those pixels, the configuration keys, and how to check the effect
+on a camera. Nothing on the wire changes: the passes only turn more depth
+pixels into code 0, which already means "invalid" (wire format §8).
+
+## Why it happens [#why-it-happens]
+
+* **Parallax.** The colour sensor sits about 3 cm from the depth sensor. A
+  wall pixel right beside the head is seen by the depth sensor but hidden from
+  the colour sensor, because the head is in front of it. The SDK's alignment
+  looks the colour up for every depth pixel and does not test for this, so the
+  wall pixel gets the colour of the head. The band is one-sided, on the side of
+  the head away from the colour sensor. Its width in depth pixels is
+  `fx × baseline × (1 / z_near − 1 / z_far)`: about 8 pixels for a person at
+  1.2 m in front of a wall at 3 m, and shrinking as the person moves back.
+* **Mixed pixels.** The depth of a pixel on a silhouette is often a mixture of
+  the two surfaces ("flying pixel"), or missing. The bilateral filter used to
+  average across the jump and to fill missing depth from the neighbours, which
+  made more mixtures.
+* **Mask overreach.** The soft matte can extend a few pixels past the true
+  silhouette, onto the wall.
+
+## What the server does [#what-the-server-does]
+
+All three passes run on the processing stream, per camera, after
+[rectification](./rectification) and the mask. The source depth buffer is never
+modified (calibration and the recorders read it). They apply with
+`processing.depth_filter_backend: bilateral_cuda`; `identity_copy` stays a pure
+copy so the filter and mapping can be compared with it.
+
+1. **Colour occlusion test.** Every valid depth pixel is projected into the
+   colour image (using the colour intrinsics, lens model and the
+   depth-to-colour extrinsic read from the camera) and its depth in the colour
+   frame is kept in a z-buffer. A depth pixel that is more than a tolerance
+   behind the nearest surface at its colour pixel, or at a neighbouring cell
+   (to absorb the small mismatch between this projection and the SDK's), is
+   invalid. This needs `streams.alignment: color_to_depth` and a usable colour
+   calibration; a camera without one only loses this pass, with a warning.
+2. **Flying pixels and silhouette band.**
+   * A pixel whose depth differs from a valid neighbour by more than
+     `max(flying_pixel_jump_mm, flying_pixel_jump_ratio × the nearer depth)` is
+     invalid. A smooth surface is far below that: at 1.5 m one pixel is about
+     3 mm.
+   * Mask erosion happens only at depth jumps: a masked pixel close to the mask
+     edge that lies behind a nearer masked surface is invalid, so overreach onto
+     the wall goes, while a silhouette where the depths agree (feet on the
+     floor, a hand on the body) keeps every pixel. One more pixel of foreground
+     is dropped where the mask edge is itself a depth jump.
+3. **Bilateral filter.** Flagged pixels are invalid and never contribute to a
+   neighbour. A depth range term lowers the weight of neighbours at another
+   depth: it is flat within `s = max(bilateral_depth_sigma_mm,
+   bilateral_depth_sigma_ratio × depth)` (sensor noise is smoothed as before)
+   and Gaussian beyond it. A neighbour above the jump threshold never
+   contributes. A pixel without depth stays invalid
+   (`bilateral_fill_holes: false`); the filter does not invent depth.
+
+Pixels removed this way are holes. With two cameras the other camera usually
+fills them in the fused cloud; where it cannot, the hole is the price of not
+showing the wrong colour.
+
+## Configuration [#configuration]
+
+All keys are in the `processing` section, optional, and on by default. They
+are checked when the file is loaded; a value out of range, negative or not a
+finite number stops start-up with the key's name.
+
+| Key                            | Type    | Default | Range             | Effect                                                                                                                                            |
+| ------------------------------ | ------- | ------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seam_filter_enabled`          | bool    | `true`  |                   | Master switch for the occlusion test and the flying-pixel and silhouette passes. The filter's own range term and hole policy (below) stay as set. |
+| `occlusion_test_enabled`       | bool    | `true`  |                   | The colour occlusion test alone. Active with `color_to_depth` only; with another alignment it is off, with one warning.                           |
+| `occlusion_tolerance_mm`       | float   | `20`    | ≥ 0               | A pixel is occluded when it is further than the nearest surface by more than `max(this, ratio × depth)`.                                          |
+| `occlusion_tolerance_ratio`    | float   | `0.02`  | ≥ 0               | Relative part of the tolerance.                                                                                                                   |
+| `occlusion_zbuffer_downsample` | integer | `2`     | 1–4               | The z-buffer has the colour image size divided by this. 2 closes the gaps between projected depth pixels.                                         |
+| `occlusion_neighbourhood_px`   | integer | `1`     | 0–2               | Cells around the pixel's own that are searched for a nearer surface.                                                                              |
+| `flying_pixel_radius_px`       | integer | `1`     | 0–3               | Window radius for the flying-pixel test. 0 turns it off.                                                                                          |
+| `flying_pixel_jump_mm`         | float   | `30`    | ≥ 0               | Fixed part of the jump threshold.                                                                                                                 |
+| `flying_pixel_jump_ratio`      | float   | `0.03`  | ≥ 0               | Relative part of the jump threshold. Not both zero while the radius is above 0.                                                                   |
+| `seam_erode_px`                | integer | `2`     | 0–4               | A masked pixel this close to the mask edge is removed when it lies behind a nearer surface. 0 turns it off.                                       |
+| `seam_search_px`               | integer | `4`     | `seam_erode_px`–8 | How far to look for the nearer surface.                                                                                                           |
+| `seam_foreground_erode_px`     | integer | `1`     | 0–2               | Foreground pixels removed where the mask edge is a depth jump.                                                                                    |
+| `bilateral_depth_sigma_mm`     | float   | `10`    | ≥ 0               | Fixed part of the range sigma. Both sigmas 0 turns the range term off.                                                                            |
+| `bilateral_depth_sigma_ratio`  | float   | `0.01`  | ≥ 0               | Relative part of the range sigma.                                                                                                                 |
+| `bilateral_fill_holes`         | bool    | `false` |                   | `true` brings back the old behaviour: a pixel without depth takes its neighbours' mean.                                                           |
+| `mask_foreground_threshold`    | integer | `128`   | 0–255             | Foreground when the mask is at least this. Used by the filter, by the passes above and by the depth calibration.                                  |
+
+`bilateral_mask_threshold` is deprecated. It was parsed but never applied
+before 0.1.6: the filter always used 128, whatever the file said (the earlier
+example configurations said 32). The working setting is the new
+`mask_foreground_threshold`. The old key is still read and range-checked
+(0–255) but ignored, and when it is present the server logs one warning at
+start-up. If both are present, `mask_foreground_threshold` is used. An existing
+configuration therefore keeps the effective 128 with no edit; remove the old
+key when convenient. Set `mask_foreground_threshold` below 128 only if you want
+a wider foreground mask, which also widens the overreach the passes have to
+remove.
+
+To get the filter as it was before these passes, set `seam_filter_enabled:
+false`, `bilateral_depth_sigma_mm: 0`, `bilateral_depth_sigma_ratio: 0` and
+`bilateral_fill_holes: true`.
+
+## Cost [#cost]
+
+Measured on the RTX 4090 with the `dev-relwithdebinfo` build, at the largest
+depth size (1024 × 1024), 200 launches, while other work shared the GPU
+(busy machine, treat as an upper bound):
+
+| Per camera                                                                | p50      | p99            |
+| ------------------------------------------------------------------------- | -------- | -------------- |
+| Occlusion test and flying-pixel/silhouette passes (including both clears) | 0.044 ms | 0.054–0.060 ms |
+| Bilateral filter, new                                                     | 0.089 ms | 0.092–0.097 ms |
+| Bilateral filter, before                                                  | 0.074 ms | 0.077–0.081 ms |
+| Added by the change                                                       | 0.06 ms  |                |
+
+At 640 × 576 it is proportionally smaller. No host synchronisation and no
+allocation per frame is added: the flag image and the z-buffer are allocated
+once and reused.
+
+## Check it on a real camera [#check-it-on-a-real-camera]
+
+The check records for about 20 s from one camera, no board needed, and prints
+the numbers before and after. Stop the service first (one process owns the
+cameras), put a person in front of a wall or some furniture with straight
+edges in view, and run, from `server/`:
+
+```bash
+build/dev-relwithdebinfo/orbbec_streamer_seam_quality_check --config config/dev/live.yaml --seconds 20 --output seam-quality.json
+```
+
+It reports, for the first camera of the configuration (`--camera <id>` picks
+another):
+
+* **Flying (mixed) depth pixels per frame**, in the rectified source depth,
+  after the filter as it was before (BEFORE) and after the passes and the new
+  filter (AFTER). A mixed pixel differs from both neighbours of an opposite
+  pair by more than the jump threshold; a clean step edge is not counted.
+* **Valid depth pixels per frame** after each filter, and the share of the
+  valid depth the occlusion test and the flying-pixel pass removed.
+* **Straightness of long edges** (at least 120 px) in the raw and in the
+  rectified colour image: the RMS distance of the edge pixels to their fitted
+  line, median and 90th percentile. After rectification the long edges of a
+  door frame or a table should be straight to a fraction of a pixel.
+
+The mask in this check is "everything is foreground" (no RVM), so it measures
+the occlusion test and the flying-pixel pass; the silhouette band needs a mask
+and is covered by the unit tests. The check does not write to the
+configuration or the pose files.
+
+For a visual comparison on the whole pipeline, run the same scene four times
+with the debug recording on, changing only `mask.backend` (`fill_all`, `rvm`)
+and `processing.depth_filter_backend` (`identity_copy`, `bilateral_cuda`), and
+look at the wall beside the head in each. `fill_all` with `identity_copy` shows
+the alignment alone; `rvm` with `bilateral_cuda` is the production setting.
+
+## Limits [#limits]
+
+* The projection into the colour image uses the lens model that the camera
+  reports. Brown-Conrady, its six-coefficient form and Kannala-Brandt are
+  handled; the camera's "modified Brown-Conrady" model is treated as the
+  six-coefficient form, and an unknown or inverse model as a pinhole. This
+  has not been compared with the SDK's own alignment on a camera; the
+  neighbourhood and the tolerance cover a small mismatch, not a wrong model.
+* Colour that falls outside the colour sensor's field of view is not flagged.
+* The passes remove wrong pixels; they do not recover colour for them. A
+  client that wants no holes needs the second camera's view of the same place.
+* Colour mixing from 4:2:0 chroma subsampling and HEVC ringing at an edge
+  happens after these passes and is not addressed here.
 
 
 # Serve to browsers (https://irc-hslu.github.io/orbbecstreamer/docs/server/serving)

@@ -100,17 +100,22 @@ settle after a stall.
 colour-guided bilateral filter on each camera's depth
 ([Configuration](../configuration#processing)). For each depth pixel:
 
-* If its mask value is below 128, the output is 0 (invalid). This is where
-  the background is removed. The threshold is fixed;
-  `processing.bilateral_mask_threshold` does not change it.
+* If its mask value is below `processing.mask_foreground_threshold` (128 by
+  default), the output is 0 (invalid). This is where the background is
+  removed.
+* If the [seam passes](../seam-quality) flagged it (hidden from the colour
+  sensor, a depth mixture across a jump, or mask overreach behind a nearer
+  surface), the output is 0.
 * Otherwise the output is a weighted mean of the non-zero depth values in a
-  square window around it, using only foreground neighbours. The weight
-  falls off with pixel distance (spatial sigma) and with the RGB colour
-  difference to the centre pixel (colour sigma), so depth edges that follow
-  colour edges stay sharp.
-* A foreground pixel with no depth gets a value from its neighbours when any
-  of them has one, so small holes are filled. With no valid neighbour it
-  stays 0.
+  square window around it, using only foreground, unflagged neighbours. The
+  weight falls off with pixel distance (spatial sigma), with the RGB colour
+  difference to the centre pixel (colour sigma) and with the depth difference
+  (range term, flat within `bilateral_depth_sigma_mm`), so depth edges stay
+  sharp and no value between two surfaces is made. A neighbour across a depth
+  jump never contributes.
+* A foreground pixel with no depth stays 0 (`bilateral_fill_holes: false`).
+  With `true` it takes a value from its neighbours when any has one, as the
+  filter did before the seam passes.
 
 | Key                               | Default | Effect                                                                                           |
 | --------------------------------- | ------- | ------------------------------------------------------------------------------------------------ |

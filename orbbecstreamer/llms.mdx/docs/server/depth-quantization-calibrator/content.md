@@ -78,7 +78,7 @@ line like these (numbers depend on your scene):
 
 ```text
 [info] calibration camera: config_id=cam0 serial=CL8K0000000A physical_index=0 name='...'
-[info] depth calibration started: total_duration_s=60 warmup_s=5 collection_s=55 range=500..5000 mm mask_threshold=32 output='config/dev/depth-quantization.json'
+[info] depth calibration started: total_duration_s=60 warmup_s=5 collection_s=55 range=500..5000 mm mask_threshold=128 output='config/dev/depth-quantization.json'
 [info] depth calibration complete: path='config/dev/depth-quantization.json' selected=adaptive_quantile calibration_mae_mm(linear/selected)=.../... maximum_gap_mm=... valid_samples=... invalid=... below=... above=... frames=... rejected(upload/processing)=.../... upload_slot_drops=... quantiles_mm(p01/p05/p50/p95/p99)=.../.../.../.../...
 ```
 
@@ -231,7 +231,7 @@ actually runs. They are ignored when an existing profile is reused.
 | `encoding.depth.adaptive_uniform_mix`              | `0.30`                               | Default for `--uniform-mix`.                     |
 | `setup.maximum_duration_seconds`                   | `60`                                 | Default for `--duration-s` (1–60).               |
 | `setup.warmup_seconds`                             | `5`                                  | Discarded start of the run.                      |
-| `processing.bilateral_mask_threshold`              | `32`                                 | Minimum mask value (0–255) for a pixel to count. |
+| `processing.mask_foreground_threshold`             | `128`                                | Minimum mask value (0–255) for a pixel to count. |
 | `cameras`, `sync`, `streams`, `mask`, `processing` |                                      | Same meaning as for the live server.             |
 
 ## Code layout [#code-layout]
@@ -252,10 +252,13 @@ The calibrator runs the same camera sync, GPU upload, foreground mask and
 depth filter as the live server, but no encoder, preview or debug recording.
 If `mask.backend` is `none`, it uses `fill_all` (every pixel is foreground).
 If `processing.depth_filter_backend` is `none`, it uses depth unfiltered.
+The filter has the same range term, hole policy and flying-pixel and silhouette
+passes as the live one ([Seam quality](./seam-quality)), except the colour
+occlusion test, which needs the camera's colour calibration.
 
 1. For the first `setup.warmup_seconds` nothing is collected.
 2. For the rest of the run, the calibrator counts every depth pixel whose
-   mask value is at least `processing.bilateral_mask_threshold` and whose
+   mask value is at least `processing.mask_foreground_threshold` and whose
    depth is inside the configured range. It counts invalid, too-close and
    too-far pixels separately and does not use them for the fit.
 3. It mixes this histogram with an even spread over the range. With
@@ -339,7 +342,7 @@ does not write it.
 | A browser run fails with `too few valid depth samples between ...`                                                                     | The run saw some depth in range, but less than four full frames' worth. Point the cameras at the scene, have a person stay in view, or adjust the range.                                                                                                                                                                                |
 | A browser run fails with `no masked depth between ... was seen`                                                                        | Nobody was in view, or the mask found no one. Have a person walk through the volume and check the mask status.                                                                                                                                                                                                                          |
 | `Required camera is unavailable: cam0` or `No configured cameras are available for depth calibration`                                  | Check USB and power, the `serial_number` values in `cameras`, and that no other process holds the cameras. Raise `run.camera_wait_timeout_ms` if the cameras take long to appear.                                                                                                                                                       |
-| `Depth calibration collected no valid masked in-range samples`                                                                         | Nothing in the foreground mask was inside the range. Put a person in view, check the depth range, lower `processing.bilateral_mask_threshold`, or make the run longer than the warm-up.                                                                                                                                                 |
+| `Depth calibration collected no valid masked in-range samples`                                                                         | Nothing in the foreground mask was inside the range. Put a person in view, check the depth range, lower `processing.mask_foreground_threshold`, or make the run longer than the warm-up.                                                                                                                                                |
 | `Calibration duration must be in [1, 60] seconds` or `Calibration duration must exceed setup.warmup_seconds`                           | Fix `--duration-s` or the `setup` section.                                                                                                                                                                                                                                                                                              |
 | `Adaptive uniform mix must be in [0, 1]`                                                                                               | Fix `--uniform-mix` or `encoding.depth.adaptive_uniform_mix`.                                                                                                                                                                                                                                                                           |
 | Error while loading or building the RVM engine                                                                                         | `mask.backend: rvm` needs the ONNX at `mask.rvm_onnx_path` (the tool builds a missing engine before it starts, 3 to 4 minutes the first time) or the `mask.rvm_engine_path` override. Fix the path, or calibrate with `mask.backend: fill_all` (then background pixels are counted too).                                                |

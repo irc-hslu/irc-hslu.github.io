@@ -22,8 +22,8 @@ pinhole intrinsics (`fx`, `fy`, `cx`, `cy`) it receives.
    ```
 
    The translation is in millimetres, unlike the metre-based poses elsewhere.
-   The colour lens and the extrinsic are stored for native-colour work and are
-   not used by rectification.
+   Rectification itself does not use the colour lens or the extrinsic; the
+   colour occlusion test of [Seam quality](./seam-quality) does.
 2. **Builds one map per camera.** From the depth intrinsics and distortion it
    computes a remap table once, on the CPU, with OpenCV's
    `initUndistortRectifyMap`, and uploads it to the GPU. The rectified image

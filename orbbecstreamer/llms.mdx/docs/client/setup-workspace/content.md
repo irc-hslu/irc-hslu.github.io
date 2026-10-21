@@ -6,6 +6,10 @@
 
 The setup view changes one server’s setup: its depth calibration and its placement. It holds the server’s setup lock, so no other client can change the server while you work. It never commits anything by itself: a result or a placement change reaches the server only when you select its **Commit** button.
 
+## Who can set up [#who-can-set-up]
+
+Setting up needs the operator role. The server gives it only to a page opened on the server machine, from the console address set in the server’s configuration. Elsewhere the card shows **Viewer** after the server name and address, and **Set up**, **Acquire lock** and placement **Edit** are off with the tip `needs the operator role (open on the server machine)`. Viewing the server is not affected.
+
 ## Open the setup view [#open-the-setup-view]
 
 1. Wait until the server’s card shows **Ready** or **Streaming**.
