@@ -5836,6 +5836,15 @@ translation has the opposite sign of the one in the log and on the wire:
 }
 ```
 
+Next to it the server writes `camera-pose.json.image-model`, a small file
+that records whether the pose was measured on rectified images (see
+[Rectification](./rectification)). It is a separate file on purpose: older
+servers read `camera-pose.json` strictly, so it keeps exactly the keys above.
+A pose without a matching sidecar (written before rectification, or by an
+older server) still loads and keeps its poses, and the server logs one warning,
+`calibrated before rectification - recalibration recommended`. Calibrate again
+after upgrading.
+
 The server writes a temporary file, flushes it to disk and renames it over
 the old one, so a crash leaves either the old or the new calibration. It
 only writes a result that covers every active camera with a valid rigid
@@ -6713,6 +6722,36 @@ On load, the server checks the schema version, that entries 0, 1, 2, 1022
 and 1023 are `0, min, min, max, max`, and that the table never decreases.
 It then builds the 65,536-entry depth-to-code table once and uploads it to
 the GPU, so encoding stays one lookup per pixel.
+
+### The calibration report [#the-calibration-report]
+
+Every time a calibration from the browser is committed, the server also writes
+`depth-quantization.report.json` next to the profile (same directory, same
+base name). It records what the calibration saw, so you can inspect it later.
+It is replaced at every commit, written atomically, and its size is fixed
+(about 3 KiB):
+
+```text
+{
+  "schema_version": 1,
+  "revision": 7, "written_utc": "2026-10-21T12:34:56Z",
+  "range_mm": { "minimum": 500, "maximum": 5000 },
+  "kind": "adaptive_quantile",
+  "samples": { "valid": ..., "invalid": ..., "below_minimum": ...,
+               "above_maximum": ..., "duration_seconds": ... },
+  "percentiles_mm": { "p01": ..., "p05": ..., "p50": ..., "p95": ..., "p99": ... },
+  "expected_mae_mm": { "linear": ..., "selected": ... },
+  "maximum_reconstruction_gap_mm": ...,
+  "histogram": { "bin_count": 64, "counts": [64 numbers] },   // equal-width bins over the range
+  "lut_curve_mm": [ { "code": 2, "depth_mm": ... }, ... ]     // 33 points over codes 2..1022
+}
+```
+
+The depth profile is a histogram of depth values, so it does not depend on
+lens geometry: rectification neither marks it nor needs it recalibrated. The
+report is diagnostics only. If it cannot be written, the server logs a
+warning and the committed profile stays in force. The offline calibrator tool
+does not write it.
 
 ## Troubleshooting [#troubleshooting]
 
@@ -8738,6 +8777,134 @@ Calibrate and commit placement on each server separately (the setup lease is per
 Not yet checked: two real rigs on one machine under load (needs the second rig).
 
 
+# Rectification (https://irc-hslu.github.io/orbbecstreamer/docs/server/rectification)
+
+
+
+The wire contract (`protocol/wire-format.md` §7) says images are rectified on
+the server, with no distortion coefficients on the wire. The server now does
+this. With `streams.alignment: color_to_depth`, both encoded streams, depth and
+colour, carry rectified images, so a client can unproject with the plain
+pinhole intrinsics (`fx`, `fy`, `cx`, `cy`) it receives.
+
+## What the server does [#what-the-server-does]
+
+1. **Reads the lens data from the camera.** At start-up the server reads the
+   depth and colour intrinsics, both distortion models (the model name and
+   `k1`..`k6`, `p1`, `p2`) and the depth-to-colour extrinsic from the Orbbec
+   SDK. It logs them once per camera:
+
+   ```text
+   Orbbec calibration: camera=orbbec:… depth: 640x576 fx=… fy=… cx=… cy=… distortion=brown-conrady-k6 k1=… k2=… k3=… k4=… k5=… k6=… p1=… p2=…
+   Orbbec calibration: camera=orbbec:… colour: 1280x720 fx=… … distortion=…
+   Orbbec calibration: camera=orbbec:… depth_to_colour (translation in millimetres): R=[…] t_mm=[…]
+   ```
+
+   The translation is in millimetres, unlike the metre-based poses elsewhere.
+   The colour lens and the extrinsic are stored for native-colour work and are
+   not used by rectification.
+2. **Builds one map per camera.** From the depth intrinsics and distortion it
+   computes a remap table once, on the CPU, with OpenCV's
+   `initUndistortRectifyMap`, and uploads it to the GPU. The rectified image
+   keeps the same `fx`, `fy`, `cx`, `cy`, so nothing changes on the wire. A
+   lens with no distortion needs no map and costs nothing per frame.
+3. **Remaps every frame on the GPU**, first in the processing stage, before the
+   depth filter, the masks and NVENC:
+   * **Depth** uses nearest neighbour, so a value is never blended across a
+     depth edge. Invalid depth (0) stays invalid, and a pixel whose source lies
+     outside the camera image becomes invalid.
+   * **Colour** uses bilinear interpolation, and only when colour is aligned
+     to depth (`streams.alignment: color_to_depth`). Aligned colour sits on the
+     depth pixel grid, so the depth lens model applies to it. A source outside
+     the image becomes black. Native-size colour is not rectified.
+
+The remap runs on the existing processing stream, takes its output buffers
+from the buffer pool (no allocation per frame in steady state) and adds no
+host synchronisation.
+
+## When frames are not rectified [#when-frames-are-not-rectified]
+
+Rectification never stops the server. When it cannot apply, the frames stream
+as the camera made them, which is what earlier versions did, and the server
+logs a warning once:
+
+| Case                                                                                                        | What happens                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `streams.alignment: depth_to_color`                                                                         | Depth frames are colour-sized and the depth lens map does not fit them. No camera is rectified. This deviates from wire-format §7.  |
+| `streams.alignment` disabled                                                                                | Colour is native, not on the depth grid. No camera is rectified, same deviation.                                                    |
+| Depth lens model the server cannot rectify (modified or inverse Brown-Conrady, or a model a newer SDK adds) | That camera streams unrectified. The warning names the model; report the camera and its firmware version so the model can be added. |
+| Depth distortion coefficients all zero                                                                      | An identity: nothing to do, no warning.                                                                                             |
+
+Set `streams.alignment: color_to_depth` (the development config does) to get
+rectified streams.
+
+## Supported lens models [#supported-lens-models]
+
+| SDK model                                  | Used by the server                  |
+| ------------------------------------------ | ----------------------------------- |
+| none                                       | No remap                            |
+| Brown-Conrady, Brown-Conrady k6            | Yes (OpenCV model)                  |
+| Kannala-Brandt 4                           | Yes (OpenCV fisheye)                |
+| Modified or inverse Brown-Conrady, unknown | No: that camera streams unrectified |
+
+The Femto Bolt reports `brown-conrady-k6` for both depth and colour. Its depth
+lens uses the large rational form (for example `k1` around 28 and `k4` around
+28\); the map builds in a few milliseconds at start-up.
+
+## Camera pose calibration uses the same images [#camera-pose-calibration-uses-the-same-images]
+
+The calibration board is detected in rectified pixels: the engine remaps each
+colour frame with the camera's map before detection, so the pose matches the
+images the server streams. The corner overlay that the setup console draws is
+in the same rectified pixels.
+
+## Recalibrate after upgrading [#recalibrate-after-upgrading]
+
+Camera pose files written by earlier versions were measured on images with lens
+distortion in them. They still load and the server keeps using the saved poses,
+but it logs one warning:
+
+```text
+calibrated before rectification - recalibration recommended
+```
+
+Run [camera pose calibration](./camera-calibration) again. Each pose write now
+also writes `camera-pose.json.image-model` next to the file, a small sidecar
+that records whether every camera was rectified (`rectified-v1`) or at least
+one was not (`unrectified`, which logs its own warning). The marker is only on
+disk; it is not on the wire.
+
+The depth quantization profile is a histogram of depth values and does not
+depend on lens geometry, so it needs no recalibration and has no marker.
+
+### Downgrading [#downgrading]
+
+The marker is a separate file, so `camera-pose.json` has exactly the keys older
+servers require and they load it without a change. Nothing breaks on a
+downgrade. If an older server then recalibrates, the sidecar's revision no
+longer matches the pose, so a newer server reads that pose as "before
+rectification" and warns.
+
+## Recordings [#recordings]
+
+The debug GPU-input recordings (`record_gpu_inputs`) are taken before
+processing, so they hold the raw, unrectified frames. The GPU-output recordings
+are the encoded streams and are rectified.
+
+## GPU cost [#gpu-cost]
+
+Measured with CUDA events on an RTX 4090, one camera at 640×576 (depth
+nearest neighbour plus aligned colour bilinear), 500 frames after warm-up:
+
+| Work per camera and frame | p50      | p99      | max      |
+| ------------------------- | -------- | -------- | -------- |
+| Depth and colour remap    | 0.009 ms | 0.009 ms | 0.021 ms |
+| Depth remap alone         | 0.004 ms | 0.005 ms | 0.005 ms |
+
+The map takes 2.9 MB of GPU memory per camera. The test is
+`frame_rectifier_unit_tests`; it prints these numbers.
+
+
 # Requirements (https://irc-hslu.github.io/orbbecstreamer/docs/server/requirements)
 
 
@@ -9029,9 +9196,9 @@ What to check:
 * `live pipeline started`: capture, processing and encoding run.
 * `setup at startup: ... needs-setup`: no camera-pose calibration saved yet; the pipeline runs anyway. See [Camera pose calibration](./camera-calibration).
 
-With `run.preview: true` and a display, a preview window opens at the first processed frame. It shows the first camera: aligned colour, filtered depth as a colour map, and the mask (all white with `fill_all`). Colour is black where the camera measured no depth. Press `q` or `Esc` in it to stop the server. The preview runs on its own thread and never slows the pipeline.
+With `run.preview: true` and a display, a preview window opens at the first processed frame. It shows every camera, one row each: aligned colour, filtered depth as a colour map, and the mask (all white with `fill_all`). Each panel is labelled with the camera id. The images are the rectified ones the encoder gets. Colour is black where the camera measured no depth. Press `q` or `Esc` in it to stop the server. The preview runs on its own thread and never slows the pipeline.
 
-<img alt="Live preview window: aligned colour, filtered depth and mask panels of the first camera" src="__img0" />
+<img alt="Live preview window: aligned colour, filtered depth and mask panels of the first camera (the window shows one such row per camera)" src="__img0" />
 
 ## Debug recording output [#debug-recording-output]
 
@@ -9573,6 +9740,10 @@ The layout already shapes the encoder output, the debug recordings, `setup.json`
 and the stream descriptors in the setup state; serving is not available yet.
 What each layout means for a client is defined in `protocol/wire-format.md`
 §5.
+
+Both layouts carry rectified images when `streams.alignment` is
+`color_to_depth`: the server removes lens distortion from depth and aligned
+colour before encoding (see [Rectification](./rectification)).
 
 ## What each layout produces [#what-each-layout-produces]
 

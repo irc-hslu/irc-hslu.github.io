@@ -199,6 +199,15 @@ translation has the opposite sign of the one in the log and on the wire:
 }
 ```
 
+Next to it the server writes `camera-pose.json.image-model`, a small file
+that records whether the pose was measured on rectified images (see
+[Rectification](./rectification)). It is a separate file on purpose: older
+servers read `camera-pose.json` strictly, so it keeps exactly the keys above.
+A pose without a matching sidecar (written before rectification, or by an
+older server) still loads and keeps its poses, and the server logs one warning,
+`calibrated before rectification - recalibration recommended`. Calibrate again
+after upgrading.
+
 The server writes a temporary file, flushes it to disk and renames it over
 the old one, so a crash leaves either the old or the new calibration. It
 only writes a result that covers every active camera with a valid rigid

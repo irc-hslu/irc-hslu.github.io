@@ -109,9 +109,9 @@ What to check:
 * `live pipeline started`: capture, processing and encoding run.
 * `setup at startup: ... needs-setup`: no camera-pose calibration saved yet; the pipeline runs anyway. See [Camera pose calibration](./camera-calibration).
 
-With `run.preview: true` and a display, a preview window opens at the first processed frame. It shows the first camera: aligned colour, filtered depth as a colour map, and the mask (all white with `fill_all`). Colour is black where the camera measured no depth. Press `q` or `Esc` in it to stop the server. The preview runs on its own thread and never slows the pipeline.
+With `run.preview: true` and a display, a preview window opens at the first processed frame. It shows every camera, one row each: aligned colour, filtered depth as a colour map, and the mask (all white with `fill_all`). Each panel is labelled with the camera id. The images are the rectified ones the encoder gets. Colour is black where the camera measured no depth. Press `q` or `Esc` in it to stop the server. The preview runs on its own thread and never slows the pipeline.
 
-<img alt="Live preview window: aligned colour, filtered depth and mask panels of the first camera" src="__img0" />
+<img alt="Live preview window: aligned colour, filtered depth and mask panels of the first camera (the window shows one such row per camera)" src="__img0" />
 
 ## Debug recording output [#debug-recording-output]
 

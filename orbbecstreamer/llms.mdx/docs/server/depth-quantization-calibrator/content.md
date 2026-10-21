@@ -298,6 +298,36 @@ and 1023 are `0, min, min, max, max`, and that the table never decreases.
 It then builds the 65,536-entry depth-to-code table once and uploads it to
 the GPU, so encoding stays one lookup per pixel.
 
+### The calibration report [#the-calibration-report]
+
+Every time a calibration from the browser is committed, the server also writes
+`depth-quantization.report.json` next to the profile (same directory, same
+base name). It records what the calibration saw, so you can inspect it later.
+It is replaced at every commit, written atomically, and its size is fixed
+(about 3 KiB):
+
+```text
+{
+  "schema_version": 1,
+  "revision": 7, "written_utc": "2026-10-21T12:34:56Z",
+  "range_mm": { "minimum": 500, "maximum": 5000 },
+  "kind": "adaptive_quantile",
+  "samples": { "valid": ..., "invalid": ..., "below_minimum": ...,
+               "above_maximum": ..., "duration_seconds": ... },
+  "percentiles_mm": { "p01": ..., "p05": ..., "p50": ..., "p95": ..., "p99": ... },
+  "expected_mae_mm": { "linear": ..., "selected": ... },
+  "maximum_reconstruction_gap_mm": ...,
+  "histogram": { "bin_count": 64, "counts": [64 numbers] },   // equal-width bins over the range
+  "lut_curve_mm": [ { "code": 2, "depth_mm": ... }, ... ]     // 33 points over codes 2..1022
+}
+```
+
+The depth profile is a histogram of depth values, so it does not depend on
+lens geometry: rectification neither marks it nor needs it recalibrated. The
+report is diagnostics only. If it cannot be written, the server logs a
+warning and the committed profile stays in force. The offline calibrator tool
+does not write it.
+
 ## Troubleshooting [#troubleshooting]
 
 | Message or symptom                                                                                                                     | Cause and fix                                                                                                                                                                                                                                                                                                                           |

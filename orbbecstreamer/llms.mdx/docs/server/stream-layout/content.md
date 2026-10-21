@@ -23,6 +23,10 @@ and the stream descriptors in the setup state; serving is not available yet.
 What each layout means for a client is defined in `protocol/wire-format.md`
 §5.
 
+Both layouts carry rectified images when `streams.alignment` is
+`color_to_depth`: the server removes lens distortion from depth and aligned
+colour before encoding (see [Rectification](./rectification)).
+
 ## What each layout produces [#what-each-layout-produces]
 
 Both layouts encode the same synchronised multi-camera batches, and in both
