@@ -122,15 +122,16 @@ A session that ends sooner than `stableSessionUs` after its hello counts as anot
 
 `DEFAULT_SERVER_CONNECTION_TIMING`:
 
-| Option                      | Default | Meaning                                                                                                                                                                     |
-| --------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connectDeadlineUs`         | 10 s    | Capability probe, session open and hello exchange. The card shows `connect timeout`.                                                                                        |
-| `requestTimeoutUs`          | 10 s    | A request answered by `server.ack` or `server.error`. The card shows `failed (timeout)`.                                                                                    |
-| `snapshotRequestTimeoutUs`  | 10 s    | A `client.snapshot.request`                                                                                                                                                 |
-| `mediaHeaderDeadlineUs`     | 5 s     | How long media stream headers may stay incomplete before the session closes                                                                                                 |
-| `mediaHeaderPollUs`         | 0.25 s  | How often that condition is checked. The check runs only while a header is pending or a channel is held, so an idle session sets no timer for it.                           |
-| `sessionCloseGraceUs`       | 0.25 s  | After a fatal transport error, how long to wait for the session’s own close                                                                                                 |
-| `ownPlacementResultGraceUs` | 5 s     | After an accepted placement commit, how long a placement update counts as this client’s own result (interim, see [Contract gaps](/docs/client/developer/interim-behaviour)) |
+| Option                      | Default | Meaning                                                                                                                                                                                                                                       |
+| --------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connectDeadlineUs`         | 10 s    | Capability probe, session open and hello exchange. The card shows `connect timeout`.                                                                                                                                                          |
+| `requestTimeoutUs`          | 10 s    | A request answered by `server.ack` or `server.error`. The card shows `failed (timeout)`.                                                                                                                                                      |
+| `snapshotRequestTimeoutUs`  | 10 s    | A `client.snapshot.request`                                                                                                                                                                                                                   |
+| `controlWriteTimeoutUs`     | 10 s    | One control-stream write (QUIC flow control). A write still blocked after it fails the session as `transport-error`, so the client reconnects instead of staying "connected" with every request timing out. At most 256 sends wait behind it. |
+| `mediaHeaderDeadlineUs`     | 5 s     | How long media stream headers may stay incomplete before the session closes                                                                                                                                                                   |
+| `mediaHeaderPollUs`         | 0.25 s  | How often that condition is checked. The check runs only while a header is pending or a channel is held, so an idle session sets no timer for it.                                                                                             |
+| `sessionCloseGraceUs`       | 0.25 s  | After a fatal transport error, how long to wait for the session’s own close                                                                                                                                                                   |
+| `ownPlacementResultGraceUs` | 5 s     | After an accepted placement commit, how long a placement update counts as this client’s own result (interim, see [Contract gaps](/docs/client/developer/interim-behaviour))                                                                   |
 
 `validateTiming` rejects zero or negative timeouts, a `maxDelayUs` below `initialDelayUs`, and a `jitter` outside 0 to 1.
 
