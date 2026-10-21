@@ -10,11 +10,11 @@ Once committed, every client draws that server's cloud there.
 
 1. **Take the setup lock.** Open the server's [setup workspace](/docs/client/setup-workspace)
    with **Set up** on its card.
-2. **Edit.** In the workspace's Placement section, change the pose with
+2. **Edit.** In the workspace's Placement section, select **Edit**, then change the pose with
    numeric fields or by dragging a 3D handle on the cloud. This only changes
    a local draft in your browser; nothing is sent yet. See
    [Place a server in the scene](/docs/client/placement-editing).
-3. **Commit.** Select **Commit placement**. Once the server accepts it, the
+3. **Commit.** Select **Commit**. Once the server accepts it, the
    placement's revision goes up by one and every connected client redraws
    the cloud at the new pose. See
    [Commit or discard the draft](/docs/client/placement-editing#commit-or-discard-the-draft).

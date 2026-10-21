@@ -132,12 +132,12 @@ Nothing is built from source. To build from source instead, see
     orbbec-streamer-preflight
     ```
 
-    **Expected result** on a ready machine, ending with `preflight: OK`:
+    **Expected result** on a ready machine, ending with `preflight: OK` (shortened: v0.1.4 also prints the `floor-*` lines below, `tensorrt-cuda-match` and one `udev-access:` line per camera):
 
     ```text
     PASS  nvidia-driver                driver 580.178.04 (minimum 580)
     PASS  gpu-compute-capability       NVIDIA GeForce RTX 4090 sm_89 (minimum sm_75)
-    PASS  driver-libraries             libcuda.so.1 and libnvidia-encode.so.1 (NVENC) present
+    PASS  driver-libraries             libcuda.so.1, libnvidia-ml.so.1 (NVML) and libnvidia-encode.so.1 (NVENC) present
     PASS  cuda-runtime                 libcudart.so.13 at /usr/local/cuda/targets/x86_64-linux/lib/libcudart.so.13 (cuda-cudart-13-4 13.4.92-1)
     PASS  tensorrt                     libnvinfer.so.11 and libnvonnxparser.so.11 present (libnvinfer11 11.3.0.99-1+cuda13.4)
     PASS  usb3:2-6                     Orbbec Femto Bolt 3D Camera (066b) negotiated 5000 Mbit/s
@@ -153,7 +153,7 @@ Nothing is built from source. To build from source instead, see
     above: `floor-gpu`, `floor-cpu` and `floor-ram`. Below it they print `WARN`,
     never `FAIL`, so the install goes ahead; the server may still run with
     fewer cameras. `floor-gpu` rates only GeForce GPUs (RTX 30-series xx60 or
-    newer, with at least 8 GB of memory); for other GPUs it reads `not
+    newer, with at least 8 GB of memory); for other GPUs it passes with `not
     classified`.
   </Step>
 
@@ -411,7 +411,8 @@ The steps are in `/usr/share/orbbec-streamer/lan/LAN-VIEWERS.md` on the
 server PC. In short:
 
 1. Copy the page server's drop-in, so it also serves the page over HTTPS
-   on port 8443:
+   on port 8443. The page server then listens on all network addresses on
+   port 8443, and its IP address allow-list is lifted:
 
    ```bash
    sudo mkdir -p /etc/systemd/system/orbbec-streamer-web.service.d
@@ -447,7 +448,10 @@ To turn it off, remove the drop-in, set `lan_viewers: false` and
 * `sudo apt remove orbbec-streamer` removes the programs and services and
   keeps your config, certificates and `/var/lib/orbbec-streamer`.
 * `sudo apt purge orbbec-streamer` also deletes `/etc/orbbec-streamer` and
-  `/var/lib/orbbec-streamer`, including the engine cache and calibration.
+  `/var/lib/orbbec-streamer`, including the engine cache and calibration,
+  and the local certificate authority with its private key. A later install
+  makes a new one, so every LAN viewer must trust it again; `remove` keeps
+  it.
 
 Both keep the `orbbec-streamer` user and group. The NVIDIA packages stay
 installed; `sudo apt autoremove` offers to remove them.
@@ -483,10 +487,10 @@ every file and what was masked.
 | `preflight` shows `FAIL  nvidia-driver` or `FAIL  driver-libraries`                                                                                       | No NVIDIA driver 580 or newer. Install it (for example `sudo apt install nvidia-open`), reboot, and run `orbbec-streamer-preflight` again.                                                                                                                                                                                                                                                                                                                                                                                 |
 | `preflight` shows `FAIL  cuda-runtime` or `FAIL  tensorrt`                                                                                                | NVIDIA's apt repository is missing. Add it (step 2), then run the `sudo apt install` command in the `fix:` line.                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `WARN  orbbec-cameras`                                                                                                                                    | No camera is connected. Connect it to a USB 3 port.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| The log repeats `No configured cameras are active` (up to poc.9)                                                                                          | No camera was found at start. The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`.                                                                                                                                                                                                                                                                                        |
+| The log repeats `No configured cameras are active`                                                                                                        | No camera was found when the cameras were opened (at service start only if `start_capture_on_launch: true`). The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`.                                                                                                                                                                                                         |
 | After an upgrade, the stats show `mask: failed` and the log shows an engine error, such as `Cannot open TensorRT engine: …`                               | You kept an edited `live.yaml` from poc.1 or poc.2, which names a fixed engine file. In the `mask:` section of `/etc/orbbec-streamer/live.yaml`, delete `rvm_engine_path` and set `rvm_onnx_path: "/usr/share/orbbec-streamer/models/rvm/rvm_mobilenetv3_b{batch}_640x576_ds0.5_float16.onnx"` and `rvm_engine_cache_dir: "/var/lib/orbbec-streamer/engines"`. Then run `sudo systemctl restart orbbec-streamer`; the first start builds the engine (3 to 4 minutes).                                                      |
 | The log shows `error while loading shared libraries: libcuda.so.1`                                                                                        | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| The Femto Bolt doesn't start; the log shows depth engine error 204                                                                                        | The service sandbox may block it. Run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save, then run `sudo systemctl restart orbbec-streamer`.                                                                                                                                                                                                                                                                                                                               |
+| The Femto Bolt doesn't start; the log shows depth engine error 204                                                                                        | The service can't use the GPU's render node. Check that `id orbbec-streamer` lists `render`; if not, run `sudo adduser orbbec-streamer render`, then `sudo systemctl restart orbbec-streamer`. Only if that doesn't help: run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save and restart. This turns off the service's device allow-list, so remove it again once the cause is found.                                                                                  |
 | The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                                           | The server isn't running. From poc.10 the install starts it, unless a kept `live.yaml` sets `start_capture_on_launch: true`; up to poc.9 it doesn't. Run `sudo systemctl start orbbec-streamer`. Otherwise, up to poc.9 the gateway starts only once a camera is active, and the first start may still be building the engine. From poc.9 the gateway starts with the service; if the page connects but shows **Cameras closed**, select **Start cameras** on the server's card. Check `journalctl -u orbbec-streamer -f`. |
 | The server stops once, about 4 minutes after the first start, and starts again within seconds                                                             | Known issue in poc.7, fixed in poc.8: the stop comes when the segmentation engine build finishes. systemd restarts the server; no action needed.                                                                                                                                                                                                                                                                                                                                                                           |
 | Several cameras: the page shows the server needs setup and no point cloud                                                                                 | The camera poses aren't calibrated. See [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses) (from poc.11) or [Camera pose calibration](/docs/server/camera-calibration).                                                                                                                                                                                                                                                                                                                               |

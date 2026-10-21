@@ -37,7 +37,7 @@ order; each one ends with what you should see.
     `orbbec-streamer-preflight`. The install starts the server with the
     cameras closed.
 
-    You should see `preflight: OK` at the end of the machine check. The first
+    You should see a last line starting `preflight: OK` at the end of the machine check. The first
     start builds the segmentation engine for your GPU, about 3 minutes, once.
     The cameras stay closed until you open them in the next steps.
     Until then the server's card reads **Cameras closed** and the Operator
@@ -230,8 +230,9 @@ order; each one ends with what you should see.
     the page server's drop-in, `lan_viewers: true` in `live.yaml`, the
     firewall ports, and the installation's certificate authority trusted once
     on each viewer. Then open `https://<server-hostname>.local:8443` on the
-    viewer. A LAN viewer never gets the operator role; the Operator Console
-    stays on the server PC.
+    viewer. A LAN viewer never gets the operator role: it can open the
+    Operator Console at `/operator` only as a viewer, which can still take the
+    setup lock and calibrate the depth range.
 
     You should see the same point cloud on the viewer as in the console's
     **Preview**.

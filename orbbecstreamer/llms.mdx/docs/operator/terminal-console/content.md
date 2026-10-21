@@ -127,12 +127,12 @@ service without an admin password. Replace `<user>` with the account name:
 sudo adduser <user> orbbec-operators
 ```
 
-Log out and in again for the group to apply. To take the right away again,
+Log out and in again for the group to apply. To remove the right again,
 run `sudo deluser <user> orbbec-operators`.
 
 The group covers only starting, stopping and restarting `orbbec-streamer`.
 Enabling or disabling it at boot, and any other service, still need an
-admin. Without the group, the console asks for an admin password, or shows
+admin. Without the group, the console never asks for a password; it shows
 the command to run instead: `sudo systemctl start orbbec-streamer`.
 
 ## Check the state from a script [#check-the-state-from-a-script]

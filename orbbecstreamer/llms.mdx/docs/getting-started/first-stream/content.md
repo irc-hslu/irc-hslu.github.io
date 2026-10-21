@@ -6,7 +6,7 @@
   Live video in the browser needs v0.1.0-poc.7 or later. With poc.6 and
   earlier, a browser gets the server's status and setup but no video; use
   the server's telemetry and debug recordings (below) to see your capture.
-  Up to v0.1.2 the team has checked the depth picture on a live scene once,
+  Up to v0.1.4 the team has checked the depth picture on a live scene once,
   on a development build in a dark room. It has not yet checked the colour
   picture or depth calibration on a live, lit scene on real hardware.
 </Callout>
