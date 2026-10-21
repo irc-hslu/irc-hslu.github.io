@@ -4639,13 +4639,11 @@ sensors and profiles read-only**. The banner says why:
 | This server is older than the console (protocol 1.0; the console needs 1.1 for operator access).                | Update the server, then reload the page.                                                                                                                                                                    |
 | Operator access was not granted after reconnecting.                                                             | A session that was an operator came back as a viewer. Open the console again on the server PC.                                                                                                              |
 
-<Callout type="warn">
-  **Port forwarding defeats the role check.** The server decides on the
-  connection's source address and the page's origin. A proxy on the server
-  PC, an `ssh -L` tunnel or any other port forward also looks like a
-  loopback connection. If you forward ports to the server PC, don't rely
-  on the operator role to keep remote users out.
-</Callout>
+> **Port forwarding defeats the role check.** The server decides on the
+> connection's source address and the page's origin. A proxy on the server
+> PC, an `ssh -L` tunnel or any other port forward also looks like a
+> loopback connection. If you forward ports to the server PC, don't rely
+> on the operator role to keep remote users out.
 
 An operator can also **Take over** the setup lock when another session
 holds it. See [Take over the setup lock](#take-over-the-setup-lock).
@@ -4873,11 +4871,9 @@ until it expires.`
 
 ## Change sensor settings and the stream profile [#change-sensor-settings-and-the-stream-profile]
 
-<Callout type="warn">
-  **Known issue in v0.1.2, v0.1.3 and v0.1.4:** with person segmentation on (the default), only
-  the 640×576 depth profiles are available. Other sizes need
-  `mask.backend: fill_all`, which turns segmentation off.
-</Callout>
+> **Known issue in v0.1.2, v0.1.3 and v0.1.4:** with person segmentation on (the default), only
+> the 640×576 depth profiles are available. Other sizes need
+> `mask.backend: fill_all`, which turns segmentation off.
 
 From poc.9, the left navigation lists three more screens. They are for
 [operator sessions](#the-operator-role); a viewer sees `Colour settings are
