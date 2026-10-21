@@ -19,11 +19,11 @@ The setup view replaces **Servers** and **World anchors**, and asks for the setu
 
 The 3D view also jumps once to frame this server’s cloud, keeping your viewing direction. The fit comes from the server’s camera positions (with its placement) and depth range, not from the points. If the server has no geometry yet, the view frames once when its first picture arrives. Any input on the 3D view (a click or drag, scrolling, or a key press), **Leave** or closing the view cancels that wait, and **Enter setup** doesn’t frame again.
 
-<img alt="The setup view for the Dev mock server: SET UP and the name with Leave; the Locked by you, Active and 15 s lock chips; Camera pose with its red TODO; Depth quantization with Start, Cancel and Commit; Network, Not available yet" src="__img0" />
+<img alt="The setup view for the Dev mock server: SET UP and the name with Leave; the Locked by you, Active and 15 s lock chips; Camera pose with its state and the Operator Console link; Depth quantization with Start, Cancel and Commit; Network, Not available yet" src="__img0" />
 
 * **Title**: **SET UP** and the server’s name, with **Leave**. After the session ends: **Back**, and **Enter setup** if the server is still connected.
 * **Chips**: the status (**Locked by you**), the session (**Acquiring…**, **Active**, **Leaving…** or **Ended**) and the lock countdown, which restarts at 15 s with each renewal every 5 s. Hover over a chip for its full sentence.
-* **Camera pose**: a red `TODO`; not in the client yet.
+* **Camera pose**: its state (for example `valid, revision 3`, with the server’s message if it sent one) and the link **Run camera-pose calibration in the Operator Console**, which opens `/operator/calibration/pose` in a new tab. The client does not calibrate poses itself. While a run is going, perhaps one started in the console, the step says **A camera-pose run is in progress in the Operator Console.**, and **Solved: awaiting commit, not in force until committed.** once it has solved. With the viewer role the link stays, and the note under it says camera-pose calibration `needs the operator role (open on the server machine)`; otherwise the note reads **Open it on the server machine.** See [the Operator Console](/docs/operator#calibrate-the-camera-poses) for the calibration itself.
 * **Depth quantization**: see [Calibrate depth](/docs/client/calibration).
 * **Floor**: shown only when the server offers it. See [Calibrate the floor](/docs/client/calibrate-floor).
 * **Network**: **Not available yet**.
