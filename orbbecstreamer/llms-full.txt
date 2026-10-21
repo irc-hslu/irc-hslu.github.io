@@ -167,6 +167,8 @@ Each notice ends with a **What to do** link to this section. The **i** button af
 
 If the GPU stops while you're watching and doesn't recover within 5 seconds, the same place shows **The GPU stopped responding and did not recover, so nothing is drawn. Reload the page to start the 3D view again.** After the reload the client runs its startup check again.
 
+With WebGL2 (also in a headset), the browser can refuse to give the graphics context back. After 5 seconds the same place then shows **The browser lost the graphics context and did not restore it, so nothing is drawn. Reload the page to start the 3D view again.** If it keeps happening, close other tabs that use 3D and restart the browser: Chrome blocks 3D for a page after repeated losses.
+
 To get WebGPU back:
 
 1. In Chrome or Edge, open `chrome://gpu` and check the **WebGPU** line.
