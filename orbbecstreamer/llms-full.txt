@@ -5631,32 +5631,34 @@ identify every corner, even when the board is only partly in view.
    ./build/dev-debug/orbbec_streamer --print-charuco-board board.png --live config/dev/live.yaml
    ```
 
-   This command does not open the cameras. Without `--live`, it uses the
-   built-in defaults, which are the same 7 × 5 board with 80 mm squares.
-   The default board looks like this:
+   This command does not open the cameras. It prints the board in your
+   config. Without `--live`, or when the config has no `calibration.board`
+   block, it uses the built-in default: 4 × 6 squares of 105 mm with 79 mm
+   markers (`DICT_4X4_50`). The examples below use that default, which looks
+   like this:
 
-   <img alt="Default ChArUco calibration board: 7 × 5 squares with ArUco markers" src="__img0" />
+   <img alt="Default ChArUco calibration board: 4 × 6 squares with ArUco markers" src="__img0" />
 
 2. Read the physical size from the log:
 
    ```text
-   [info] wrote ChArUco board board.png: 7x5 squares of 80.0 mm (DICT_5X5_100), printed board 560 x 400 mm; print at 100 % scale and check a square with a ruler
+   [info] wrote ChArUco board board.png: 4x6 squares of 105.0 mm (DICT_4X4_50), printed board 420 x 630 mm; print at 100 % scale and check a square with a ruler
    ```
 
 3. Print the board at that size. The image is drawn at 300 dpi with one
    white square of margin on every side. The default image is therefore
-   720 × 560 mm (8504 × 6614 pixels):
+   630 × 840 mm (7441 × 9921 pixels):
 
-   * The whole image needs A1 paper (841 × 594 mm).
-   * A2 (594 × 420 mm) fits only the 560 × 400 mm board, so crop the margin
+   * The whole image needs A0 paper (841 × 1189 mm).
+   * A1 (594 × 841 mm) fits only the 420 × 630 mm board, so crop the margin
      or print edge to edge.
    * The PNG carries no DPI information. Set the print size yourself so that
      the board, without the margin, measures the size in the log.
 
 4. For a smaller printer, shrink the squares in the config and go back to
-   step 1. For example, `square_length_m: 0.04` and `marker_length_m: 0.03`
-   give a 280 × 200 mm board (360 × 280 mm with margin), which fits A3
-   landscape. Hold a smaller board closer to the cameras: it is harder to
+   step 1. For example, `square_length_m: 0.045` and `marker_length_m: 0.034`
+   give a 180 × 270 mm board (270 × 360 mm with margin), which fits A3
+   portrait. Hold a smaller board closer to the cameras: it is harder to
    detect at the 640 × 576 depth resolution.
 
 5. Measure one printed square with a ruler. Put the measured size into
@@ -5715,8 +5717,8 @@ identify every corner, even when the board is only partly in view.
 While the run is going, a progress line appears every 5 seconds:
 
 ```text
-[info] local camera-pose calibration running: show the 7x5 ChArUco board (0.08 m squares, DICT_5X5_100) so that at least two cameras see it at once, and move it between views
-[info] camera-pose calibration run 1: 3/20 observations after 0 s; cam0=24 corners cam1=24 corners
+[info] local camera-pose calibration running: show the 4x6 ChArUco board (0.105 m squares, DICT_4X4_50) so that at least two cameras see it at once, and move it between views
+[info] camera-pose calibration run 1: 3/20 observations after 0 s; cam0=15 corners cam1=15 corners
 ```
 
 `cam1=no board` means that camera does not see the board in the current
@@ -5798,11 +5800,11 @@ All keys are in the `calibration` section of the live config
 | `camera_pose_path`      | `config/dev/camera-pose.json` | Saved calibration. Relative to the working directory. A missing file is not an error.                                                                                                                                                                                                            |
 | `placement_path`        | `config/dev/placement.json`   | Saved placement from client placement commits. Relative to the working directory. A missing file means the default placement.                                                                                                                                                                    |
 | `autocalibrate`         | `false`                       | When the pose is missing or stale: `true` lets a client with the setup lock start calibration on its own; `false` needs an operator. `true` is ignored (reported as `false`) when calibration cannot run, for example with an invalid `board.dictionary`. See [Startup states](#startup-states). |
-| `board.squares_x`       | `7`                           | Squares across. At least 2.                                                                                                                                                                                                                                                                      |
-| `board.squares_y`       | `5`                           | Squares down. At least 2.                                                                                                                                                                                                                                                                        |
-| `board.square_length_m` | `0.08`                        | Printed square size in metres.                                                                                                                                                                                                                                                                   |
-| `board.marker_length_m` | `0.06`                        | Printed marker size in metres; smaller than the square.                                                                                                                                                                                                                                          |
-| `board.dictionary`      | `DICT_5X5_100`                | OpenCV ArUco dictionary name.                                                                                                                                                                                                                                                                    |
+| `board.squares_x`       | `4`                           | Squares across. At least 2.                                                                                                                                                                                                                                                                      |
+| `board.squares_y`       | `6`                           | Squares down. At least 2.                                                                                                                                                                                                                                                                        |
+| `board.square_length_m` | `0.105`                       | Printed square size in metres.                                                                                                                                                                                                                                                                   |
+| `board.marker_length_m` | `0.079`                       | Printed marker size in metres; smaller than the square.                                                                                                                                                                                                                                          |
+| `board.dictionary`      | `DICT_4X4_50`                 | OpenCV ArUco dictionary name.                                                                                                                                                                                                                                                                    |
 
 ## Startup states [#startup-states]
 
@@ -5937,7 +5939,7 @@ The loader rejects unknown keys, bad values and inconsistent combinations before
 ./build/dev-debug/orbbec_streamer --print-charuco-board /tmp/board.png --live config/dev/live.yaml
 ```
 
-Expected: exit code 0 and `[info] wrote ChArUco board /tmp/board.png: 7x5 squares of 80.0 mm ...`. This check skips `mask.backend` and `processing.depth_filter_backend`, which are validated when the live pipeline starts.
+Expected: exit code 0 and `[info] wrote ChArUco board /tmp/board.png: 4x6 squares of 105.0 mm ...`. This check skips `mask.backend` and `processing.depth_filter_backend`, which are validated when the live pipeline starts.
 
 **Full start-up check.** Make every serial unmatchable, so the server validates everything, logs the effective settings and stops:
 
@@ -6215,10 +6217,10 @@ Camera-pose calibration with a printed ChArUco board; see [Camera pose calibrati
 | `camera_pose_path`                   | path      | `config/dev/camera-pose.json` | Saved poses. A missing file means "needs setup", not an error.                                                                                                                                                                                                                        |
 | `placement_path`                     | path      | `config/dev/placement.json`   | Persisted placement (where the server frame sits in the client anchor), saved on every placement commit before clients see it. A missing file means the default placement. Empty (`""`): placement is kept in memory only and resets at restart. Must differ from `camera_pose_path`. |
 | `autocalibrate`                      | bool      | `false`                       | With a missing or stale pose: `true` lets a client holding the setup lease start calibration; `false` needs an operator. Clients can only act on it when [`serving.enabled`](#serving) is `true`; the server forces it to `false` when no calibration engine is available.            |
-| `board.squares_x`, `board.squares_y` | integer   | `7`, `5`                      | Squares across and down, at least 2.                                                                                                                                                                                                                                                  |
-| `board.square_length_m`              | float (m) | `0.08`                        | Printed square size. Measure the print.                                                                                                                                                                                                                                               |
-| `board.marker_length_m`              | float (m) | `0.06`                        | Printed marker size, smaller than the square.                                                                                                                                                                                                                                         |
-| `board.dictionary`                   | string    | `DICT_5X5_100`                | OpenCV ArUco dictionary, checked when the board is built.                                                                                                                                                                                                                             |
+| `board.squares_x`, `board.squares_y` | integer   | `4`, `6`                      | Squares across and down, at least 2.                                                                                                                                                                                                                                                  |
+| `board.square_length_m`              | float (m) | `0.105`                       | Printed square size. Measure the print.                                                                                                                                                                                                                                               |
+| `board.marker_length_m`              | float (m) | `0.079`                       | Printed marker size, smaller than the square.                                                                                                                                                                                                                                         |
+| `board.dictionary`                   | string    | `DICT_4X4_50`                 | OpenCV ArUco dictionary, checked when the board is built.                                                                                                                                                                                                                             |
 
 The setup lease is fixed at 15 s (wire-format §11) and not configurable.
 
@@ -7959,33 +7961,33 @@ A protocol 1.0 session receives none of these.
 
 `server.sync.telemetry` goes to operator sessions once per second while the cameras run: one window of capture-side sync health, with the camera list in snapshot order. It is coalescable and replayed (the latest window) after a hello or snapshot. It is not sent while capture is not `running`. Nothing is added to the snapshot.
 
-| Field                                  | How the server fills it                                                                                                                                                                                                           |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `frameSets.completed`                  | Complete sets handed to the media path in the window                                                                                                                                                                              |
-| `frameSets.decimated`                  | Complete sets skipped on purpose because `encoding.stream_fps` is below the capture rate                                                                                                                                          |
-| `frameSets.dropped.batcher`            | Slots for which no set formed: the largest per-camera batcher discard count in the window                                                                                                                                         |
-| `frameSets.dropped.pipeline`           | Complete sets a full upload, processing or encode queue discarded                                                                                                                                                                 |
-| `frameSets.spreadUsP50`, `spreadUsMax` | Max minus min of the per-camera capture timestamps of the completed sets (nearest-rank median and maximum, 0 for no sets)                                                                                                         |
-| `toleranceUs`                          | `sync.timestamp_tolerance_us`, the matching tolerance applied after the batcher's per-camera offset correction                                                                                                                    |
-| `cameras[].timestampOffsetUs`          | The camera's median timestamp minus the set's reference timestamp. The reference is the latest camera of the set, so it is 0 or negative. `null` with no completed set                                                            |
-| `cameras[].offsetJitterUs`             | The p95 of the absolute deviation from that median; `null` with the offset                                                                                                                                                        |
-| `cameras[].framesReceived`             | Frame sets the rig accepted from the camera                                                                                                                                                                                       |
-| `cameras[].framesDropped.capture`      | Gaps in the camera's own frame counter (jumps of more than 10 are counter discontinuities and are not counted), plus sets rejected on receipt (no valid timestamp, a failed alignment, a timestamp that went backwards or jumped) |
-| `cameras[].framesDropped.batcher`      | Sets of this camera the batcher discarded: late, unmatched, over the pending limit, duplicate                                                                                                                                     |
-| `cameras[].syncRole`                   | The hardware role the server set: `standalone` when `sync.enabled` is `false`, else `primary` or `secondary` from the camera's `role`. Read only                                                                                  |
-| `cameras[].syncSignal`                 | Always `null`: the SDK does not report the sync input                                                                                                                                                                             |
+| Field                                  | How the server fills it                                                                                                                                                                                                               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frameSets.completed`                  | Complete sets handed to the media path in the window                                                                                                                                                                                  |
+| `frameSets.decimated`                  | Complete sets skipped on purpose because `encoding.stream_fps` is below the capture rate                                                                                                                                              |
+| `frameSets.dropped.batcher`            | Slots for which no set formed: the largest per-camera batcher discard count in the window                                                                                                                                             |
+| `frameSets.dropped.pipeline`           | Complete sets a full upload, processing or encode queue discarded                                                                                                                                                                     |
+| `frameSets.spreadUsP50`, `spreadUsMax` | Max minus min of the per-camera capture timestamps of the completed sets (nearest-rank median and maximum, 0 for no sets)                                                                                                             |
+| `toleranceUs`                          | `sync.timestamp_tolerance_us`, the matching tolerance applied after the batcher's per-camera offset correction                                                                                                                        |
+| `cameras[].timestampOffsetUs`          | The camera's median timestamp minus the set's reference timestamp. The reference is the latest camera of the set, so it is 0 or negative. `null` with no completed set                                                                |
+| `cameras[].offsetJitterUs`             | The p95 of the absolute deviation from that median; `null` with the offset                                                                                                                                                            |
+| `cameras[].framesReceived`             | Frame sets the rig accepted from the camera                                                                                                                                                                                           |
+| `cameras[].framesDropped.capture`      | Gaps in the camera's own frame counter (jumps of more than 10 are counter discontinuities and are not counted), plus sets rejected on receipt (no valid timestamp, a failed alignment, a timestamp that went backwards or jumped)     |
+| `cameras[].framesDropped.batcher`      | Sets of this camera the batcher discarded: late, unmatched, over the pending limit, duplicate. This includes sets left without a partner because another camera skipped the slot; the verdict does not hold those against this camera |
+| `cameras[].syncRole`                   | The hardware role the server set: `standalone` when `sync.enabled` is `false`, else `primary` or `secondary` from the camera's `role`. Read only                                                                                      |
+| `cameras[].syncSignal`                 | Always `null`: the SDK does not report the sync input                                                                                                                                                                                 |
 
 ### The verdict [#the-verdict]
 
 `status` is the server's verdict; the numbers beside it are raw, and a client never recomputes it.
 
-| `status`   | When                                                                                                                      |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `lost`     | The camera delivered no frame set in the window (no frame for about a second or more)                                     |
-| `degraded` | 3 or more discarded or lost frames (capture plus batcher) in the last 10 windows, or an offset jitter above `toleranceUs` |
-| `ok`       | Otherwise                                                                                                                 |
+| `status`   | When                                                                                                                                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lost`     | The camera delivered no frame set in the window (no frame for about a second or more)                                                                                                                |
+| `degraded` | The camera's own drops (capture plus batcher) are more than 1 % of the sets expected over the last 30 windows, or 3 or more fall in the last 10 windows, or the offset jitter is above `toleranceUs` |
+| `ok`       | Otherwise                                                                                                                                                                                            |
 
-A Femto Bolt colour sensor runs about 0.25 % slower than its depth sensor, so at 15 fps each camera drops about one slot every 20 to 30 seconds (see [Running the pipeline](../running)). That is 0 or 1 drops in ten windows and stays `ok`. A burst, or a drop rate three times the normal one, is `degraded`. A rig with every camera `standalone` (`sync.enabled: false`) is a valid configuration, not a fault.
+A Femto Bolt colour sensor runs about 0.25 % slower than its depth sensor, so at 15 fps each camera drops about one slot every 20 to 30 seconds (see [Running the pipeline](../running)). When a camera skips a slot, the batcher also discards the other cameras' sets for that slot. The verdict counts that slot once, on the camera that skipped it (a gap in its own frame counter); the other cameras' discarded sets show in `framesDropped.batcher` but are not held against them, up to the slots the other cameras actually skipped. A camera whose own timestamps leave the tolerance has discards with no skipped slot behind them, and those count in full. The normal rate is 0 or 1 own drops in ten windows and stays `ok`. A burst of 3 in ten seconds, or a sustained rate above 1 %, is `degraded`. The 1 % rule starts once 30 windows exist, so the first 30 seconds are judged by the burst rule alone. A rig with every camera `standalone` (`sync.enabled: false`) is a valid configuration, not a fault.
 
 ## Camera-pose data [#camera-pose-data]
 

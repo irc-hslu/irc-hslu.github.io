@@ -46,32 +46,34 @@ identify every corner, even when the board is only partly in view.
    ./build/dev-debug/orbbec_streamer --print-charuco-board board.png --live config/dev/live.yaml
    ```
 
-   This command does not open the cameras. Without `--live`, it uses the
-   built-in defaults, which are the same 7 × 5 board with 80 mm squares.
-   The default board looks like this:
+   This command does not open the cameras. It prints the board in your
+   config. Without `--live`, or when the config has no `calibration.board`
+   block, it uses the built-in default: 4 × 6 squares of 105 mm with 79 mm
+   markers (`DICT_4X4_50`). The examples below use that default, which looks
+   like this:
 
-   <img alt="Default ChArUco calibration board: 7 × 5 squares with ArUco markers" src="__img0" />
+   <img alt="Default ChArUco calibration board: 4 × 6 squares with ArUco markers" src="__img0" />
 
 2. Read the physical size from the log:
 
    ```text
-   [info] wrote ChArUco board board.png: 7x5 squares of 80.0 mm (DICT_5X5_100), printed board 560 x 400 mm; print at 100 % scale and check a square with a ruler
+   [info] wrote ChArUco board board.png: 4x6 squares of 105.0 mm (DICT_4X4_50), printed board 420 x 630 mm; print at 100 % scale and check a square with a ruler
    ```
 
 3. Print the board at that size. The image is drawn at 300 dpi with one
    white square of margin on every side. The default image is therefore
-   720 × 560 mm (8504 × 6614 pixels):
+   630 × 840 mm (7441 × 9921 pixels):
 
-   * The whole image needs A1 paper (841 × 594 mm).
-   * A2 (594 × 420 mm) fits only the 560 × 400 mm board, so crop the margin
+   * The whole image needs A0 paper (841 × 1189 mm).
+   * A1 (594 × 841 mm) fits only the 420 × 630 mm board, so crop the margin
      or print edge to edge.
    * The PNG carries no DPI information. Set the print size yourself so that
      the board, without the margin, measures the size in the log.
 
 4. For a smaller printer, shrink the squares in the config and go back to
-   step 1. For example, `square_length_m: 0.04` and `marker_length_m: 0.03`
-   give a 280 × 200 mm board (360 × 280 mm with margin), which fits A3
-   landscape. Hold a smaller board closer to the cameras: it is harder to
+   step 1. For example, `square_length_m: 0.045` and `marker_length_m: 0.034`
+   give a 180 × 270 mm board (270 × 360 mm with margin), which fits A3
+   portrait. Hold a smaller board closer to the cameras: it is harder to
    detect at the 640 × 576 depth resolution.
 
 5. Measure one printed square with a ruler. Put the measured size into
@@ -130,8 +132,8 @@ identify every corner, even when the board is only partly in view.
 While the run is going, a progress line appears every 5 seconds:
 
 ```text
-[info] local camera-pose calibration running: show the 7x5 ChArUco board (0.08 m squares, DICT_5X5_100) so that at least two cameras see it at once, and move it between views
-[info] camera-pose calibration run 1: 3/20 observations after 0 s; cam0=24 corners cam1=24 corners
+[info] local camera-pose calibration running: show the 4x6 ChArUco board (0.105 m squares, DICT_4X4_50) so that at least two cameras see it at once, and move it between views
+[info] camera-pose calibration run 1: 3/20 observations after 0 s; cam0=15 corners cam1=15 corners
 ```
 
 `cam1=no board` means that camera does not see the board in the current
@@ -213,11 +215,11 @@ All keys are in the `calibration` section of the live config
 | `camera_pose_path`      | `config/dev/camera-pose.json` | Saved calibration. Relative to the working directory. A missing file is not an error.                                                                                                                                                                                                            |
 | `placement_path`        | `config/dev/placement.json`   | Saved placement from client placement commits. Relative to the working directory. A missing file means the default placement.                                                                                                                                                                    |
 | `autocalibrate`         | `false`                       | When the pose is missing or stale: `true` lets a client with the setup lock start calibration on its own; `false` needs an operator. `true` is ignored (reported as `false`) when calibration cannot run, for example with an invalid `board.dictionary`. See [Startup states](#startup-states). |
-| `board.squares_x`       | `7`                           | Squares across. At least 2.                                                                                                                                                                                                                                                                      |
-| `board.squares_y`       | `5`                           | Squares down. At least 2.                                                                                                                                                                                                                                                                        |
-| `board.square_length_m` | `0.08`                        | Printed square size in metres.                                                                                                                                                                                                                                                                   |
-| `board.marker_length_m` | `0.06`                        | Printed marker size in metres; smaller than the square.                                                                                                                                                                                                                                          |
-| `board.dictionary`      | `DICT_5X5_100`                | OpenCV ArUco dictionary name.                                                                                                                                                                                                                                                                    |
+| `board.squares_x`       | `4`                           | Squares across. At least 2.                                                                                                                                                                                                                                                                      |
+| `board.squares_y`       | `6`                           | Squares down. At least 2.                                                                                                                                                                                                                                                                        |
+| `board.square_length_m` | `0.105`                       | Printed square size in metres.                                                                                                                                                                                                                                                                   |
+| `board.marker_length_m` | `0.079`                       | Printed marker size in metres; smaller than the square.                                                                                                                                                                                                                                          |
+| `board.dictionary`      | `DICT_4X4_50`                 | OpenCV ArUco dictionary name.                                                                                                                                                                                                                                                                    |
 
 ## Startup states [#startup-states]
 
