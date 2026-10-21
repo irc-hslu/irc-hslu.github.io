@@ -18,8 +18,9 @@ only status and start/stop work; use the browser
   console gets an authentication token, any local user or process on the
   server PC can take the same control: the setup lock, depth-range
   calibration and commits. Give accounts on the server PC only to people who
-  may operate it. From v0.1.0-poc.9, the terminal console never gets the
-  [operator role](/docs/operator#the-operator-role); see
+  may operate it. From v0.1.6 the terminal console asks for the
+  [operator role](/docs/operator#the-operator-role) and gets it on the
+  server PC; from v0.1.0-poc.9 to v0.1.5 it never got it. See
   [What the terminal console can't do](#what-the-terminal-console-cant-do).
 </Callout>
 
@@ -88,11 +89,21 @@ server; the console retries by itself.
 ## What the terminal console can't do [#what-the-terminal-console-cant-do]
 
 From v0.1.0-poc.9, the server separates a viewer role from an operator
-role (see [The operator role](/docs/operator#the-operator-role)). The
-server gives the operator role only to a browser page on one of its
-configured console origins. `orbbec-console` sends no `Origin`, so it
-never gets the role, until a later change adds an authentication token. It
-is a viewer.
+role (see [The operator role](/docs/operator#the-operator-role)).
+
+From v0.1.6 `orbbec-console` asks for the operator role. The server gives
+it when the console runs on the server PC and `serving.allow_missing_origin`
+is `true`, as the package sets it. The header shows its role after the
+server line: **Role: Operator** or **Role: Viewer (no setup lock)**. From
+v0.1.6 only an operator can take the setup lock and calibrate the depth
+range. As a viewer, `l` and `calibrate` don't try; they print `The setup
+lock needs the operator role: run this console on the server machine; the
+server must allow connections without Origin (serving.allow_missing_origin).`
+and `calibrate` exits with code `9`.
+
+From v0.1.0-poc.9 to v0.1.5, `orbbec-console` sends no `Origin`, so it never
+gets the role. It is a viewer, but a viewer could still take the plain
+setup lock and calibrate the depth range.
 
 | It can                                                           | It can't                                                              |
 | ---------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -170,15 +181,16 @@ Without `--commit`, the run
 stops at a solved result without committing it. `--timeout 120s` sets how
 long to wait. `Ctrl+C` cancels the run and releases the setup lock.
 
-| Exit code | Meaning                                                    |
-| --------- | ---------------------------------------------------------- |
-| `0`       | Committed, or solved and ready to commit                   |
-| `3`       | The server can't be reached, or is at its session limit    |
-| `4`       | The calibration failed                                     |
-| `5`       | The setup lock isn't available                             |
-| `6`       | The server refused the command; the reason code is printed |
-| `7`       | The server refused the console                             |
-| `130`     | Interrupted                                                |
+| Exit code | Meaning                                                                        |
+| --------- | ------------------------------------------------------------------------------ |
+| `0`       | Committed, or solved and ready to commit                                       |
+| `3`       | The server can't be reached, or is at its session limit                        |
+| `4`       | The calibration failed                                                         |
+| `5`       | The setup lock isn't available                                                 |
+| `6`       | The server refused the command; the reason code is printed                     |
+| `7`       | The server refused the console                                                 |
+| `9`       | From v0.1.6: the setup lock needs the operator role (this console is a viewer) |
+| `130`     | Interrupted                                                                    |
 
 ## Try it without hardware [#try-it-without-hardware]
 

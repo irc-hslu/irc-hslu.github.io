@@ -79,7 +79,8 @@ identify every corner, even when the board is only partly in view.
 5. Measure one printed square with a ruler. Put the measured size into
    `calibration.board.square_length_m`, and scale `marker_length_m` by the
    same factor. A wrong size does not stop detection, but every distance
-   between cameras comes out scaled by the error.
+   between cameras comes out scaled by the error. You can also set the
+   measured board from the console; see [The board](#the-board).
 
 6. Mount the print on something flat and rigid. A bent board makes the
    cameras disagree.
@@ -102,16 +103,43 @@ identify every corner, even when the board is only partly in view.
 
 3. Walk the board through the capture area:
 
-   * Keep the board in view of at least two cameras at the same moment.
-   * Move or tilt it between views. A view counts only if the board moved at
-     least 2 cm or turned at least 3° since the last accepted view.
-   * Tilt it rather than holding it face-on to a camera. The server rejects
-     views where the board's pose is ambiguous.
+   * Keep the board in view of at least two cameras at the same moment. A
+     view needs only two cameras, not all of them; every camera must end up
+     linked to the reference camera through such pairs.
+   * Hold the board still for about a third of a second. The server captures
+     the view by itself, then waits until you have moved the board by at
+     least 2 cm or turned it by 3° before it captures again.
+   * Vary the distance, the tilt and the place in the image. The server sorts
+     each view into a pose bin per camera (distance, tilt and image region)
+     and keeps at most two views per bin, so repeating the same pose does
+     not count. Tilt the board 15° to 45° instead of holding it face-on.
    * Every camera needs at least 5 consistent views shared with a camera
      that is already placed. A camera that never sees the board together
      with the reference camera is placed through other cameras.
 
    The run needs 20 accepted views and gives up after 120 seconds.
+
+   With `calibration.native_colour: true` (the default) the board is detected
+   in the camera's own 1280x720 colour image, with the colour lens model, and
+   the pose is moved to the depth camera with the extrinsic stored in the
+   camera. This is the change that makes the run solve: in the simulated
+   sessions below, detecting in the colour image resampled into the depth
+   image never gave two consistent cameras, while the native image did with
+   the old view rule. The new view rules (pose bins, still capture) add
+   diversity and the stall reasons, and they are used only with native colour;
+   on the aligned image (no colour calibration, an unsupported lens) the
+   server keeps the previous rule. Depth still helps: where a face-on board could be read two
+   ways, the depth at the centre of each square decides.
+
+   When no view has been kept for 4 seconds, the server log says why
+   (`no view kept for ... ms (poses-not-new): ...`): no camera sees the
+   board, only some cameras see it, a camera has not seen it together with
+   the others, views are rejected as blurred, too small, partly outside the
+   colour image or with holes in the depth, the poses are already covered
+   (with the empty pose bins), the board never stays still, or the solve
+   disagrees between cameras. Browser consoles do not receive these reasons
+   until the wire change that carries them is accepted; they see the nearest
+   existing reason instead.
 
    A browser console follows the same run through
    `server.calibration.progress`: the detected corners in each camera's tile,
@@ -126,6 +154,31 @@ identify every corner, even when the board is only partly in view.
 
 5. Stop the server with Ctrl+C. If you press Ctrl+C before the result is
    saved, the previous calibration file stays untouched.
+
+## Simulated acceptance test [#simulated-acceptance-test]
+
+The repository can check the whole chain without a printed board: a test
+renders the real board (4 x 6 squares, 105 mm, markers 79 mm,
+`DICT_4X4_50`) at known poses into synthetic frames of two Femto Bolt
+cameras, with their colour lens and depth-to-colour extrinsic, noise, blur,
+tilt, partial occlusion and partial overlap. It runs detection, view
+gathering and the joint solve, and compares the result with the poses it
+rendered. Every number from it is **simulated**: it says nothing about a lit
+rig session with a real board.
+
+```bash
+cd server
+ctest --test-dir build/dev-debug -L simulated --output-on-failure
+# or
+cmake --build build/dev-debug --target simulated_calibration
+```
+
+The test passes when the rotation is within 0.3°, the translation within
+5 mm and the board fit within 0.5 px RMS of the truth. The simulated cameras
+have a factory depth-to-colour error of about 1 mm and 0.1° that the server
+does not know (the SDK reports the unperturbed values). In the last run the
+second camera came out 0.19° to 0.22° and 2.1 to 2.7 mm from the truth over
+three different sessions, with 0.07 to 0.12 px per view (all simulated).
 
 ## Expected result [#expected-result]
 
@@ -219,16 +272,98 @@ or a non-rigid matrix makes the whole calibration stale.
 All keys are in the `calibration` section of the live config
 (`config/dev/live.yaml`). `streams.alignment` must be `color_to_depth`.
 
-| Key                     | Default                       | Meaning                                                                                                                                                                                                                                                                                          |
-| ----------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `camera_pose_path`      | `config/dev/camera-pose.json` | Saved calibration. Relative to the working directory. A missing file is not an error.                                                                                                                                                                                                            |
-| `placement_path`        | `config/dev/placement.json`   | Saved placement from client placement commits. Relative to the working directory. A missing file means the default placement.                                                                                                                                                                    |
-| `autocalibrate`         | `false`                       | When the pose is missing or stale: `true` lets a client with the setup lock start calibration on its own; `false` needs an operator. `true` is ignored (reported as `false`) when calibration cannot run, for example with an invalid `board.dictionary`. See [Startup states](#startup-states). |
-| `board.squares_x`       | `4`                           | Squares across. At least 2.                                                                                                                                                                                                                                                                      |
-| `board.squares_y`       | `6`                           | Squares down. At least 2.                                                                                                                                                                                                                                                                        |
-| `board.square_length_m` | `0.105`                       | Printed square size in metres.                                                                                                                                                                                                                                                                   |
-| `board.marker_length_m` | `0.079`                       | Printed marker size in metres; smaller than the square.                                                                                                                                                                                                                                          |
-| `board.dictionary`      | `DICT_4X4_50`                 | OpenCV ArUco dictionary name.                                                                                                                                                                                                                                                                    |
+| Key                        | Default                                  | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `camera_pose_path`         | `config/dev/camera-pose.json`            | Saved calibration. Relative to the working directory. A missing file is not an error.                                                                                                                                                                                                                                                                                                                                                            |
+| `placement_path`           | `config/dev/placement.json`              | Saved placement from client placement commits. Relative to the working directory. A missing file means the default placement.                                                                                                                                                                                                                                                                                                                    |
+| `autocalibrate`            | `false`                                  | When the pose is missing or stale: `true` lets a client with the setup lock start calibration on its own; `false` needs an operator. `true` is ignored (reported as `false`) when calibration cannot run, for example without colour aligned to depth. A board in the config that breaks a rule does not stop calibration: the server uses the default board and shows why (see [The board](#the-board)). See [Startup states](#startup-states). |
+| `native_colour`            | `true`                                   | Detect the board in the native colour image instead of the colour aligned to depth. Needs `streams.alignment: color_to_depth` and a camera that reports its colour calibration; a camera without one is detected on the aligned image. The SDK's colour frame is kept with each batch only while a camera-pose run is active.                                                                                                                    |
+| `detector_threads`         | `0`                                      | Threads that detect the board in the cameras of one batch at the same time. `0` is the smaller of the camera count, half the hardware threads and 8. About three suffice for 8 cameras at 15 Hz. At most 64.                                                                                                                                                                                                                                     |
+| `board_state_path`         | next to `camera_pose_path`, `board.json` | Where the board set by an operator, and the board revision, are kept. See [The board](#the-board).                                                                                                                                                                                                                                                                                                                                               |
+| `board.id`                 | `default`                                | Name of the board: 1 to 64 characters of `a-z`, `0-9` and `-`. It stays when you edit the board.                                                                                                                                                                                                                                                                                                                                                 |
+| `board.squares_x`          | `4`                                      | Squares across. 2 to 64.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `board.squares_y`          | `6`                                      | Squares down. 2 to 64.                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `board.square_length_m`    | `0.105`                                  | Printed square size in metres. At most 2.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `board.marker_length_m`    | `0.079`                                  | Printed marker size in metres; smaller than the square.                                                                                                                                                                                                                                                                                                                                                                                          |
+| `board.dictionary`         | `DICT_4X4_50`                            | OpenCV ArUco dictionary name. The board needs one marker per white square, so the dictionary must have at least that many codes.                                                                                                                                                                                                                                                                                                                 |
+| `board.top_left_square`    | `black`                                  | Colour of the top-left square. `white` is OpenCV's older layout of an even-row board and needs an even `squares_y`.                                                                                                                                                                                                                                                                                                                              |
+| `board.marker_ids`         | `0..n-1`                                 | A list with exactly one id per marker, for a board printed with other ids, for example `[20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]`.                                                                                                                                                                                                                                                                                                       |
+| `board.marker_border_bits` | `1`                                      | Width of the black marker border, 1 to 4.                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+A board is valid when all of these hold. The server checks them at start,
+at a reload and for a board set from the console, and says which rule failed.
+
+* Both square counts are 2 to 64, and there are at most 1024 inner corners
+  (`(squares_x - 1) × (squares_y - 1)`).
+* The marker is smaller than the square, and both are at most 2 m.
+* The number of markers (the white squares) is at most the number of codes of
+  the dictionary, and every id in `marker_ids` is below it.
+* `top_left_square: white` needs an even `squares_y`.
+
+### The board [#the-board]
+
+Three places can name the board. The first that exists wins.
+
+1. **A board set from the console.** An operator with the setup lock sets it
+   in the console. The server saves it in its state directory (for the
+   package, `/var/lib/orbbec-streamer/calibration/board.json`), never in the
+   configuration, and keeps it across restarts.
+2. **The `calibration.board` section of the config.**
+3. **The built-in default**: the 4 × 6 board with 105 mm squares, 79 mm
+   markers and `DICT_4X4_50`, black top-left square, ids 0 to 11.
+
+Clearing the console board makes the config board (or the default) active
+again.
+
+If the config board breaks a rule **when the server starts**, the server does
+not stop: it uses the default board, logs a warning and shows the reason to
+the console as a board error. Fix the config and reload. The only board type
+is `charuco`; another `board.type` is reported as unsupported. For a dev
+config the board file sits next to `camera-pose.json` (`config/dev/board.json`,
+ignored by git).
+
+Every change of the active board raises the **board revision** by 1. The
+revision is also kept in `board.json`, so it never goes back after a restart.
+The console shows the board and its revision, and live detections name the
+board they were computed against. A change of the board moves the metadata
+revision by 1 and nothing else: the calibration, the placement and the
+streams are untouched, and a saved pose stays valid, because it describes the
+cameras and not the board.
+
+**While a calibration run is going the board does not change.** A board set
+from the console, or a config reload, is saved at once but applied when the
+run ends (commit, failure, cancel or lock loss). The run uses the board it
+started with; the next run uses the new one. If you set several boards during
+a run, the last one is applied.
+
+### Reload the board without a restart [#reload-the-board-without-a-restart]
+
+Edit `calibration.board` in the config, then send the server a hang-up
+signal:
+
+```bash
+sudo systemctl reload orbbec-streamer
+```
+
+The server reads the board again (nothing else in the file is applied). If the
+board is valid and no board was set from the console, it becomes active at the
+next moment no run is going. If a board set from the console exists, the
+config board is stored and shows when you clear the console board.
+
+If the new board breaks a rule, or the file cannot be read, the server keeps
+the board that is active now (never the default), logs the full reason, and
+shows a short reason to the console as a board error until the next valid
+reload. The short reason never contains the path of the config. A reload never fails a run and never stops the server.
+
+### Set the board from the console [#set-the-board-from-the-console]
+
+The console sends `client.calibration.board.set` under the setup lock. It
+needs the operator role. The server refuses a board that breaks a rule above
+(`board-invalid`), one it cannot detect, such as a dictionary it does not
+know (`board-unsupported`), and a board it could not save
+(`board-persist-failed`). In every refusal nothing changes. Clients that do
+not take part in the `board-set` feature of the protocol keep seeing the board
+as before, without the name, revision and artwork fields.
 
 ## Startup states [#startup-states]
 
@@ -296,23 +431,23 @@ the previous calibration and its revision unchanged.
 
 ## Troubleshooting [#troubleshooting]
 
-| Message or symptom                                                                                                                                           | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--calibrate-camera-pose requires --live <config.yaml>`                                                                                                      | Add `--live config/dev/live.yaml`.                                                                                                                                                                                                                                                                                                                                                                                |
-| `--print-charuco-board only writes the board; run --calibrate-camera-pose separately`                                                                        | Run the two commands one after the other.                                                                                                                                                                                                                                                                                                                                                                         |
-| `calibration.board needs squares_x, squares_y >= 2, 0 < marker_length_m < square_length_m (metres) and a dictionary name`                                    | Fix the `calibration.board` values.                                                                                                                                                                                                                                                                                                                                                                               |
-| `--calibrate-camera-pose requires streams.alignment: color_to_depth`                                                                                         | Set `streams.alignment: color_to_depth`. Other alignments give no depth-camera pose.                                                                                                                                                                                                                                                                                                                              |
-| `setup state not built: client-facing setup requires streams.alignment=color_to_depth`                                                                       | Same cause, on a normal `--live` run: no calibration state is built.                                                                                                                                                                                                                                                                                                                                              |
-| Progress shows `camX=no board`                                                                                                                               | The board is too small or too far away, there is glare, the light is too low, or `board.dictionary` or the square counts do not match the print. Move closer, avoid reflections and check the config.                                                                                                                                                                                                             |
-| Corners detected but observations do not increase                                                                                                            | A view is rejected when fewer than 8 corners are found, when the fitted pose is more than 2 px off on average (RMS reprojection error), or when the pose is ambiguous (small, distant or face-on board). Hold the board closer and tilted, keep it still for a moment to avoid motion blur, and make sure it is flat. Views also need two cameras at once and at least 2 cm or 3° of movement since the last one. |
-| `camera-pose calibration timed out after 120000 ms: accepted N of 20 observations`                                                                           | Not enough usable views in two minutes. Start the command again and keep the board in two cameras' views while you move it.                                                                                                                                                                                                                                                                                       |
-| `... cameras cam1 did not see the board together with a calibrated camera in at least 5 consistent observations; inconsistent pairs: cam0-cam1 (... mm RMS)` | The shared views of that camera pair disagree by more than 15 mm RMS. Common causes: a bent board, a board moving during capture, or cameras that are not in hardware sync. Check `sync` in the config and hold the board still in each position.                                                                                                                                                                 |
-| A failed run in console mode                                                                                                                                 | The server logs `camera-pose calibration run 1 failed: ...` and keeps running without a new calibration. Stop it with Ctrl+C and start the command again.                                                                                                                                                                                                                                                         |
-| `camera_pose_calibration=stale (... serial changed from A to B)`                                                                                             | A camera was swapped. Recalibrate.                                                                                                                                                                                                                                                                                                                                                                                |
-| `camera_pose_calibration=stale (... depth geometry changed from 640x576 to ...)`                                                                             | The `streams.depth` resolution changed. Recalibrate, or restore the resolution.                                                                                                                                                                                                                                                                                                                                   |
-| `camera_pose_calibration=stale (camera cam2 is not calibrated)`                                                                                              | A camera was added, or a camera `id` was renamed. Recalibrate.                                                                                                                                                                                                                                                                                                                                                    |
-| Distances between cameras are off by a constant factor                                                                                                       | `board.square_length_m` does not match the printed square. Measure it and recalibrate.                                                                                                                                                                                                                                                                                                                            |
-| `config/dev/camera-pose.json` appears in `git status`                                                                                                        | `server/.gitignore` ignores `config/*/camera-pose.json`, so the file shows up only if someone committed it. It belongs to one physical rig. To stop tracking it, run `git rm --cached config/dev/camera-pose.json`. To commit a new version on purpose, run `git add -f config/dev/camera-pose.json`.                                                                                                             |
+| Message or symptom                                                                                                                                           | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--calibrate-camera-pose requires --live <config.yaml>`                                                                                                      | Add `--live config/dev/live.yaml`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `--print-charuco-board only writes the board; run --calibrate-camera-pose separately`                                                                        | Run the two commands one after the other.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `calibration.board needs squares_x, squares_y >= 2, 0 < marker_length_m < square_length_m (metres) and a dictionary name`                                    | Fix the `calibration.board` values.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `--calibrate-camera-pose requires streams.alignment: color_to_depth`                                                                                         | Set `streams.alignment: color_to_depth`. Other alignments give no depth-camera pose.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `setup state not built: client-facing setup requires streams.alignment=color_to_depth`                                                                       | Same cause, on a normal `--live` run: no calibration state is built.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Progress shows `camX=no board`                                                                                                                               | The board is too small or too far away, there is glare, the light is too low, or `board.dictionary` or the square counts do not match the print. Move closer, avoid reflections and check the config.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Corners detected but observations do not increase                                                                                                            | The log line `no view kept for ... ms` names the reason. A view is rejected when fewer than 8 corners are found, when the fitted pose is more than 2 px off on average (RMS reprojection error), when the board is blurred, smaller than 20 px per marker, partly outside the colour image, or has little valid depth, or when the pose is ambiguous. Hold the board closer and tilted, keep it still for a third of a second, and make sure it is flat. Views also need two cameras at once, and each pose bin of a camera takes at most two views: move to a new distance, tilt or part of the image. |
+| `camera-pose calibration timed out after 120000 ms: accepted N of 20 observations`                                                                           | Not enough usable views in two minutes. Start the command again and keep the board in two cameras' views while you move it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `... cameras cam1 did not see the board together with a calibrated camera in at least 5 consistent observations; inconsistent pairs: cam0-cam1 (... mm RMS)` | The shared views of that camera pair disagree by more than 15 mm RMS. Common causes: a bent board, a board moving during capture, or cameras that are not in hardware sync. Check `sync` in the config and hold the board still in each position.                                                                                                                                                                                                                                                                                                                                                       |
+| A failed run in console mode                                                                                                                                 | The server logs `camera-pose calibration run 1 failed: ...` and keeps running without a new calibration. Stop it with Ctrl+C and start the command again.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `camera_pose_calibration=stale (... serial changed from A to B)`                                                                                             | A camera was swapped. Recalibrate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `camera_pose_calibration=stale (... depth geometry changed from 640x576 to ...)`                                                                             | The `streams.depth` resolution changed. Recalibrate, or restore the resolution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `camera_pose_calibration=stale (camera cam2 is not calibrated)`                                                                                              | A camera was added, or a camera `id` was renamed. Recalibrate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Distances between cameras are off by a constant factor                                                                                                       | `board.square_length_m` does not match the printed square. Measure it and recalibrate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `config/dev/camera-pose.json` appears in `git status`                                                                                                        | `server/.gitignore` ignores `config/*/camera-pose.json`, so the file shows up only if someone committed it. It belongs to one physical rig. To stop tracking it, run `git rm --cached config/dev/camera-pose.json`. To commit a new version on purpose, run `git add -f config/dev/camera-pose.json`.                                                                                                                                                                                                                                                                                                   |
 
 The depth-to-code table is calibrated separately, offline or from a browser
 that holds the setup lock; see

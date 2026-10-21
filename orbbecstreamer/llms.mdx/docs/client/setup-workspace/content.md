@@ -25,6 +25,7 @@ The 3D view also jumps once to frame this server’s cloud, keeping your viewing
 * **Chips**: the status (**Locked by you**), the session (**Acquiring…**, **Active**, **Leaving…** or **Ended**) and the lock countdown, which restarts at 15 s with each renewal every 5 s. Hover over a chip for its full sentence.
 * **Camera pose**: a red `TODO`; not in the client yet.
 * **Depth quantization**: see [Calibrate depth](/docs/client/calibration).
+* **Floor**: shown only when the server offers it. See [Calibrate the floor](/docs/client/calibrate-floor).
 * **Network**: **Not available yet**.
 * **Placement**: see [Place a server in the scene](/docs/client/placement-editing).
 

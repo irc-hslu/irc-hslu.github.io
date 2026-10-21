@@ -9,7 +9,9 @@ Once committed, every client draws that server's cloud there.
 ## The flow [#the-flow]
 
 1. **Take the setup lock.** Open the server's [setup workspace](/docs/client/setup-workspace)
-   with **Set up** on its card.
+   with **Set up** on its card. From v0.1.6 this needs the
+   [operator role](/docs/operator#the-operator-role), so use a browser on
+   the server PC.
 2. **Edit.** In the workspace's Placement section, select **Edit**, then change the pose with
    numeric fields or by dragging a 3D handle on the cloud. This only changes
    a local draft in your browser; nothing is sent yet. See

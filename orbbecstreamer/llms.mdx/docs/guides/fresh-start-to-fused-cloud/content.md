@@ -231,8 +231,9 @@ order; each one ends with what you should see.
     firewall ports, and the installation's certificate authority trusted once
     on each viewer. Then open `https://<server-hostname>.local:8443` on the
     viewer. A LAN viewer never gets the operator role: it can open the
-    Operator Console at `/operator` only as a viewer, which can still take the
-    setup lock and calibrate the depth range.
+    Operator Console at `/operator` only as a viewer. From v0.1.6 a viewer
+    can't take the setup lock or calibrate the depth range; up to v0.1.5 it
+    could.
 
     You should see the same point cloud on the viewer as in the console's
     **Preview**.

@@ -52,18 +52,19 @@ can't open the console. With
 [LAN viewers](/docs/getting-started/install-package#remote-viewers-on-the-lan)
 turned on, other computers can open it at
 `https://<server-hostname>.local:8443/operator`, but only as a viewer (see
-[The operator role](#the-operator-role)): a viewer can still take the setup
-lock and calibrate the depth range.
+[The operator role](#the-operator-role)). From v0.1.6 a viewer can't take
+the setup lock or calibrate the depth range, so the console there is
+read-only; up to v0.1.5 a viewer could do both.
 
 ## The operator role [#the-operator-role]
 
 From v0.1.0-poc.9, the server gives each console session one of two
 roles. The role is decided once, when the session opens.
 
-| Role     | What the console can do                                                                                                                                     |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Operator | Everything the console offers: change sensor settings and the stream profile, calibrate the depth range, and take over the setup lock from another session. |
-| Viewer   | Watch status and the preview, take the setup lock, and calibrate the depth range. The sensor and profile screens are read-only.                             |
+| Role     | What the console can do                                                                                                                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Operator | Everything the console offers: change sensor settings and the stream profile, calibrate the depth range, and take over the setup lock from another session.                                                                                     |
+| Viewer   | Watch status and the preview. From v0.1.6 nothing else: it can't take the setup lock or calibrate the depth range. Up to v0.1.5 a viewer could take the setup lock and calibrate the depth range. The sensor and profile screens are read-only. |
 
 A session is an operator only when all of these hold:
 

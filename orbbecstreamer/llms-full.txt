@@ -233,6 +233,58 @@ These are the common browser problems and their fixes:
 * **Nothing works when you open the client from another computer**: plain `http://` pages are only secure on `localhost`. Open the client on the machine that runs it. A packaged install can also serve viewers on the LAN over HTTPS, on port 8443. See [Remote viewers on the LAN](/docs/getting-started/install-package#remote-viewers-on-the-lan).
 
 
+# Calibrate the floor (https://irc-hslu.github.io/orbbecstreamer/docs/client/calibrate-floor)
+
+
+
+The floor step measures where the floor is, in the server’s own frame, from the running cameras. It is there only when the server offers it; a server that doesn’t offer it shows no **Floor** section and no floor chip. Measuring needs the operator role and the setup lock, like the other setup steps. A viewer sees the status only.
+
+The measured floor is a plane. Nothing moves when you commit it. To bring the cloud level, use **Level to floor** (see below), which opens a placement draft that you commit in **Placement**.
+
+## Measure the floor [#measure-the-floor]
+
+1. Open the setup view: select **Set up** on the card. The session chip must read **Active**.
+2. The server’s camera pose must be **valid**. Otherwise **Calibrate floor** is off, with the tip `Needs a valid camera pose first.` The cameras must also be running.
+3. In **Floor**, select **Calibrate floor**. The state chip reads **running**.
+4. While it runs, a line shows the best candidate so far, for example `candidate 4.2 mm, 91 % inliers (12 of 20 frames)`. Nothing is in force yet.
+5. When the run is solved, **Commit** appears next to **Cancel**. Select **Commit** to keep the floor, or **Cancel** to throw the run away.
+
+After **Commit**, the chip reads for example **valid · r2**, and the numbers below it are those of the committed floor:
+
+| Number           | Meaning                                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **residual**     | How far the points on the floor are from the plane, in mm. Above 10 mm it is marked `above the 10 mm target`.                |
+| **inlier share** | The share of sampled points that lie on the plane.                                                                           |
+| **gravity gate** | The angle between the plane and the server’s gravity reference, in degrees. `no gravity reference` when the server has none. |
+| **tilt**         | The angle between the floor and level in the scene, with the server’s placement applied.                                     |
+| **height**       | The floor’s height above the scene’s ground, with the placement applied, in mm.                                              |
+
+The server card shows a **Floor** chip next to **Pose** and **Depth**, for example **Floor valid · r2** or **Floor stale**.
+
+## When it fails [#when-it-fails]
+
+A failed run shows the stage and the server’s text, for example `Stage: no plane.` or `Stage: too few inliers.` The stage is one of `not enough depth`, `no plane`, `normal outside gravity gate` and `too few inliers`. The text after it is the server’s own. Select **Calibrate floor** to try again; the previous committed floor stays in force.
+
+## When the cameras are recalibrated [#when-the-cameras-are-recalibrated]
+
+A new camera pose makes the floor **stale**: the old plane no longer matches the cameras. The section says `The cameras were recalibrated; measure the floor again.` The old numbers stay on screen. Select **Calibrate floor**.
+
+## Level to floor [#level-to-floor]
+
+**Level to floor** opens a placement draft that makes the measured floor level and puts it at the scene’s ground, keeping the server’s yaw. It is a draft:
+
+* Nothing is sent. Review it in **Placement**, then select **Commit** there. See [Place a server in the scene](/docs/client/placement-editing).
+* After you commit a floor, the client opens this draft by itself: `A level placement draft is open; review and commit it in Placement.`
+* If you have unsaved placement edits, they are kept and the client says so. Select **Level to floor** to replace them.
+* If the measured floor points down or sideways in the current placement, there is no draft: `The measured floor points down in this placement; level it by hand.` **Level to floor** is off with the same reason.
+
+## Use a keyboard or screen reader [#use-a-keyboard-or-screen-reader]
+
+**Calibrate floor**, **Commit**, **Cancel** and **Level to floor** are buttons in the tab order. Unavailable ones stay reachable and name their reason. When **Commit** or **Cancel** go away, focus moves to **Calibrate floor**. Screen readers announce, without moving focus, that the floor was measured and waits for **Commit**, a failure with its stage, that the floor is stale, and the result of the level draft.
+
+See also [Show the floor](/docs/client/what-you-can-tweak#view-section) in the 3D view.
+
+
 # Calibrate depth (https://irc-hslu.github.io/orbbecstreamer/docs/client/calibration)
 
 
@@ -928,6 +980,7 @@ Useful controls:
 * **Refused connects** (§1a, change 0024): `createMockServer({ connectRefusal })` or `mock.refuseConnects(refusal | null)`. `{ kind: 'status', status: 421 | 404 | 403 | 503 | 400 }` and `{ kind: 'quic-busy' }` reject the opener at once with a browser-like `WebTransportError` that carries no status, as Chromium does; `{ kind: 'no-answer' }` never answers, so the client's connect deadline fires. `mock.refusedConnects` lists the answers given. Close codes after the hello: `closeSession(session, code, reason)`.
 * **Near-range depth**: `nearRangeQuantizationProfile()` (`src/media/playback/nearRangeProfile.ts`, 200 to 5000 mm, from a live server profile) as the snapshot's `quantization`. In the dev app, `?mockDepth=near` makes **Add mock server** serve it (snapshot only, no media).
 * **Role**: the dev mock grants `operator` (`roleGrant`), as a server does for a page opened on the server machine. `?mockRole=viewer` makes **Add mock server** grant `viewer`: setup and placement are then disabled with "needs the operator role (open on the server machine)" (change 0048).
+* **Floor** (change 0046): `?mockFloor=1` makes **Add mock server** offer the feature `floor`. The mock then has a `floor` item (`missing` at first) and a scripted floor run under the lease: progress with a candidate plane (normal about (0.02, 0.999, -0.03), 1.35 m), then awaiting commit; **Commit** raises the floor revision and sets `poseRevision` to the camera-pose revision; **Cancel** restores the item. A camera-pose commit makes the floor `stale`. `?mockFloor=fail` ends the run with `no-plane: ...` instead. In tests use `floor: true` or `floor: { plane, quality, durationUs, progressIntervalUs, failure }`. A session that did not list `floor` never sees the item, and `kind: 'floor'` from it closes the session as `invalid-message`.
 * **Faults**: `dropSession`, `closeSession`, `delaySession`, `stallSession` / `resumeSession`, `sendMalformed`, `skipRevisions`, `sendStaleRevision`, `refuseSnapshots`, `expireLease`, `holdLocalConsoleLease`, `session.dropFromNetwork()`.
 * **Inspection**: `sessions()`, `sessionOf(clientId)`, `lockHolder()`, `snapshot()`, `metadataRevision`, `getRequestLog()`, `session.requestCounts`, `session.role`, `session.mediaStats(bundleId)`.
 
@@ -2710,6 +2763,7 @@ The 3D view also jumps once to frame this server’s cloud, keeping your viewing
 * **Chips**: the status (**Locked by you**), the session (**Acquiring…**, **Active**, **Leaving…** or **Ended**) and the lock countdown, which restarts at 15 s with each renewal every 5 s. Hover over a chip for its full sentence.
 * **Camera pose**: a red `TODO`; not in the client yet.
 * **Depth quantization**: see [Calibrate depth](/docs/client/calibration).
+* **Floor**: shown only when the server offers it. See [Calibrate the floor](/docs/client/calibrate-floor).
 * **Network**: **Not available yet**.
 * **Placement**: see [Place a server in the scene](/docs/client/placement-editing).
 
@@ -3108,11 +3162,12 @@ An unavailable button stays visible. Hover over it, or focus it with the keyboar
 
 <img alt="The View section: the Blend switch on, the status line Blending overlapping cameras., Points open with its five settings and Reset points, and Blend tuning open with its eight fields at their defaults and Reset tuning" src="__img1" />
 
-| Control          | What it changes                                                                                                                                                                                                                        | Default | When to change it                                                    |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
-| **Blend**        | On: where cameras overlap, their colours mix smoothly. Off: the dot nearest to you wins. Works with WebGPU and, where the graphics card can, with WebGL2; otherwise the switch is off and unavailable.                                 | On      | Turn it off when the view is slow: blending draws every point twice. |
-| **Blend anyway** | Shown with WebGL2 when the client turned blending off by itself (software drawing, or too slow). Turns it back on until you reload the page. See [When blending turns itself off](/docs/client/viewer#when-blending-turns-itself-off). |         | When you want blending even if the view gets slower                  |
-| **Reset tuning** | Sets the eight **Blend tuning** fields below back to their defaults. **Blend** stays as it is.                                                                                                                                         |         | After experimenting                                                  |
+| Control          | What it changes                                                                                                                                                                                                                                                                                                                                                                                | Default | When to change it                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
+| **Blend**        | On: where cameras overlap, their colours mix smoothly. Off: the dot nearest to you wins. Works with WebGPU and, where the graphics card can, with WebGL2; otherwise the switch is off and unavailable.                                                                                                                                                                                         | On      | Turn it off when the view is slow: blending draws every point twice. |
+| **Blend anyway** | Shown with WebGL2 when the client turned blending off by itself (software drawing, or too slow). Turns it back on until you reload the page. See [When blending turns itself off](/docs/client/viewer#when-blending-turns-itself-off).                                                                                                                                                         |         | When you want blending even if the view gets slower                  |
+| **Show floor**   | On: draws a ground grid at the scene’s floor level, and each server’s measured floor as a translucent square under its cloud. Off: neither. It is a setting of this browser only; the client remembers it. Servers without a measured floor draw no square. When the squares and the grid don’t line up, the floor isn’t aligned yet: see [Calibrate the floor](/docs/client/calibrate-floor). | Off     | When you set up or check a server’s floor                            |
+| **Reset tuning** | Sets the eight **Blend tuning** fields below back to their defaults. **Blend** stays as it is.                                                                                                                                                                                                                                                                                                 |         | After experimenting                                                  |
 
 ### Points [#points]
 
@@ -3172,12 +3227,14 @@ Open **Blend tuning** for eight fields; hover over a field for its one-line hint
 
 ## Setup view [#setup-view]
 
-| Control                                                | What it does                                                                     | When to use it                                        |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| **Leave**                                              | Cancels a running calibration, releases the lock, closes setup. Commits nothing. | When you’re done. Commit first what you want to keep. |
-| **Enter setup**, **Back**                              | Ask for the lock again, or close setup, after the session ended                  | After you were forced out                             |
-| **Start**, **Cancel**, **Commit** (Depth quantization) | Run, stop, or put a depth calibration in force                                   | See [Calibrate depth](/docs/client/calibration)       |
-| **Log** / **Linear** (Depth codes)                     | The histogram’s scale. Default **Log**.                                          | **Linear** to compare the big peaks                   |
+| Control                                                | What it does                                                                                 | When to use it                                          |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **Leave**                                              | Cancels a running calibration, releases the lock, closes setup. Commits nothing.             | When you’re done. Commit first what you want to keep.   |
+| **Enter setup**, **Back**                              | Ask for the lock again, or close setup, after the session ended                              | After you were forced out                               |
+| **Start**, **Cancel**, **Commit** (Depth quantization) | Run, stop, or put a depth calibration in force                                               | See [Calibrate depth](/docs/client/calibration)         |
+| **Calibrate floor**, **Commit**, **Cancel** (Floor)    | Measure, keep or throw away the floor. Only shown when the server offers it.                 | See [Calibrate the floor](/docs/client/calibrate-floor) |
+| **Level to floor** (Floor)                             | Opens a placement draft that levels the cloud to the measured floor. Commit it in Placement. | After the floor is measured                             |
+| **Log** / **Linear** (Depth codes)                     | The histogram’s scale. Default **Log**.                                                      | **Linear** to compare the big peaks                     |
 
 ## Placement [#placement]
 
@@ -3403,7 +3460,7 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
@@ -3467,18 +3524,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.4-1_amd64.deb` from the
-    [v0.1.4 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.4),
+    Download `orbbec-streamer_0.1.5-1_amd64.deb` from the
+    [v0.1.5 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.5),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.4-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.5-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.4-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `b587914516bea45d6270b72c76df6ca01ea3860022ed9d8a3a52175e51cb7859`.
+    `sha256sum` must print `orbbec-streamer_0.1.5-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `1440738759927db206c152a19bfaec0cb2ab594476c3b257a7a362280f9c3ba2`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -3487,7 +3544,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.4-1`. It sorts above every
+    The package version inside the file is `0.1.5-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -3679,11 +3736,11 @@ cameras' frame sets no longer match …`.)
 | `/usr/share/orbbec-streamer/client/`           | The browser client and, in `operator/`, the Operator Console                                                                                                                                                                                                                                  |
 | `/usr/share/doc/orbbec-streamer/`              | Licences and notices                                                                                                                                                                                                                                                                          |
 
-| Service                  | Does                                                                               |
-| ------------------------ | ---------------------------------------------------------------------------------- |
-| `orbbec-streamer`        | Capture, GPU processing, encoding and the WebTransport gateway on `127.0.0.1:4443` |
-| `orbbec-streamer-web`    | Serves the client on `http://127.0.0.1:8080`, on this PC only                      |
-| `orbbec-tls-renew.timer` | Renews the certificates. From poc.6 the server reloads them without a restart.     |
+| Service                  | Does                                                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `orbbec-streamer`        | Capture, GPU processing, encoding and the WebTransport gateway on `127.0.0.1:4443`                                   |
+| `orbbec-streamer-web`    | Serves the client on `http://127.0.0.1:8080`, on this PC only                                                        |
+| `orbbec-tls-renew.timer` | Renews the certificates. From poc.6 the server reloads them without a restart; from v0.1.5 the page server does too. |
 
 Check them with `systemctl status orbbec-streamer orbbec-streamer-web`.
 
@@ -3695,14 +3752,21 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.4-1`.
+Replace `<version>` with the new file's version, for example `0.1.5-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
 yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
-version. It is unchanged in v0.1.2, v0.1.3 and v0.1.4, so an upgrade from v0.1.1 or later doesn't ask.
+version. It is unchanged from v0.1.2 to v0.1.5, so an upgrade from v0.1.1 or later doesn't ask.
 From v0.1.3 camera poses are no longer mirrored in Y. A camera-pose
 calibration committed on v0.1.2 stays valid and now shows correctly, but a
 placement chosen while the scene looked mirrored may need placing again.
+From v0.1.5 an upgrade keeps `orbbec-streamer-web` and
+`orbbec-tls-renew.timer` disabled if you disabled them; up to v0.1.4 it
+turned them on again. One exception when upgrading from v0.1.4 or earlier:
+if every service the upgrade would turn on is disabled, the upgrade takes that for an earlier
+`apt remove` and turns them on. From v0.1.5, `apt remove` followed by
+`apt install` sets up like a first install: the server is enabled and
+started with the cameras closed. Up to v0.1.4 it stayed off.
 From v0.1.4 the default calibration board changes; see
 [Calibration board](#calibration-board). The first upgrade from
 poc.9 or earlier to v0.1.0-poc.10 or later enables and starts the server,
@@ -3739,7 +3803,8 @@ calibration are kept.
   the unknown key. Downgrading from v0.1.0-poc.10 to poc.9 or earlier: also
   delete the `lan_viewers` line under `serving:` and restart; otherwise the
   older server refuses to start with `Unsupported serving key: lan_viewers`.
-  Downgrading from v0.1.4 to v0.1.3, from v0.1.3 to v0.1.2, or from v0.1.2 to v0.1.1, needs no change, but
+  Downgrading from v0.1.5 to v0.1.4 needs no change, but v0.1.4 turns disabled services back on and lacks
+  the renewal fixes. Downgrading from v0.1.4 to v0.1.3, from v0.1.3 to v0.1.2, or from v0.1.2 to v0.1.1, needs no change, but
   without a `calibration.board` block, v0.1.3 and earlier expect the old 7 × 5 board. Downgrading from
   v0.1.1 or later to v0.1.0 or earlier with `network_probes` set:
   delete that line too (see [Active probes](/docs/guides/network#active-probes)).
@@ -3834,6 +3899,11 @@ server PC. In short:
    server's certificate covers;
    `sudo /usr/lib/orbbec-streamer/tls/orbbec-tls status` lists them.
 
+The page server's certificate is renewed with the others. From v0.1.5 the
+page server picks up the renewed certificate by itself; up to v0.1.4, run
+`sudo systemctl restart orbbec-streamer-web` after a renewal, or browsers
+on other computers stop trusting the page once its old certificate expires.
+
 To turn it off, remove the drop-in, set `lan_viewers: false` and
 `listen_address` back to `127.0.0.1:4443`, and restart both services.
 
@@ -3841,9 +3911,13 @@ To turn it off, remove the drop-in, set `lan_viewers: false` and
 
 * `sudo apt remove orbbec-streamer` removes the programs and services and
   keeps your config, certificates and `/var/lib/orbbec-streamer`.
-* `sudo apt purge orbbec-streamer` also deletes `/etc/orbbec-streamer` and
-  `/var/lib/orbbec-streamer`, including the engine cache and calibration,
-  and the local certificate authority with its private key. A later install
+* `sudo apt purge orbbec-streamer` also removes the configuration and
+  certificates the package created in `/etc/orbbec-streamer`, and
+  `/var/lib/orbbec-streamer`, including the engine cache and calibration.
+  Files you added to `/etc/orbbec-streamer` by hand stay, and so does the
+  folder. From v0.1.5 purge also removes `*.dpkg-old` and `*.dpkg-dist`
+  copies left by earlier upgrade questions. The certificates include the
+  local certificate authority with its private key. A later install
   makes a new one, so every LAN viewer must trust it again; `remove` keeps
   it.
 
@@ -3876,21 +3950,25 @@ every file and what was masked.
 
 ## Troubleshooting [#troubleshooting]
 
-| Symptom                                                                                                                                                   | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `preflight` shows `FAIL  nvidia-driver` or `FAIL  driver-libraries`                                                                                       | No NVIDIA driver 580 or newer. Install it (for example `sudo apt install nvidia-open`), reboot, and run `orbbec-streamer-preflight` again.                                                                                                                                                                                                                                                                                                                                                                                 |
-| `preflight` shows `FAIL  cuda-runtime` or `FAIL  tensorrt`                                                                                                | NVIDIA's apt repository is missing. Add it (step 2), then run the `sudo apt install` command in the `fix:` line.                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `WARN  orbbec-cameras`                                                                                                                                    | No camera is connected. Connect it to a USB 3 port.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| The log repeats `No configured cameras are active`                                                                                                        | No camera was found when the cameras were opened (at service start only if `start_capture_on_launch: true`). The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`.                                                                                                                                                                                                         |
-| After an upgrade, the stats show `mask: failed` and the log shows an engine error, such as `Cannot open TensorRT engine: …`                               | You kept an edited `live.yaml` from poc.1 or poc.2, which names a fixed engine file. In the `mask:` section of `/etc/orbbec-streamer/live.yaml`, delete `rvm_engine_path` and set `rvm_onnx_path: "/usr/share/orbbec-streamer/models/rvm/rvm_mobilenetv3_b{batch}_640x576_ds0.5_float16.onnx"` and `rvm_engine_cache_dir: "/var/lib/orbbec-streamer/engines"`. Then run `sudo systemctl restart orbbec-streamer`; the first start builds the engine (3 to 4 minutes).                                                      |
-| The log shows `error while loading shared libraries: libcuda.so.1`                                                                                        | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| The Femto Bolt doesn't start; the log shows depth engine error 204                                                                                        | The service can't use the GPU's render node. Check that `id orbbec-streamer` lists `render`; if not, run `sudo adduser orbbec-streamer render`, then `sudo systemctl restart orbbec-streamer`. Only if that doesn't help: run `sudo systemctl edit orbbec-streamer`, add the two lines `[Service]` and `DevicePolicy=auto`, save and restart. This turns off the service's device allow-list, so remove it again once the cause is found.                                                                                  |
-| The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                                           | The server isn't running. From poc.10 the install starts it, unless a kept `live.yaml` sets `start_capture_on_launch: true`; up to poc.9 it doesn't. Run `sudo systemctl start orbbec-streamer`. Otherwise, up to poc.9 the gateway starts only once a camera is active, and the first start may still be building the engine. From poc.9 the gateway starts with the service; if the page connects but shows **Cameras closed**, select **Start cameras** on the server's card. Check `journalctl -u orbbec-streamer -f`. |
-| The server stops once, about 4 minutes after the first start, and starts again within seconds                                                             | Known issue in poc.7, fixed in poc.8: the stop comes when the segmentation engine build finishes. systemd restarts the server; no action needed.                                                                                                                                                                                                                                                                                                                                                                           |
-| Several cameras: the page shows the server needs setup and no point cloud                                                                                 | The camera poses aren't calibrated. See [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses) (from poc.11) or [Camera pose calibration](/docs/server/camera-calibration).                                                                                                                                                                                                                                                                                                                               |
-| Several cameras: the server stops after about 10 s with `no batch for 10005 ms …`, or refuses to start with `sync.enabled=false allows only one camera …` | Sync is off. See [More than one camera](#more-than-one-camera).                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| The page doesn't load                                                                                                                                     | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Another computer can't open the page                                                                                                                      | LAN viewers are off by default. See [Remote viewers on the LAN](#remote-viewers-on-the-lan).                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Symptom                                                                                                                                                   | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `preflight` shows `FAIL  nvidia-driver` or `FAIL  driver-libraries`                                                                                       | No NVIDIA driver 580 or newer. Install it (for example `sudo apt install nvidia-open`), reboot, and run `orbbec-streamer-preflight` again.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `preflight` shows `FAIL  cuda-runtime` or `FAIL  tensorrt`                                                                                                | NVIDIA's apt repository is missing. Add it (step 2), then run the `sudo apt install` command in the `fix:` line.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `WARN  orbbec-cameras`                                                                                                                                    | No camera is connected. Connect it to a USB 3 port.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| The log repeats `No configured cameras are active`                                                                                                        | No camera was found when the cameras were opened (at service start only if `start_capture_on_launch: true`). The service retries with a growing delay and stops after 10 starts in 30 minutes. Connect the camera, then run `sudo systemctl reset-failed orbbec-streamer && sudo systemctl start orbbec-streamer`.                                                                                                                                                                                                                                                       |
+| After an upgrade, the stats show `mask: failed` and the log shows an engine error, such as `Cannot open TensorRT engine: …`                               | You kept an edited `live.yaml` from poc.1 or poc.2, which names a fixed engine file. In the `mask:` section of `/etc/orbbec-streamer/live.yaml`, delete `rvm_engine_path` and set `rvm_onnx_path: "/usr/share/orbbec-streamer/models/rvm/rvm_mobilenetv3_b{batch}_640x576_ds0.5_float16.onnx"` and `rvm_engine_cache_dir: "/var/lib/orbbec-streamer/engines"`. Then run `sudo systemctl restart orbbec-streamer`; the first start builds the engine (3 to 4 minutes).                                                                                                    |
+| The log shows `error while loading shared libraries: libcuda.so.1`                                                                                        | The NVIDIA driver is missing. Install it and reboot.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| The Femto Bolt doesn't start; the log shows depth engine error 204                                                                                        | The service can't use the GPU's render node. Check that `id orbbec-streamer` lists `render`; if not, run `sudo adduser orbbec-streamer render`, then `sudo systemctl restart orbbec-streamer`. Only if that doesn't help: run `sudo systemctl edit orbbec-streamer`, add the three lines `[Service]`, `DeviceAllow=` and `DevicePolicy=auto`, save and restart. The empty `DeviceAllow=` is needed: while the unit lists devices, `DevicePolicy=auto` alone changes nothing. This turns off the service's device allow-list, so remove it again once the cause is found. |
+| The page at `http://127.0.0.1:8080` loads, but nothing connects                                                                                           | The server isn't running. From poc.10 the install starts it, unless a kept `live.yaml` sets `start_capture_on_launch: true`; up to poc.9 it doesn't. Run `sudo systemctl start orbbec-streamer`. Otherwise, up to poc.9 the gateway starts only once a camera is active, and the first start may still be building the engine. From poc.9 the gateway starts with the service; if the page connects but shows **Cameras closed**, select **Start cameras** on the server's card. Check `journalctl -u orbbec-streamer -f`.                                               |
+| The server stops once, about 4 minutes after the first start, and starts again within seconds                                                             | Known issue in poc.7, fixed in poc.8: the stop comes when the segmentation engine build finishes. systemd restarts the server; no action needed.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Several cameras: the page shows the server needs setup and no point cloud                                                                                 | The camera poses aren't calibrated. See [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses) (from poc.11) or [Camera pose calibration](/docs/server/camera-calibration).                                                                                                                                                                                                                                                                                                                                                                             |
+| Several cameras: the server stops after about 10 s with `no batch for 10005 ms …`, or refuses to start with `sync.enabled=false allows only one camera …` | Sync is off. See [More than one camera](#more-than-one-camera).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| The install printed `certificate setup postponed: the clock is not synchronised yet; the hourly renewal timer retries`                                    | The first certificates need a synchronised clock. Check that `timedatectl` shows `System clock synchronized: yes` (turn on NTP with `sudo timedatectl set-ntp true`), then run `sudo systemctl start orbbec-tls-renew.service`, or wait up to an hour for the timer. Until then no browser can connect.                                                                                                                                                                                                                                                                  |
+| Up to v0.1.4, on a PC without NTP: browsers stop connecting after about two weeks                                                                         | Renewal skipped every run while the clock wasn't synchronised, so the certificates expired. Upgrade to v0.1.5, or synchronise the clock and run `sudo systemctl start orbbec-tls-renew.service`.                                                                                                                                                                                                                                                                                                                                                                         |
+| From v0.1.5, `journalctl -u orbbec-tls-renew` says the clock is not synchronised and is earlier than, or more than 90 days after, the newest certificate  | Renewal waits instead of making certificates with a wrong date. Synchronise the clock, or, once it shows the right time, run `sudo /usr/lib/orbbec-streamer/tls/orbbec-tls --allow-unsynced renew`.                                                                                                                                                                                                                                                                                                                                                                      |
+| `journalctl -u orbbec-tls-renew` names `regenerate-ca --yes`                                                                                              | The local certificate authority is damaged or no longer usable. Run `sudo /usr/lib/orbbec-streamer/tls/orbbec-tls regenerate-ca --yes`. Up to v0.1.4, add `--group orbbec-streamer --key-owner orbbec-streamer` before `regenerate-ca`; without them the keys get the wrong owner and the server can't read them. Every LAN viewer must then trust the new authority again (see [Remote viewers on the LAN](#remote-viewers-on-the-lan)). A damaged certificate or key other than the authority is replaced by itself from v0.1.5.                                       |
+| The page doesn't load                                                                                                                                     | Check `systemctl status orbbec-streamer-web` and `journalctl -u orbbec-streamer-web`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Another computer can't open the page                                                                                                                      | LAN viewers are off by default. See [Remote viewers on the LAN](#remote-viewers-on-the-lan).                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 
 # Build the server from source (https://irc-hslu.github.io/orbbecstreamer/docs/getting-started/install-server)
@@ -4270,8 +4348,9 @@ order; each one ends with what you should see.
     firewall ports, and the installation's certificate authority trusted once
     on each viewer. Then open `https://<server-hostname>.local:8443` on the
     viewer. A LAN viewer never gets the operator role: it can open the
-    Operator Console at `/operator` only as a viewer, which can still take the
-    setup lock and calibrate the depth range.
+    Operator Console at `/operator` only as a viewer. From v0.1.6 a viewer
+    can't take the setup lock or calibrate the depth range; up to v0.1.5 it
+    could.
 
     You should see the same point cloud on the viewer as in the console's
     **Preview**.
@@ -4503,7 +4582,9 @@ Once committed, every client draws that server's cloud there.
 ## The flow [#the-flow]
 
 1. **Take the setup lock.** Open the server's [setup workspace](/docs/client/setup-workspace)
-   with **Set up** on its card.
+   with **Set up** on its card. From v0.1.6 this needs the
+   [operator role](/docs/operator#the-operator-role), so use a browser on
+   the server PC.
 2. **Edit.** In the workspace's Placement section, select **Edit**, then change the pose with
    numeric fields or by dragging a 3D handle on the cloud. This only changes
    a local draft in your browser; nothing is sent yet. See
@@ -4628,18 +4709,19 @@ can't open the console. With
 [LAN viewers](/docs/getting-started/install-package#remote-viewers-on-the-lan)
 turned on, other computers can open it at
 `https://<server-hostname>.local:8443/operator`, but only as a viewer (see
-[The operator role](#the-operator-role)): a viewer can still take the setup
-lock and calibrate the depth range.
+[The operator role](#the-operator-role)). From v0.1.6 a viewer can't take
+the setup lock or calibrate the depth range, so the console there is
+read-only; up to v0.1.5 a viewer could do both.
 
 ## The operator role [#the-operator-role]
 
 From v0.1.0-poc.9, the server gives each console session one of two
 roles. The role is decided once, when the session opens.
 
-| Role     | What the console can do                                                                                                                                     |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Operator | Everything the console offers: change sensor settings and the stream profile, calibrate the depth range, and take over the setup lock from another session. |
-| Viewer   | Watch status and the preview, take the setup lock, and calibrate the depth range. The sensor and profile screens are read-only.                             |
+| Role     | What the console can do                                                                                                                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Operator | Everything the console offers: change sensor settings and the stream profile, calibrate the depth range, and take over the setup lock from another session.                                                                                     |
+| Viewer   | Watch status and the preview. From v0.1.6 nothing else: it can't take the setup lock or calibrate the depth range. Up to v0.1.5 a viewer could take the setup lock and calibrate the depth range. The sensor and profile screens are read-only. |
 
 A session is an operator only when all of these hold:
 
@@ -5143,8 +5225,9 @@ only status and start/stop work; use the browser
   console gets an authentication token, any local user or process on the
   server PC can take the same control: the setup lock, depth-range
   calibration and commits. Give accounts on the server PC only to people who
-  may operate it. From v0.1.0-poc.9, the terminal console never gets the
-  [operator role](/docs/operator#the-operator-role); see
+  may operate it. From v0.1.6 the terminal console asks for the
+  [operator role](/docs/operator#the-operator-role) and gets it on the
+  server PC; from v0.1.0-poc.9 to v0.1.5 it never got it. See
   [What the terminal console can't do](#what-the-terminal-console-cant-do).
 </Callout>
 
@@ -5213,11 +5296,21 @@ server; the console retries by itself.
 ## What the terminal console can't do [#what-the-terminal-console-cant-do]
 
 From v0.1.0-poc.9, the server separates a viewer role from an operator
-role (see [The operator role](/docs/operator#the-operator-role)). The
-server gives the operator role only to a browser page on one of its
-configured console origins. `orbbec-console` sends no `Origin`, so it
-never gets the role, until a later change adds an authentication token. It
-is a viewer.
+role (see [The operator role](/docs/operator#the-operator-role)).
+
+From v0.1.6 `orbbec-console` asks for the operator role. The server gives
+it when the console runs on the server PC and `serving.allow_missing_origin`
+is `true`, as the package sets it. The header shows its role after the
+server line: **Role: Operator** or **Role: Viewer (no setup lock)**. From
+v0.1.6 only an operator can take the setup lock and calibrate the depth
+range. As a viewer, `l` and `calibrate` don't try; they print `The setup
+lock needs the operator role: run this console on the server machine; the
+server must allow connections without Origin (serving.allow_missing_origin).`
+and `calibrate` exits with code `9`.
+
+From v0.1.0-poc.9 to v0.1.5, `orbbec-console` sends no `Origin`, so it never
+gets the role. It is a viewer, but a viewer could still take the plain
+setup lock and calibrate the depth range.
 
 | It can                                                           | It can't                                                              |
 | ---------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -5295,15 +5388,16 @@ Without `--commit`, the run
 stops at a solved result without committing it. `--timeout 120s` sets how
 long to wait. `Ctrl+C` cancels the run and releases the setup lock.
 
-| Exit code | Meaning                                                    |
-| --------- | ---------------------------------------------------------- |
-| `0`       | Committed, or solved and ready to commit                   |
-| `3`       | The server can't be reached, or is at its session limit    |
-| `4`       | The calibration failed                                     |
-| `5`       | The setup lock isn't available                             |
-| `6`       | The server refused the command; the reason code is printed |
-| `7`       | The server refused the console                             |
-| `130`     | Interrupted                                                |
+| Exit code | Meaning                                                                        |
+| --------- | ------------------------------------------------------------------------------ |
+| `0`       | Committed, or solved and ready to commit                                       |
+| `3`       | The server can't be reached, or is at its session limit                        |
+| `4`       | The calibration failed                                                         |
+| `5`       | The setup lock isn't available                                                 |
+| `6`       | The server refused the command; the reason code is printed                     |
+| `7`       | The server refused the console                                                 |
+| `9`       | From v0.1.6: the setup lock needs the operator role (this console is a viewer) |
+| `130`     | Interrupted                                                                    |
 
 ## Try it without hardware [#try-it-without-hardware]
 
@@ -5740,7 +5834,8 @@ identify every corner, even when the board is only partly in view.
 5. Measure one printed square with a ruler. Put the measured size into
    `calibration.board.square_length_m`, and scale `marker_length_m` by the
    same factor. A wrong size does not stop detection, but every distance
-   between cameras comes out scaled by the error.
+   between cameras comes out scaled by the error. You can also set the
+   measured board from the console; see [The board](#the-board).
 
 6. Mount the print on something flat and rigid. A bent board makes the
    cameras disagree.
@@ -5763,16 +5858,43 @@ identify every corner, even when the board is only partly in view.
 
 3. Walk the board through the capture area:
 
-   * Keep the board in view of at least two cameras at the same moment.
-   * Move or tilt it between views. A view counts only if the board moved at
-     least 2 cm or turned at least 3° since the last accepted view.
-   * Tilt it rather than holding it face-on to a camera. The server rejects
-     views where the board's pose is ambiguous.
+   * Keep the board in view of at least two cameras at the same moment. A
+     view needs only two cameras, not all of them; every camera must end up
+     linked to the reference camera through such pairs.
+   * Hold the board still for about a third of a second. The server captures
+     the view by itself, then waits until you have moved the board by at
+     least 2 cm or turned it by 3° before it captures again.
+   * Vary the distance, the tilt and the place in the image. The server sorts
+     each view into a pose bin per camera (distance, tilt and image region)
+     and keeps at most two views per bin, so repeating the same pose does
+     not count. Tilt the board 15° to 45° instead of holding it face-on.
    * Every camera needs at least 5 consistent views shared with a camera
      that is already placed. A camera that never sees the board together
      with the reference camera is placed through other cameras.
 
    The run needs 20 accepted views and gives up after 120 seconds.
+
+   With `calibration.native_colour: true` (the default) the board is detected
+   in the camera's own 1280x720 colour image, with the colour lens model, and
+   the pose is moved to the depth camera with the extrinsic stored in the
+   camera. This is the change that makes the run solve: in the simulated
+   sessions below, detecting in the colour image resampled into the depth
+   image never gave two consistent cameras, while the native image did with
+   the old view rule. The new view rules (pose bins, still capture) add
+   diversity and the stall reasons, and they are used only with native colour;
+   on the aligned image (no colour calibration, an unsupported lens) the
+   server keeps the previous rule. Depth still helps: where a face-on board could be read two
+   ways, the depth at the centre of each square decides.
+
+   When no view has been kept for 4 seconds, the server log says why
+   (`no view kept for ... ms (poses-not-new): ...`): no camera sees the
+   board, only some cameras see it, a camera has not seen it together with
+   the others, views are rejected as blurred, too small, partly outside the
+   colour image or with holes in the depth, the poses are already covered
+   (with the empty pose bins), the board never stays still, or the solve
+   disagrees between cameras. Browser consoles do not receive these reasons
+   until the wire change that carries them is accepted; they see the nearest
+   existing reason instead.
 
    A browser console follows the same run through
    `server.calibration.progress`: the detected corners in each camera's tile,
@@ -5787,6 +5909,31 @@ identify every corner, even when the board is only partly in view.
 
 5. Stop the server with Ctrl+C. If you press Ctrl+C before the result is
    saved, the previous calibration file stays untouched.
+
+## Simulated acceptance test [#simulated-acceptance-test]
+
+The repository can check the whole chain without a printed board: a test
+renders the real board (4 x 6 squares, 105 mm, markers 79 mm,
+`DICT_4X4_50`) at known poses into synthetic frames of two Femto Bolt
+cameras, with their colour lens and depth-to-colour extrinsic, noise, blur,
+tilt, partial occlusion and partial overlap. It runs detection, view
+gathering and the joint solve, and compares the result with the poses it
+rendered. Every number from it is **simulated**: it says nothing about a lit
+rig session with a real board.
+
+```bash
+cd server
+ctest --test-dir build/dev-debug -L simulated --output-on-failure
+# or
+cmake --build build/dev-debug --target simulated_calibration
+```
+
+The test passes when the rotation is within 0.3°, the translation within
+5 mm and the board fit within 0.5 px RMS of the truth. The simulated cameras
+have a factory depth-to-colour error of about 1 mm and 0.1° that the server
+does not know (the SDK reports the unperturbed values). In the last run the
+second camera came out 0.19° to 0.22° and 2.1 to 2.7 mm from the truth over
+three different sessions, with 0.07 to 0.12 px per view (all simulated).
 
 ## Expected result [#expected-result]
 
@@ -5880,16 +6027,98 @@ or a non-rigid matrix makes the whole calibration stale.
 All keys are in the `calibration` section of the live config
 (`config/dev/live.yaml`). `streams.alignment` must be `color_to_depth`.
 
-| Key                     | Default                       | Meaning                                                                                                                                                                                                                                                                                          |
-| ----------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `camera_pose_path`      | `config/dev/camera-pose.json` | Saved calibration. Relative to the working directory. A missing file is not an error.                                                                                                                                                                                                            |
-| `placement_path`        | `config/dev/placement.json`   | Saved placement from client placement commits. Relative to the working directory. A missing file means the default placement.                                                                                                                                                                    |
-| `autocalibrate`         | `false`                       | When the pose is missing or stale: `true` lets a client with the setup lock start calibration on its own; `false` needs an operator. `true` is ignored (reported as `false`) when calibration cannot run, for example with an invalid `board.dictionary`. See [Startup states](#startup-states). |
-| `board.squares_x`       | `4`                           | Squares across. At least 2.                                                                                                                                                                                                                                                                      |
-| `board.squares_y`       | `6`                           | Squares down. At least 2.                                                                                                                                                                                                                                                                        |
-| `board.square_length_m` | `0.105`                       | Printed square size in metres.                                                                                                                                                                                                                                                                   |
-| `board.marker_length_m` | `0.079`                       | Printed marker size in metres; smaller than the square.                                                                                                                                                                                                                                          |
-| `board.dictionary`      | `DICT_4X4_50`                 | OpenCV ArUco dictionary name.                                                                                                                                                                                                                                                                    |
+| Key                        | Default                                  | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `camera_pose_path`         | `config/dev/camera-pose.json`            | Saved calibration. Relative to the working directory. A missing file is not an error.                                                                                                                                                                                                                                                                                                                                                            |
+| `placement_path`           | `config/dev/placement.json`              | Saved placement from client placement commits. Relative to the working directory. A missing file means the default placement.                                                                                                                                                                                                                                                                                                                    |
+| `autocalibrate`            | `false`                                  | When the pose is missing or stale: `true` lets a client with the setup lock start calibration on its own; `false` needs an operator. `true` is ignored (reported as `false`) when calibration cannot run, for example without colour aligned to depth. A board in the config that breaks a rule does not stop calibration: the server uses the default board and shows why (see [The board](#the-board)). See [Startup states](#startup-states). |
+| `native_colour`            | `true`                                   | Detect the board in the native colour image instead of the colour aligned to depth. Needs `streams.alignment: color_to_depth` and a camera that reports its colour calibration; a camera without one is detected on the aligned image. The SDK's colour frame is kept with each batch only while a camera-pose run is active.                                                                                                                    |
+| `detector_threads`         | `0`                                      | Threads that detect the board in the cameras of one batch at the same time. `0` is the smaller of the camera count, half the hardware threads and 8. About three suffice for 8 cameras at 15 Hz. At most 64.                                                                                                                                                                                                                                     |
+| `board_state_path`         | next to `camera_pose_path`, `board.json` | Where the board set by an operator, and the board revision, are kept. See [The board](#the-board).                                                                                                                                                                                                                                                                                                                                               |
+| `board.id`                 | `default`                                | Name of the board: 1 to 64 characters of `a-z`, `0-9` and `-`. It stays when you edit the board.                                                                                                                                                                                                                                                                                                                                                 |
+| `board.squares_x`          | `4`                                      | Squares across. 2 to 64.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `board.squares_y`          | `6`                                      | Squares down. 2 to 64.                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `board.square_length_m`    | `0.105`                                  | Printed square size in metres. At most 2.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `board.marker_length_m`    | `0.079`                                  | Printed marker size in metres; smaller than the square.                                                                                                                                                                                                                                                                                                                                                                                          |
+| `board.dictionary`         | `DICT_4X4_50`                            | OpenCV ArUco dictionary name. The board needs one marker per white square, so the dictionary must have at least that many codes.                                                                                                                                                                                                                                                                                                                 |
+| `board.top_left_square`    | `black`                                  | Colour of the top-left square. `white` is OpenCV's older layout of an even-row board and needs an even `squares_y`.                                                                                                                                                                                                                                                                                                                              |
+| `board.marker_ids`         | `0..n-1`                                 | A list with exactly one id per marker, for a board printed with other ids, for example `[20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]`.                                                                                                                                                                                                                                                                                                       |
+| `board.marker_border_bits` | `1`                                      | Width of the black marker border, 1 to 4.                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+A board is valid when all of these hold. The server checks them at start,
+at a reload and for a board set from the console, and says which rule failed.
+
+* Both square counts are 2 to 64, and there are at most 1024 inner corners
+  (`(squares_x - 1) × (squares_y - 1)`).
+* The marker is smaller than the square, and both are at most 2 m.
+* The number of markers (the white squares) is at most the number of codes of
+  the dictionary, and every id in `marker_ids` is below it.
+* `top_left_square: white` needs an even `squares_y`.
+
+### The board [#the-board]
+
+Three places can name the board. The first that exists wins.
+
+1. **A board set from the console.** An operator with the setup lock sets it
+   in the console. The server saves it in its state directory (for the
+   package, `/var/lib/orbbec-streamer/calibration/board.json`), never in the
+   configuration, and keeps it across restarts.
+2. **The `calibration.board` section of the config.**
+3. **The built-in default**: the 4 × 6 board with 105 mm squares, 79 mm
+   markers and `DICT_4X4_50`, black top-left square, ids 0 to 11.
+
+Clearing the console board makes the config board (or the default) active
+again.
+
+If the config board breaks a rule **when the server starts**, the server does
+not stop: it uses the default board, logs a warning and shows the reason to
+the console as a board error. Fix the config and reload. The only board type
+is `charuco`; another `board.type` is reported as unsupported. For a dev
+config the board file sits next to `camera-pose.json` (`config/dev/board.json`,
+ignored by git).
+
+Every change of the active board raises the **board revision** by 1. The
+revision is also kept in `board.json`, so it never goes back after a restart.
+The console shows the board and its revision, and live detections name the
+board they were computed against. A change of the board moves the metadata
+revision by 1 and nothing else: the calibration, the placement and the
+streams are untouched, and a saved pose stays valid, because it describes the
+cameras and not the board.
+
+**While a calibration run is going the board does not change.** A board set
+from the console, or a config reload, is saved at once but applied when the
+run ends (commit, failure, cancel or lock loss). The run uses the board it
+started with; the next run uses the new one. If you set several boards during
+a run, the last one is applied.
+
+### Reload the board without a restart [#reload-the-board-without-a-restart]
+
+Edit `calibration.board` in the config, then send the server a hang-up
+signal:
+
+```bash
+sudo systemctl reload orbbec-streamer
+```
+
+The server reads the board again (nothing else in the file is applied). If the
+board is valid and no board was set from the console, it becomes active at the
+next moment no run is going. If a board set from the console exists, the
+config board is stored and shows when you clear the console board.
+
+If the new board breaks a rule, or the file cannot be read, the server keeps
+the board that is active now (never the default), logs the full reason, and
+shows a short reason to the console as a board error until the next valid
+reload. The short reason never contains the path of the config. A reload never fails a run and never stops the server.
+
+### Set the board from the console [#set-the-board-from-the-console]
+
+The console sends `client.calibration.board.set` under the setup lock. It
+needs the operator role. The server refuses a board that breaks a rule above
+(`board-invalid`), one it cannot detect, such as a dictionary it does not
+know (`board-unsupported`), and a board it could not save
+(`board-persist-failed`). In every refusal nothing changes. Clients that do
+not take part in the `board-set` feature of the protocol keep seeing the board
+as before, without the name, revision and artwork fields.
 
 ## Startup states [#startup-states]
 
@@ -5957,23 +6186,23 @@ the previous calibration and its revision unchanged.
 
 ## Troubleshooting [#troubleshooting]
 
-| Message or symptom                                                                                                                                           | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--calibrate-camera-pose requires --live <config.yaml>`                                                                                                      | Add `--live config/dev/live.yaml`.                                                                                                                                                                                                                                                                                                                                                                                |
-| `--print-charuco-board only writes the board; run --calibrate-camera-pose separately`                                                                        | Run the two commands one after the other.                                                                                                                                                                                                                                                                                                                                                                         |
-| `calibration.board needs squares_x, squares_y >= 2, 0 < marker_length_m < square_length_m (metres) and a dictionary name`                                    | Fix the `calibration.board` values.                                                                                                                                                                                                                                                                                                                                                                               |
-| `--calibrate-camera-pose requires streams.alignment: color_to_depth`                                                                                         | Set `streams.alignment: color_to_depth`. Other alignments give no depth-camera pose.                                                                                                                                                                                                                                                                                                                              |
-| `setup state not built: client-facing setup requires streams.alignment=color_to_depth`                                                                       | Same cause, on a normal `--live` run: no calibration state is built.                                                                                                                                                                                                                                                                                                                                              |
-| Progress shows `camX=no board`                                                                                                                               | The board is too small or too far away, there is glare, the light is too low, or `board.dictionary` or the square counts do not match the print. Move closer, avoid reflections and check the config.                                                                                                                                                                                                             |
-| Corners detected but observations do not increase                                                                                                            | A view is rejected when fewer than 8 corners are found, when the fitted pose is more than 2 px off on average (RMS reprojection error), or when the pose is ambiguous (small, distant or face-on board). Hold the board closer and tilted, keep it still for a moment to avoid motion blur, and make sure it is flat. Views also need two cameras at once and at least 2 cm or 3° of movement since the last one. |
-| `camera-pose calibration timed out after 120000 ms: accepted N of 20 observations`                                                                           | Not enough usable views in two minutes. Start the command again and keep the board in two cameras' views while you move it.                                                                                                                                                                                                                                                                                       |
-| `... cameras cam1 did not see the board together with a calibrated camera in at least 5 consistent observations; inconsistent pairs: cam0-cam1 (... mm RMS)` | The shared views of that camera pair disagree by more than 15 mm RMS. Common causes: a bent board, a board moving during capture, or cameras that are not in hardware sync. Check `sync` in the config and hold the board still in each position.                                                                                                                                                                 |
-| A failed run in console mode                                                                                                                                 | The server logs `camera-pose calibration run 1 failed: ...` and keeps running without a new calibration. Stop it with Ctrl+C and start the command again.                                                                                                                                                                                                                                                         |
-| `camera_pose_calibration=stale (... serial changed from A to B)`                                                                                             | A camera was swapped. Recalibrate.                                                                                                                                                                                                                                                                                                                                                                                |
-| `camera_pose_calibration=stale (... depth geometry changed from 640x576 to ...)`                                                                             | The `streams.depth` resolution changed. Recalibrate, or restore the resolution.                                                                                                                                                                                                                                                                                                                                   |
-| `camera_pose_calibration=stale (camera cam2 is not calibrated)`                                                                                              | A camera was added, or a camera `id` was renamed. Recalibrate.                                                                                                                                                                                                                                                                                                                                                    |
-| Distances between cameras are off by a constant factor                                                                                                       | `board.square_length_m` does not match the printed square. Measure it and recalibrate.                                                                                                                                                                                                                                                                                                                            |
-| `config/dev/camera-pose.json` appears in `git status`                                                                                                        | `server/.gitignore` ignores `config/*/camera-pose.json`, so the file shows up only if someone committed it. It belongs to one physical rig. To stop tracking it, run `git rm --cached config/dev/camera-pose.json`. To commit a new version on purpose, run `git add -f config/dev/camera-pose.json`.                                                                                                             |
+| Message or symptom                                                                                                                                           | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--calibrate-camera-pose requires --live <config.yaml>`                                                                                                      | Add `--live config/dev/live.yaml`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `--print-charuco-board only writes the board; run --calibrate-camera-pose separately`                                                                        | Run the two commands one after the other.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `calibration.board needs squares_x, squares_y >= 2, 0 < marker_length_m < square_length_m (metres) and a dictionary name`                                    | Fix the `calibration.board` values.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `--calibrate-camera-pose requires streams.alignment: color_to_depth`                                                                                         | Set `streams.alignment: color_to_depth`. Other alignments give no depth-camera pose.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `setup state not built: client-facing setup requires streams.alignment=color_to_depth`                                                                       | Same cause, on a normal `--live` run: no calibration state is built.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Progress shows `camX=no board`                                                                                                                               | The board is too small or too far away, there is glare, the light is too low, or `board.dictionary` or the square counts do not match the print. Move closer, avoid reflections and check the config.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Corners detected but observations do not increase                                                                                                            | The log line `no view kept for ... ms` names the reason. A view is rejected when fewer than 8 corners are found, when the fitted pose is more than 2 px off on average (RMS reprojection error), when the board is blurred, smaller than 20 px per marker, partly outside the colour image, or has little valid depth, or when the pose is ambiguous. Hold the board closer and tilted, keep it still for a third of a second, and make sure it is flat. Views also need two cameras at once, and each pose bin of a camera takes at most two views: move to a new distance, tilt or part of the image. |
+| `camera-pose calibration timed out after 120000 ms: accepted N of 20 observations`                                                                           | Not enough usable views in two minutes. Start the command again and keep the board in two cameras' views while you move it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `... cameras cam1 did not see the board together with a calibrated camera in at least 5 consistent observations; inconsistent pairs: cam0-cam1 (... mm RMS)` | The shared views of that camera pair disagree by more than 15 mm RMS. Common causes: a bent board, a board moving during capture, or cameras that are not in hardware sync. Check `sync` in the config and hold the board still in each position.                                                                                                                                                                                                                                                                                                                                                       |
+| A failed run in console mode                                                                                                                                 | The server logs `camera-pose calibration run 1 failed: ...` and keeps running without a new calibration. Stop it with Ctrl+C and start the command again.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `camera_pose_calibration=stale (... serial changed from A to B)`                                                                                             | A camera was swapped. Recalibrate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `camera_pose_calibration=stale (... depth geometry changed from 640x576 to ...)`                                                                             | The `streams.depth` resolution changed. Recalibrate, or restore the resolution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `camera_pose_calibration=stale (camera cam2 is not calibrated)`                                                                                              | A camera was added, or a camera `id` was renamed. Recalibrate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Distances between cameras are off by a constant factor                                                                                                       | `board.square_length_m` does not match the printed square. Measure it and recalibrate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `config/dev/camera-pose.json` appears in `git status`                                                                                                        | `server/.gitignore` ignores `config/*/camera-pose.json`, so the file shows up only if someone committed it. It belongs to one physical rig. To stop tracking it, run `git rm --cached config/dev/camera-pose.json`. To commit a new version on purpose, run `git add -f config/dev/camera-pose.json`.                                                                                                                                                                                                                                                                                                   |
 
 The depth-to-code table is calibrated separately, offline or from a browser
 that holds the setup lock; see
@@ -9634,6 +9863,7 @@ Protocol 1.2 (change 0018) adds passive network sensing. It only measures and re
 * **Window and confidence.** Each estimate is the newest sample's value over a window of the last 5 seconds. `samples` is how many of them carry that quantity and `windowMs` the time they span. `confidence` follows the precision rule: `high` for 5 or more samples with IQR / median at most 0.25, `medium` for 3 or more at most 0.5, otherwise `low`. The core receives the samples at 1 Hz, not at the gateway's 4 Hz, so a window holds at most six samples and `high` is reached on the fifth steady one. It describes precision only, never bias.
 * **Staleness.** `statsAgeMs` is how old the sample was when the core received it and never exceeds 2000. A sample older than that is not reported, and it is not added to the window.
 * **`client.network.report`.** A notification: no `requestId` and no reply. A malformed one (unknown field, a value above its bound, an unknown closed value, a fifth hold reason) is `invalid-message` and ends that session. Valid ones are ignored, with one log line a minute for all of them, when the session did not negotiate the feature, when more than 4 a second arrive (burst 4), when `sequence` does not rise, when `intervalMs` is above 60000, or when a counter other than the loss counters goes down. The server keeps the latest accepted report per session (`SessionHub::latest_client_network_report`) for the congestion scheduler of change 0017. `holdProbes` takes effect on arrival. The command rate limits of the setup commands do not apply.
+* **Preview during a setup run (`setup-run-preview`, change 0042).** While a camera-pose run started on a ready server is collecting, the server is `paused-for-setup` for everyone, and preview media goes to every `operator` session that listed `preview-media` and `setup-run-preview` in its hello (minor 2 or later), and to the operator that holds the setup lock whether or not it listed `setup-run-preview`. Viewers never get preview. Preview needs no lease; starting or cancelling a calibration still does. The server lists `setup-run-preview` when the client lists it and announces minor 2 or later. Entering and leaving the run rotates the preview streams like any descriptor change, and the tile geometry stays the same for the whole run. A client whose server did not list the feature gets preview during a run only if it holds the lock. The live corners overlay of change 0042 (`board-detection`) is implemented but not advertised: the contract lists it only together with `board-set` (change 0043), which the server does not have yet.
 * **`server.network.sessions`.** The operator's view of every session (change 0018 H). Only sessions that hold the `operator` role and negotiated `network-sensing` at minor 2 or later receive it; a viewer never gets another session's numbers or an address. It is mandatory and coalesced, at most once a second (the setup tick calls `SessionHub::publish_network_sessions`, which keeps the 1 s spacing), and it is replayed after `server.setup.progress` and before `server.operator.replay-complete` after every `server.hello` and `server.snapshot`. At most 64 sessions are listed. With more, the recipient's own row comes first, then the other operators, then the viewers, oldest connection first in each group; the message has no field for the total, so the console cannot show how many were left out. Each row has a `sessionRef`, 64 random bits as 16 lowercase hex characters, made when the session opens, never derived from an address, connection id or lease, and not reused in a run. The server-side numbers (round-trip time, delivery rate, loss, received rate) come from the session's latest gateway sample and exist for every session, with or without the feature. The client-side numbers (`burstRateBps`, `queueDelayP95Us`, the client's probe block, `clientReportAgeMs`) come from the latest accepted `client.network.report` and are `null` for a session without the feature or before its first report. `peerScope` is the open string `loopback`, `private` (RFC 1918, IPv6 unique local, IPv4 and IPv6 link-local) or `public`, decided once from the QUIC peer address when the session opens (IPC v5). It is for display only and nothing acts on it. `peerScope` and `scope` are open strings, and a reader that meets an unknown value ignores that estimate instead of rejecting the message.
 * **Counters.** `SessionHub::network_sensing_counters` has per-session counts of built reports, stale samples and the client reports accepted, rate-limited and ignored.
 
