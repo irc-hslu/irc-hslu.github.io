@@ -52,6 +52,7 @@
   - Developer
     - [Test the client](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/test-the-client): Run the client's type check, unit tests and build, open the dev check pages, and see which browsers have been tested.
     - [Mock server](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/mock-server): A deterministic in-process capture server for client tests and dev pages.
+    - [Calibration quality API](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/calibration-quality): How the Operator Console and the setup workspace read pose quality, advisories and calibration reports from the client (change 0045).
     - [Contract gaps and interim behaviour](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/interim-behaviour): Where the protocol contract is still open, what the client does in the meantime, and what the mock server assumes.
     - [Developer options](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/developer-options): Renderer settings, connection timing and fixed intervals that have no control in the client UI, with their defaults and where to set them.
     - [Runtime options for embedding](https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/runtime-options): Start the client runtime without rendering or media (control only), subscribe only some bundles at the start, ask for the operator role, connect to a server whose certificate is pinned by its SHA-256 hash, and turn on the experimental Enter VR button.

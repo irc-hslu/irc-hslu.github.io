@@ -439,6 +439,58 @@ These are the problems people hit most when starting the client:
 * **Nothing works when you open the page from another computer**: the development server only answers on this computer (`localhost`). Browsers also turn off the features the client needs on plain `http://` pages that aren’t `localhost`. Open the client on the machine that runs it, or serve it over HTTPS with a lab certificate: see [Serve the dev pages over HTTPS](/docs/client/developer/test-the-client#serve-the-dev-pages-over-https).
 
 
+# Calibration quality API (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/calibration-quality)
+
+
+
+The client keeps the quality of a server's calibration beside the calibration state and exports it for the Operator Console from one React-free module, `client/src/app/calibrationQualityApi.ts`. It follows change 0045 (wire format §11 and §13, feature `calibration-quality`). Everything is diagnostic: the figures never change how media is read.
+
+## Turn it on [#turn-it-on]
+
+Offer the feature on the runtime that should have it:
+
+```ts
+startAppRuntime(container, { role: 'operator', features: [CALIBRATION_QUALITY_FEATURE] });
+```
+
+The main page offers it already. The server grants it only for protocol minor 2 or later. Check the result with `isCalibrationQualityNegotiated(connection.state)`. Without it every selector returns `[]` or `null`, a quality field that arrives anyway is dropped, and `fetchCalibrationReport` fails with `unsupported-by-server` without sending anything.
+
+## Read the state [#read-the-state]
+
+Read from `connection.state` and again on `connection.onStateChange`.
+
+| Selector                             | Returns                                                                                                                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `calibrationAdvisories(state, kind)` | The advisory codes of the committed record of `kind`, most important first. They change only with a commit or a server restart, never during a run.                          |
+| `committedPoseQuality(state)`        | The committed camera-pose figures (`PoseQuality`, no per-view list), or `null` when none is known. `quality-unknown` in the advisories says why.                             |
+| `runPoseQuality(state)`              | During a camera-pose run, the last solve attempt (passed or failed) with its per-view list, or `null` before the first attempt. Cleared when the run ends.                   |
+| `lastPoseResultQuality(state)`       | `{accepted, revision, quality}` of the last camera-pose result, or `null`. A failed result may carry the last attempt's figures or `null`. Cleared when the next run starts. |
+| `cameraQualityOf(quality, cameraId)` | The figures of one camera, or `null`.                                                                                                                                        |
+| `pairQualityOf(quality, a, b)`       | The figures of a camera pair, in either order, or `null`.                                                                                                                    |
+
+Pixel figures are in pixels of the camera's observation image (`imageSize` and `observationImage` of the camera figures).
+
+## Show advisories [#show-advisories]
+
+`describeAdvisories(codes)` returns `{code, title, nextStep, known}` for each code, in the server's order. The text covers every code of the contract table. A code the client does not know is shown as is, with an empty `nextStep` and `known: false`.
+
+## Read a report [#read-a-report]
+
+```ts
+const fetched = await fetchCalibrationReport(connection, 'camera-pose');
+if (fetched.ok) show(fetched.reply.report); // null: nothing committed, or no report for that revision
+```
+
+* Reports exist for `camera-pose`, `depth-quantization` and `floor`. `floor` also needs the `floor` feature.
+* The call needs the `operator` role and no lease. A viewer gets `{ok: false, reason: 'rejected', code: 'role-required'}`. A spent command budget gets `code: 'rate-limited'`. Neither ends the session.
+* The report is the one of exactly `reply.revision`. During a run it is the pre-run report.
+* `onCalibrationReport(connection, listener)` is the raw subscription to every reply of this connection.
+
+## Try it against the mock [#try-it-against-the-mock]
+
+See [mock server](/docs/client/developer/mock-server). `?mockQuality=1` gives clean figures and reports, `?mockQuality=advisory` gives advisories, and `?mockQuality=legacy` gives records without reports.
+
+
 # Cards check (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/cards-check)
 
 
@@ -993,6 +1045,7 @@ Useful controls:
 * **Near-range depth**: `nearRangeQuantizationProfile()` (`src/media/playback/nearRangeProfile.ts`, 200 to 5000 mm, from a live server profile) as the snapshot's `quantization`. In the dev app, `?mockDepth=near` makes **Add mock server** serve it (snapshot only, no media).
 * **Role**: the dev mock grants `operator` (`roleGrant`), as a server does for a page opened on the server machine. `?mockRole=viewer` makes **Add mock server** grant `viewer`: setup and placement are then disabled with "needs the operator role (open on the server machine)" (change 0048).
 * **Floor** (change 0046): `?mockFloor=1` makes **Add mock server** offer the feature `floor`. The mock then has a `floor` item (`missing` at first) and a scripted floor run under the lease: progress with a candidate plane (normal about (0.02, 0.999, -0.03), 1.35 m), then awaiting commit; **Commit** raises the floor revision and sets `poseRevision` to the camera-pose revision; **Cancel** restores the item. A camera-pose commit makes the floor `stale`. `?mockFloor=fail` ends the run with `no-plane: ...` instead. In tests use `floor: true` or `floor: { plane, quality, durationUs, progressIntervalUs, failure }`. A session that did not list `floor` never sees the item, and `kind: 'floor'` from it closes the session as `invalid-message`.
+* **Calibration quality** (change 0045): `?mockQuality=1` makes **Add mock server** offer the feature `calibration-quality`. Every calibration item then carries `advisories`, the camera-pose item carries `poseQuality`, camera-pose progress carries the last solve attempt and camera-pose results carry `quality`, all deterministic (3 cameras: `cam-a`, `cam-b`, `cam-c`). `?mockQuality=advisory` adds advisories whose figures agree with them (`reprojection-above-target`, `depth-bias-high`, `alignment-uses-factory-intrinsics`, `depth-range-clipped` on the depth record, and an unknown future code on the floor once one is committed). Figures are only for the cameras in the snapshot, so the one-camera dev mock has no pairs and no pair advisory; in tests `MOCK_QUALITY_PAIR_SCENARIO` adds `pair-consistency-above-target` with the first pair at 14.2 mm (needs at least two cameras). Attempt figures appear only in `solving` progress. `?mockQuality=legacy` starts the records without reports (`quality-unknown`, no `poseQuality`) until a commit writes one. The mock serves `client.calibration.report.get` to operator sessions, with the three report formats, `report: null` when a kind has no report, and the pre-run report during a run; a viewer gets `role-required`. In tests use `calibrationQuality: true` or `{ advisories: { 'camera-pose': [...], 'depth-quantization': [...], floor: [...] }, rmsPx, legacyCommitted }`. A session that did not list the feature sees none of it, and its `client.calibration.report.get` ends the session as `unknown-message-type`. See [calibration quality API](/docs/client/developer/calibration-quality).
 * **Faults**: `dropSession`, `closeSession`, `delaySession`, `stallSession` / `resumeSession`, `sendMalformed`, `skipRevisions`, `sendStaleRevision`, `refuseSnapshots`, `expireLease`, `holdLocalConsoleLease`, `session.dropFromNetwork()`.
 * **Inspection**: `sessions()`, `sessionOf(clientId)`, `lockHolder()`, `snapshot()`, `metadataRevision`, `getRequestLog()`, `session.requestCounts`, `session.role`, `session.mediaStats(bundleId)`.
 
@@ -2661,6 +2714,7 @@ Every server and recording gets a card under **Servers**. A server whose cameras
    * While the cameras are closed or failed: **N of M cameras found** (the cameras the server is set up for that it can see right now), and for **Camera start failed** the server’s own reason, for example `Orbbec property 1038 error`.
 4. **Boxes**, only when they apply: `conflict: …` when another card already shows this server, and a close box when the last connection ended. The close box starts with a short reason in bold, such as **Connection refused.** or **This client fell behind.**, then what to do, then `last close: …` with the raw reason. See [Close messages](/docs/client/add-a-server#close-messages).
 5. **Calibration chips**: **Pose**, **Depth** and **Network**, each with its state (`missing`, `valid`, `stale`, `running` or `failed`) and revision, for example **Pose valid · r1**. Amber or red means the server can’t stream until it’s fixed; **Network** never stops streaming.
+   * When the server reports calibration quality and any calibration has advisories, an amber chip such as **2 advisories** follows. Hover over it, or press **Tab** to reach it, for each advisory and what to do next. See [What the server tells you](/docs/client/setup-workspace#what-the-server-tells-you-and-what-to-do-next).
 6. **Strip**:
    * **Lock**: **Free**, **Yours · 12 s**, another client’s name, or **Unknown** while disconnected
    * **RTT**: the shortest round trip to the server
@@ -2774,10 +2828,15 @@ The 3D view also jumps once to frame this server’s cloud, keeping your viewing
 * **Title**: **SET UP** and the server’s name, with **Leave**. After the session ends: **Back**, and **Enter setup** if the server is still connected.
 * **Chips**: the status (**Locked by you**), the session (**Acquiring…**, **Active**, **Leaving…** or **Ended**) and the lock countdown, which restarts at 15 s with each renewal every 5 s. Hover over a chip for its full sentence.
 * **Camera pose**: its state (for example `valid, revision 3`, with the server’s message if it sent one) and the link **Run camera-pose calibration in the Operator Console**, which opens `/operator/calibration/pose` in a new tab. The client does not calibrate poses itself. While a run is going, perhaps one started in the console, the step says **A camera-pose run is in progress in the Operator Console.**, and **Solved: awaiting commit, not in force until committed.** once it has solved. With the viewer role the link stays, and the note under it says camera-pose calibration `needs the operator role (open on the server machine)`; otherwise the note reads **Open it on the server machine.** See [the Operator Console](/docs/operator#calibrate-the-camera-poses) for the calibration itself.
+  When the server reports quality, the step also shows up to three lines under the state: **Committed:** the reprojection error in px and the worst pair of neighbouring cameras in mm; **Current run:** the same for the latest solve of a run in progress; and **Last result (accepted)** or **Last result (not accepted)**. On the **Committed:** line, a figure ends with **(above target)** when the server’s own advisories say it is above the server’s target; the other lines are never flagged. The per-camera and per-pair detail is in the Operator Console.
 * **Depth quantization**: see [Calibrate depth](/docs/client/calibration).
 * **Floor**: shown only when the server offers it. See [Calibrate the floor](/docs/client/calibrate-floor).
 * **Network**: **Not available yet**.
 * **Placement**: see [Place a server in the scene](/docs/client/placement-editing).
+
+## What the server tells you and what to do next [#what-the-server-tells-you-and-what-to-do-next]
+
+When the server reports calibration quality, a step can show an amber box under its state with one line per advisory: the advisory in bold with a full stop, then **Next:** and what to do about it on its own line, for example **Reprojection error is above the target.** / **Next:** Hold the board flat and still, cover more of each camera view, then recalibrate. The lines are in the server’s order, most important first. Camera pose, Depth quantization and Floor each show their own. An advisory this client doesn’t know yet appears as the server’s code, with no **Next:** part. A step with no advisories shows no box, and a server that doesn’t report quality never does. The same advisories appear as a chip on the [server card](/docs/client/server-card).
 
 Other clients show **Locked by other**. Unavailable buttons show their reason as a tip; a waiting request shows a spinner.
 

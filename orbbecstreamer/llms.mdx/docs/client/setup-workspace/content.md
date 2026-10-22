@@ -24,10 +24,15 @@ The 3D view also jumps once to frame this server’s cloud, keeping your viewing
 * **Title**: **SET UP** and the server’s name, with **Leave**. After the session ends: **Back**, and **Enter setup** if the server is still connected.
 * **Chips**: the status (**Locked by you**), the session (**Acquiring…**, **Active**, **Leaving…** or **Ended**) and the lock countdown, which restarts at 15 s with each renewal every 5 s. Hover over a chip for its full sentence.
 * **Camera pose**: its state (for example `valid, revision 3`, with the server’s message if it sent one) and the link **Run camera-pose calibration in the Operator Console**, which opens `/operator/calibration/pose` in a new tab. The client does not calibrate poses itself. While a run is going, perhaps one started in the console, the step says **A camera-pose run is in progress in the Operator Console.**, and **Solved: awaiting commit, not in force until committed.** once it has solved. With the viewer role the link stays, and the note under it says camera-pose calibration `needs the operator role (open on the server machine)`; otherwise the note reads **Open it on the server machine.** See [the Operator Console](/docs/operator#calibrate-the-camera-poses) for the calibration itself.
+  When the server reports quality, the step also shows up to three lines under the state: **Committed:** the reprojection error in px and the worst pair of neighbouring cameras in mm; **Current run:** the same for the latest solve of a run in progress; and **Last result (accepted)** or **Last result (not accepted)**. On the **Committed:** line, a figure ends with **(above target)** when the server’s own advisories say it is above the server’s target; the other lines are never flagged. The per-camera and per-pair detail is in the Operator Console.
 * **Depth quantization**: see [Calibrate depth](/docs/client/calibration).
 * **Floor**: shown only when the server offers it. See [Calibrate the floor](/docs/client/calibrate-floor).
 * **Network**: **Not available yet**.
 * **Placement**: see [Place a server in the scene](/docs/client/placement-editing).
+
+## What the server tells you and what to do next [#what-the-server-tells-you-and-what-to-do-next]
+
+When the server reports calibration quality, a step can show an amber box under its state with one line per advisory: the advisory in bold with a full stop, then **Next:** and what to do about it on its own line, for example **Reprojection error is above the target.** / **Next:** Hold the board flat and still, cover more of each camera view, then recalibrate. The lines are in the server’s order, most important first. Camera pose, Depth quantization and Floor each show their own. An advisory this client doesn’t know yet appears as the server’s code, with no **Next:** part. A step with no advisories shows no box, and a server that doesn’t report quality never does. The same advisories appear as a chip on the [server card](/docs/client/server-card).
 
 Other clients show **Locked by other**. Unavailable buttons show their reason as a tip; a waiting request shows a spinner.
 

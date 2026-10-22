@@ -24,6 +24,7 @@ Every server and recording gets a card under **Servers**. A server whose cameras
    * While the cameras are closed or failed: **N of M cameras found** (the cameras the server is set up for that it can see right now), and for **Camera start failed** the server’s own reason, for example `Orbbec property 1038 error`.
 4. **Boxes**, only when they apply: `conflict: …` when another card already shows this server, and a close box when the last connection ended. The close box starts with a short reason in bold, such as **Connection refused.** or **This client fell behind.**, then what to do, then `last close: …` with the raw reason. See [Close messages](/docs/client/add-a-server#close-messages).
 5. **Calibration chips**: **Pose**, **Depth** and **Network**, each with its state (`missing`, `valid`, `stale`, `running` or `failed`) and revision, for example **Pose valid · r1**. Amber or red means the server can’t stream until it’s fixed; **Network** never stops streaming.
+   * When the server reports calibration quality and any calibration has advisories, an amber chip such as **2 advisories** follows. Hover over it, or press **Tab** to reach it, for each advisory and what to do next. See [What the server tells you](/docs/client/setup-workspace#what-the-server-tells-you-and-what-to-do-next).
 6. **Strip**:
    * **Lock**: **Free**, **Yours · 12 s**, another client’s name, or **Unknown** while disconnected
    * **RTT**: the shortest round trip to the server
