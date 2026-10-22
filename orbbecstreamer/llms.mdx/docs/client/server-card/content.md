@@ -25,6 +25,7 @@ Every server and recording gets a card under **Servers**. A server whose cameras
 4. **Boxes**, only when they apply: `conflict: …` when another card already shows this server, and a close box when the last connection ended. The close box starts with a short reason in bold, such as **Connection refused.** or **This client fell behind.**, then what to do, then `last close: …` with the raw reason. See [Close messages](/docs/client/add-a-server#close-messages).
 5. **Calibration chips**: **Pose**, **Depth** and **Network**, each with its state (`missing`, `valid`, `stale`, `running` or `failed`) and revision, for example **Pose valid · r1**. Amber or red means the server can’t stream until it’s fixed; **Network** never stops streaming.
    * When the server reports calibration quality and any calibration has advisories, an amber chip such as **2 advisories** follows. Hover over it, or press **Tab** to reach it, for each advisory and what to do next. See [What the server tells you](/docs/client/setup-workspace#what-the-server-tells-you-and-what-to-do-next).
+   * **Drift chip**, only when the server watches for moved cameras: **Drift ok**, **Drift suspected** or **Drift not monitored**. See [The drift chip](#the-drift-chip).
 6. **Strip**:
    * **Lock**: **Free**, **Yours · 12 s**, another client’s name, or **Unknown** while disconnected
    * **RTT**: the shortest round trip to the server
@@ -79,6 +80,18 @@ A bundle row ends with its drawing status:
 * `upload error: …`: the graphics card rejected a frame
 
 The lock’s expiry is in the server’s clock. Until the client has measured the clock difference, the row reads `expires at server time 16.000 s (clock offset not known yet)`. For another client’s lock, `expiry passed as last announced; the server may have renewed it` means the server hasn’t re-announced it yet.
+
+## The drift chip [#the-drift-chip]
+
+When the server watches whether a camera has moved since the last calibration, the card shows one more chip next to the calibration chips. A server that doesn’t offer this shows none. Hover over the chip, or press **Tab** to reach it, for the full sentence.
+
+| Chip                    | Meaning                                                                                                                                                                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Drift ok**            | The cameras look as they did at the last calibration.                                                                                                                                                                                           |
+| **Drift suspected**     | Amber. The server thinks a camera moved and names it. The sentence says what you can do: recalibrate the camera pose with the board or, where offered, [Auto-calibrate without a board](/docs/client/auto-calibrate). Neither starts by itself. |
+| **Drift not monitored** | The server isn’t watching, or can’t in this scene. The sentence says why, for example that it needs person segmentation, that the cameras are still warming up, or that the shared view is too flat.                                            |
+
+The sentence also names the pair of cameras with the largest movement since the baseline, in millimetres and degrees, when the server reports it. It is an observation, not a failure: the card keeps streaming.
 
 ## Status chips [#status-chips]
 

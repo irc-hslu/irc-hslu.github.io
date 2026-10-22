@@ -120,6 +120,62 @@ These messages appear under the URL field:
 | `certificate hash: not a SHA-256 hash: expected 64 hex digits …` | Paste the whole hash: 64 hex digits, or 43 to 44 base64 characters. Or leave the field empty. |
 
 
+# Auto-calibrate without a board (https://irc-hslu.github.io/orbbecstreamer/docs/client/auto-calibrate)
+
+
+
+**Auto-calibrate (no board)** refines the camera poses by comparing what the cameras see of the same room. It needs no calibration board. It is there only when the server offers it; a server that doesn’t offer it shows no such section. It needs the operator role and the setup lock, like the other setup steps. A viewer sees the status only.
+
+The team has not yet tried this on the real rig; it has been checked only against a simulated server.
+
+It works like the other setup runs: a run produces a result that is not in force until you select **Commit**. **Cancel**, leaving the setup view, losing the lock or a stopped capture all discard the run and keep the poses that were already committed. Nothing starts or commits by itself, not even when the server suspects a camera has moved.
+
+## When to use it [#when-to-use-it]
+
+* The server card shows **Drift suspected** and the board isn’t at hand. See [The drift chip](/docs/client/server-card#the-drift-chip).
+* The seams between cameras have crept apart a little since the last board calibration.
+
+It refines poses that are already valid; it does not replace the first calibration. If a camera was knocked far out of place, or the run says **A camera moved too far for a refinement**, recalibrate the camera pose with the board.
+
+## Refine the poses [#refine-the-poses]
+
+1. Open the setup view: select **Set up** on the card. The session chip must read **Active**.
+2. Keep the room clear and still. People walking through the shared view make the run reject its windows.
+3. In **Auto-calibrate (no board)**, select **Auto-calibrate**. The state chip reads **running**.
+4. While it runs, the section shows how many windows were accepted and rejected, with the last reason for a rejection; a line per pair of cameras (the first few, then **+N more**); and, once the server has tried a solve, the candidate it reached. Nothing is in force yet.
+5. When the run is solved, the chip reads **solved, awaiting commit** and **Commit** appears next to **Cancel**. Select **Commit** to keep the result, or **Cancel** to throw it away.
+
+After **Commit**, the chip reads for example **valid · r4**, and two lines under it describe the committed refinement: how closely the surfaces agree and how closely neighbouring cameras agree, and how many cameras were refined and by how much the held-out fit improved. Amber boxes under them list advisories, each with **Next:** and what to do about it.
+
+Poses that came from a refinement have no board quality report; the camera-pose step says so in an advisory.
+
+## When it doesn’t start [#when-it-doesnt-start]
+
+A refused start shows an amber box with what is wrong and **Next:** what to do:
+
+| Message                                                              | What to do                                                                                |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **There is no valid camera pose to refine.**                         | Calibrate the camera pose with the board first.                                           |
+| **Needs person segmentation (RVM).**                                 | Enable person segmentation on the server.                                                 |
+| **Cameras still warming up (default about 40 minutes after start).** | Wait until they are warm, then try again.                                                 |
+| **No two cameras see the same area.**                                | Check the camera placement, or recalibrate with the board.                                |
+| `needs the setup lock`                                               | Take the setup lock. **Auto-calibrate** names this as its reason while you don’t hold it. |
+
+## When it fails [#when-it-fails]
+
+A failed run shows the stage, what to do next, and the server’s own text as it came, for example **Stage: degenerate.** The stages are `not static`, `no overlap`, `degenerate`, `too few inliers`, `not converged`, `step limit`, `no improvement` and `inconsistent`. The previous committed poses stay in force. Select **Auto-calibrate** to try again, with the room clear.
+
+## Show the report [#show-the-report]
+
+**Show report** asks the server for the report of the committed refinement and shows a short summary: the revision and when it was committed, the windows, the quality lines, the largest correction to any camera, and any advisories and notes. If the current poses did not come from an auto-calibration (the last calibration used the board), it says **No report yet.** A report goes away when the poses change. The report needs the operator role.
+
+## Use a keyboard or screen reader [#use-a-keyboard-or-screen-reader]
+
+**Auto-calibrate**, **Commit**, **Cancel** and **Show report** are buttons in the tab order. Unavailable ones stay reachable and name their reason. When **Commit** or **Cancel** go away, focus moves to **Auto-calibrate**. Screen readers announce, without moving focus, that the result waits for **Commit**, a refusal or a failure with what to do, and when the report has loaded.
+
+See also [Calibrate the floor](/docs/client/calibrate-floor) and the [setup view](/docs/client/setup-workspace).
+
+
 # Check your browser (https://irc-hslu.github.io/orbbecstreamer/docs/client/browser-requirements)
 
 
@@ -1048,6 +1104,7 @@ Useful controls:
 * **Role**: the dev mock grants `operator` (`roleGrant`), as a server does for a page opened on the server machine. `?mockRole=viewer` makes **Add mock server** grant `viewer`: setup and placement are then disabled with "needs the operator role (open on the server machine)" (change 0048).
 * **Floor** (change 0046): `?mockFloor=1` makes **Add mock server** offer the feature `floor`. The mock then has a `floor` item (`missing` at first) and a scripted floor run under the lease: progress with a candidate plane (normal about (0.02, 0.999, -0.03), 1.35 m), then awaiting commit; **Commit** raises the floor revision and sets `poseRevision` to the camera-pose revision; **Cancel** restores the item. A camera-pose commit makes the floor `stale`. `?mockFloor=fail` ends the run with `no-plane: ...` instead. In tests use `floor: true` or `floor: { plane, quality, durationUs, progressIntervalUs, failure }`. A session that did not list `floor` never sees the item, and `kind: 'floor'` from it closes the session as `invalid-message`.
 * **Calibration quality** (change 0045): `?mockQuality=1` makes **Add mock server** offer the feature `calibration-quality`. Every calibration item then carries `advisories`, the camera-pose item carries `poseQuality`, camera-pose progress carries the last solve attempt and camera-pose results carry `quality`, all deterministic (3 cameras: `cam-a`, `cam-b`, `cam-c`). `?mockQuality=advisory` adds advisories whose figures agree with them (`reprojection-above-target`, `depth-bias-high`, `alignment-uses-factory-intrinsics`, `depth-range-clipped` on the depth record, and an unknown future code on the floor once one is committed). Figures are only for the cameras in the snapshot, so the one-camera dev mock has no pairs and no pair advisory; in tests `MOCK_QUALITY_PAIR_SCENARIO` adds `pair-consistency-above-target` with the first pair at 14.2 mm (needs at least two cameras). Attempt figures appear only in `solving` progress. `?mockQuality=legacy` starts the records without reports (`quality-unknown`, no `poseQuality`) until a commit writes one. The mock serves `client.calibration.report.get` to operator sessions, with the three report formats, `report: null` when a kind has no report, and the pre-run report during a run; a viewer gets `role-required`. In tests use `calibrationQuality: true` or `{ advisories: { 'camera-pose': [...], 'depth-quantization': [...], floor: [...] }, rmsPx, legacyCommitted }`. A session that did not list the feature sees none of it, and its `client.calibration.report.get` ends the session as `unknown-message-type`. See [calibration quality API](/docs/client/developer/calibration-quality).
+* **Pose drift and board-free refinement** (change 0047): `?mockDrift=ok|suspected|unmonitored` makes **Add mock server** offer the feature `pose-drift`, and `?mockRefine=1|fail|warming` the feature `pose-refine` (`?mockDrift=warming-up` and `not-monitorable` show the other two verdicts). Pairs need cameras, so either switch makes the dev mock three cameras (`cam0` to `cam2`, snapshot only, no media); `?mockCameras=2..8` changes the count. The camera-pose item then carries `poseDrift` (`ok` is `monitoring`, `suspected` names the last camera, `unmonitored` is `no-segmentation`), and operator sessions get `server.calibration.drift` every 10 s (coalescable, replayed at the hello, never an increment) with deterministic figures for the snapshot's cameras only; a one-camera rig is `inactive` and sends none. A commit restarts the monitor (`warming-up` for 20 s). The scripted refine run follows the contract: refusals in order (`pose-refine-needs-pose`, `-needs-segmentation` when the scenario is `unmonitored`, `-warming-up` with `?mockRefine=warming`, `-no-overlap` with one camera), then progress with accepted and rejected windows (one `not-static`), the pairs, and a candidate once it is solving, then awaiting commit. **Commit** raises the camera-pose revision (`warming-up`, advisories `pose-refined` and `quality-unknown`, no `poseQuality`), makes a committed floor `stale`, and the `pose-refine` item `valid` with its `refineQuality`; **Cancel**, a lease loss, a takeover and a capture stop restore the item and send no result. `?mockRefine=fail` ends the run with `degenerate: ...`. The report (`kind: 'pose-refine'`) needs `?mockQuality=1`. In tests use `poseDrift: true | { scenario, suspectedCameraIds, reportIntervalUs, warmUpUs }` and `poseRefine: true | { durationUs, progressIntervalUs, requiredWindows, failure, warmingUp }`, `setPoseDriftScenario(...)` and `setPoseRefineFailure(...)`. A session that did not list a feature sees none of it, and `kind: 'pose-refine'` from it closes the session as `invalid-message`. See [pose drift and refinement API](/docs/client/developer/pose-drift).
 * **Faults**: `dropSession`, `closeSession`, `delaySession`, `stallSession` / `resumeSession`, `sendMalformed`, `skipRevisions`, `sendStaleRevision`, `refuseSnapshots`, `expireLease`, `holdLocalConsoleLease`, `session.dropFromNetwork()`.
 * **Inspection**: `sessions()`, `sessionOf(clientId)`, `lockHolder()`, `snapshot()`, `metadataRevision`, `getRequestLog()`, `session.requestCounts`, `session.role`, `session.mediaStats(bundleId)`.
 
@@ -1473,6 +1530,62 @@ Troubleshooting:
 
 * **A DevTools screenshot of the canvas is black or blank**: headless page screenshots do not capture a GPU-composited canvas. For WebGL2, add `--disable-gpu-compositing`. For WebGPU, read the canvas back in the page instead of taking a page screenshot.
 * **The header chip shows WebGPU although you wanted WebGL2**: WebGPU is available on the GPU even without `--enable-unsafe-webgpu`. Turn it off with `--disable-features=WebGPU,WebGPUService`.
+
+
+# Pose drift and refinement API (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/pose-drift)
+
+
+
+The client keeps the drift monitor's verdict and the board-free pose refinement of a server beside the calibration state and exports them for the Operator Console from one React-free module, `client/src/app/poseDriftApi.ts`. It follows change 0047 (wire format §11 and §13, features `pose-drift` and `pose-refine`). The drift is an observation: nothing here starts a run or commits by itself.
+
+## Turn it on [#turn-it-on]
+
+The two features are independent. `pose-drift` is read-only; `pose-refine` adds a run, a report kind and four refusal codes. Offer them on the runtime that has a view for what they send:
+
+```ts
+startAppRuntime(container, { role: 'operator', features: ['calibration-quality', POSE_DRIFT_FEATURE, POSE_REFINE_FEATURE] });
+```
+
+The main page offers both: the server card shows the drift chip and the setup view has the Auto-calibrate (no board) section. They are built and tested against the mock only. Check the result with `isPoseDriftNegotiated(state)` and `isPoseRefineNegotiated(state)`. Without a feature its selectors return `null` or `[]`, an item or field that arrives anyway is dropped with a warning, and a request of kind `pose-refine` fails with `unsupported-by-server` without sending anything (the server would end the session).
+
+## Read the verdict [#read-the-verdict]
+
+Read from `connection.state` and again on `connection.onStateChange`.
+
+| Selector              | Returns                                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `driftSummary(state)` | `{state: 'ok' \| 'suspected' \| 'unmonitored', status, title, reason, nextStep, suspectedCameraIds, pairs}` in plain text, or `null` without `pose-drift`.                                        |
+| `poseDrift(state)`    | The wire `poseDrift` of the camera-pose item. It holds between estimate cycles (the last evidence) and is frozen during a run.                                                                    |
+| `driftReport(state)`  | The latest `server.calibration.drift` (operator sessions only, coalescable, the latest wins), or `null`. Dropped when a newer commit or an `inactive` or `unmonitored` verdict makes it obsolete. |
+
+`driftSummary` maps the six wire statuses: `monitoring` is `ok`, `suspected` is `suspected`, and `inactive`, `unmonitored`, `warming-up` and `not-monitorable` are `unmonitored` with their own title. A suspected verdict is a warning, never an error and never modal. Its next step is **Recalibrate camera pose**, and where `pose-refine` works also **Auto-calibrate**; neither starts by itself.
+
+For the pair detail: `describeDriftFigure(pair.drift)` gives "7.8 mm ± 0.6, 0.12° ± 0.02" (a saturated one "> 50 mm / 3°"), `describeFigure(pair.offsetFromCommitted)` the baseline offset, `describeUnobservedDirection(direction)` a sentence for each direction the room cannot check (never "0 mm"), and `describeDriftReason(code)` the plain words for a pair reason (`no-overlap`, `too-few-points`, `too-few-normal-directions`, `too-few-inliers`, `not-converged`, `degenerate`, `dynamic-scene`, `sync-degraded`, `camera-disconnected`, `budget-exceeded`, and the window reason `not-static`). An unknown code is shown as it is. `thresholds.provisional` is true until the server's bias floor is measured; say so.
+
+## Run the refinement [#run-the-refinement]
+
+`new PoseRefineRun(control, clock)` takes the `SetupControl` of `pipelineSetupControl` and gives `view()`, `onChange(listener)`, `start()`, `cancel()`, `commit()` and `dispose()`. It needs the setup lock the workspace holds and the `operator` role (change 0048); the view says why an action is blocked.
+
+* **Start** is refused before sending when the pose is not valid (`needs-pose`) or the monitor says there is no person segmentation (`needs-segmentation`). The server's own refusals are mapped by `describePoseRefineRefusal(failure, action)` to a text and a next step: `pose-refine-needs-pose` ("Calibrate with the board first"; on a commit "The camera poses changed while the refinement ran. Cancel and refine again."), `pose-refine-needs-segmentation`, `pose-refine-warming-up`, `pose-refine-no-overlap`, and also `rig-restarting`, `role-required`, `invalid-lease`, `capture-not-running`, `calibration-running` and `rate-limited`. Any other code is shown with the server's message.
+* **Progress** (`view().progress`, or `poseRefineProgress(state)`): accepted and required windows, the rejected count with the last reason, the pairs that constrain the solve, the `phase` (`collecting`, `solving`) and `lastSolveFailure`. `candidate` is the last solve attempt, `null` while collecting. After the run is solved the last message stays so the operator can review the candidate.
+* **Commit** is enabled only at `awaitingCommit` and is always the operator's own action. A commit raises the camera-pose revision, so the verdict is `warming-up`, a committed floor becomes `stale`, and the camera-pose advisories are `pose-refined` and `quality-unknown` with no `poseQuality` (read them with `cameraPoseAdvisories(state)`; `describePoseRefineAdvisories(codes, kind)` words them).
+* **Cancel, lease loss, takeover, capture stop and session close** commit nothing: the server restores the item and sends no result, and the view drops the progress.
+* **A failed run** keeps the server's message as is (`view().message`, `lastResult.failure.message`). `parsePoseRefineFailure(message)` reads the recommended stage (`not-static`, `no-overlap`, `degenerate`, `too-few-inliers`, `not-converged`, `step-limit`, `no-improvement`, `inconsistent`) and gives a next step; a `step-limit` points to **Recalibrate camera pose** with the board.
+
+`poseRefineItem(state)` is the status item (`missing`, `valid`, `running`, `failed`, `stale`), `committedRefineQuality(state)` the quality of the refine the current pose came from, and `poseRefineResult(state)` the last result.
+
+## Read the report [#read-the-report]
+
+```ts
+const fetched = await fetchCalibrationReport(connection, 'pose-refine');
+if (fetched.ok) show(fetched.reply.report); // null: the current pose did not come from a refine
+```
+
+The call needs `calibration-quality` and `pose-refine`, and the `operator` role without a lease. `reply.report` is the `pose-refine-report-v1` of the committed refine. The camera-pose report of a pose that came from a refine is `null`.
+
+## Try it against the mock [#try-it-against-the-mock]
+
+See [mock server](/docs/client/developer/mock-server). `?mockDrift=suspected&mockRefine=1&mockQuality=1` gives a suspected verdict, the scripted run and its report on three cameras.
 
 
 # Real-image check (https://irc-hslu.github.io/orbbecstreamer/docs/client/developer/real-image-check)
@@ -2717,6 +2830,7 @@ Every server and recording gets a card under **Servers**. A server whose cameras
 4. **Boxes**, only when they apply: `conflict: …` when another card already shows this server, and a close box when the last connection ended. The close box starts with a short reason in bold, such as **Connection refused.** or **This client fell behind.**, then what to do, then `last close: …` with the raw reason. See [Close messages](/docs/client/add-a-server#close-messages).
 5. **Calibration chips**: **Pose**, **Depth** and **Network**, each with its state (`missing`, `valid`, `stale`, `running` or `failed`) and revision, for example **Pose valid · r1**. Amber or red means the server can’t stream until it’s fixed; **Network** never stops streaming.
    * When the server reports calibration quality and any calibration has advisories, an amber chip such as **2 advisories** follows. Hover over it, or press **Tab** to reach it, for each advisory and what to do next. See [What the server tells you](/docs/client/setup-workspace#what-the-server-tells-you-and-what-to-do-next).
+   * **Drift chip**, only when the server watches for moved cameras: **Drift ok**, **Drift suspected** or **Drift not monitored**. See [The drift chip](#the-drift-chip).
 6. **Strip**:
    * **Lock**: **Free**, **Yours · 12 s**, another client’s name, or **Unknown** while disconnected
    * **RTT**: the shortest round trip to the server
@@ -2771,6 +2885,18 @@ A bundle row ends with its drawing status:
 * `upload error: …`: the graphics card rejected a frame
 
 The lock’s expiry is in the server’s clock. Until the client has measured the clock difference, the row reads `expires at server time 16.000 s (clock offset not known yet)`. For another client’s lock, `expiry passed as last announced; the server may have renewed it` means the server hasn’t re-announced it yet.
+
+## The drift chip [#the-drift-chip]
+
+When the server watches whether a camera has moved since the last calibration, the card shows one more chip next to the calibration chips. A server that doesn’t offer this shows none. Hover over the chip, or press **Tab** to reach it, for the full sentence.
+
+| Chip                    | Meaning                                                                                                                                                                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Drift ok**            | The cameras look as they did at the last calibration.                                                                                                                                                                                           |
+| **Drift suspected**     | Amber. The server thinks a camera moved and names it. The sentence says what you can do: recalibrate the camera pose with the board or, where offered, [Auto-calibrate without a board](/docs/client/auto-calibrate). Neither starts by itself. |
+| **Drift not monitored** | The server isn’t watching, or can’t in this scene. The sentence says why, for example that it needs person segmentation, that the cameras are still warming up, or that the shared view is too flat.                                            |
+
+The sentence also names the pair of cameras with the largest movement since the baseline, in millimetres and degrees, when the server reports it. It is an observation, not a failure: the card keeps streaming.
 
 ## Status chips [#status-chips]
 
@@ -2832,6 +2958,7 @@ The 3D view also jumps once to frame this server’s cloud, keeping your viewing
 * **Camera pose**: its state (for example `valid, revision 3`, with the server’s message if it sent one) and the link **Run camera-pose calibration in the Operator Console**, which opens `/operator/calibration/pose` in a new tab. The client does not calibrate poses itself. While a run is going, perhaps one started in the console, the step says **A camera-pose run is in progress in the Operator Console.**, and **Solved: awaiting commit, not in force until committed.** once it has solved. With the viewer role the link stays, and the note under it says camera-pose calibration `needs the operator role (open on the server machine)`; otherwise the note reads **Open it on the server machine.** See [the Operator Console](/docs/operator#calibrate-the-camera-poses) for the calibration itself.
   When the server reports quality, the step also shows up to three lines under the state: **Committed:** the reprojection error in px and the worst pair of neighbouring cameras in mm; **Current run:** the same for the latest solve of a run in progress; and **Last result (accepted)** or **Last result (not accepted)**. On the **Committed:** line, a figure ends with **(above target)** when the server’s own advisories say it is above the server’s target; the other lines are never flagged. The per-camera and per-pair detail is in the Operator Console.
 * **Depth quantization**: see [Calibrate depth](/docs/client/calibration).
+* **Auto-calibrate (no board)**: under Camera pose, shown only when the server offers it. Refines the poses from the scene itself and never commits by itself. See [Auto-calibrate without a board](/docs/client/auto-calibrate).
 * **Floor**: shown only when the server offers it. See [Calibrate the floor](/docs/client/calibrate-floor).
 * **Network**: **Not available yet**.
 * **Placement**: see [Place a server in the scene](/docs/client/placement-editing).
