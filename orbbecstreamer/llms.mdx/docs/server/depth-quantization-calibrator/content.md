@@ -325,6 +325,13 @@ It is replaced at every commit, written atomically, and its size is fixed
 }
 ```
 
+Since the quality work the file also carries `"format":
+"depth-quantization-report-v1"`, `"advisories"` (for example
+`["depth-range-clipped"]` when more than 5 % of the calibration samples fell
+outside the committed range) and `"notes"`. A report from before that change
+still loads, with no advisories. An operator console can ask for it
+through the `calibration-quality` feature (see [Camera calibration](./camera-calibration)).
+
 The depth profile is a histogram of depth values, so it does not depend on
 lens geometry: rectification neither marks it nor needs it recalibrated. The
 report is diagnostics only. If it cannot be written, the server logs a
