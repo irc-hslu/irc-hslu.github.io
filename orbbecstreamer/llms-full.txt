@@ -6657,11 +6657,19 @@ profile does not read the file again.
 The simulated acceptance test (`ctest -L simulated`) renders a room with a
 floor, a table and a person into the raw depth of two cameras pitched 20 to 40
 degrees down, with noise and holes, and compares the result with the exact
-plane. In it the normal is within 0.01 degrees and the offset within 0.3 mm,
-the table is never taken for the floor, and a scene with no floor, a wall
-only, a ceiling only or too little depth fails with the stage above.
-Every number is **simulated**; the accuracy of a lit rig session is not
-measured yet.
+plane. The test is `SyntheticFloorAcceptanceTests` (`pitched rigs recover the
+floor` and `a noisy scene`), and it prints one `[simulated]` line per scenario.
+Over five rigs (pitch 20 to 40 degrees, two with a lens model, 3 mm depth
+noise, 2 percent holes, three identical runs) the worst case is a normal 0.0053
+degrees and an offset 0.25 mm from the truth, with `residualMm` at most 1.78
+and `inlierShare` at least 0.59. With 6 mm noise and 8 percent holes the same
+room gives 0.0012 degrees, 0.14 mm and `residualMm` 1.82. The test pins about
+twice these figures (0.012 degrees and 0.5 mm; 0.003 degrees and 0.3 mm for
+the noisy room), so a regression fails, and keeps a looser check of 0.5
+degrees and 5 mm. The table is never taken for the floor, and a scene with no
+floor, a wall only, a ceiling only or too little depth fails with the stage
+above. Every number is **simulated**; the accuracy of a lit rig session is not
+measured yet and has to be validated on the rig.
 
 ## Troubleshooting [#troubleshooting]
 
