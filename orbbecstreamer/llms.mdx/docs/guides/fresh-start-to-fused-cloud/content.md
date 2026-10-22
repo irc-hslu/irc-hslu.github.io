@@ -236,10 +236,10 @@ order; each one ends with what you should see.
     the page server's drop-in, `lan_viewers: true` in `live.yaml`, the
     firewall ports, and the installation's certificate authority trusted once
     on each viewer. Then open `https://<server-hostname>.local:8443` on the
-    viewer. A LAN viewer never gets the operator role: it can open the
-    Operator Console at `/operator` only as a viewer. From v0.1.6 a viewer
-    can't take the setup lock or calibrate the depth range; up to v0.1.5 it
-    could.
+    viewer. A LAN viewer never gets the operator role. From v0.1.6 it can't
+    open the Operator Console at all (`/operator` answers `404` on port 8443);
+    up to v0.1.5 it could open it as a viewer, which could still take the setup
+    lock and calibrate the depth range.
 
     You should see the same point cloud on the viewer as in the console's
     **Preview**.

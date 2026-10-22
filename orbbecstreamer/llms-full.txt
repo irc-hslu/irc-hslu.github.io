@@ -3533,7 +3533,7 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling; v0.1.6 adds lens correction, a Board screen and a floor measurement to the console, and leaves setup to the operator only. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
@@ -3597,18 +3597,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.5-1_amd64.deb` from the
-    [v0.1.5 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.5),
+    Download `orbbec-streamer_0.1.6-1_amd64.deb` from the
+    [v0.1.6 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.6),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.5-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.6-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.5-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `1440738759927db206c152a19bfaec0cb2ab594476c3b257a7a362280f9c3ba2`.
+    `sha256sum` must print `orbbec-streamer_0.1.6-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `83f3bfb7752d429d2512bf5d86ede85fee6d5e6586f25a795541e5fb782409ef`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -3617,7 +3617,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.5-1`. It sorts above every
+    The package version inside the file is `0.1.6-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -3825,11 +3825,19 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.5-1`.
+Replace `<version>` with the new file's version, for example `0.1.6-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
 yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
-version. It is unchanged from v0.1.2 to v0.1.5, so an upgrade from v0.1.1 or later doesn't ask.
+version. It is unchanged from v0.1.2 to v0.1.5. It changed again in v0.1.6 (an ignored
+setting removed, comments updated), so if you edited yours, the upgrade to
+v0.1.6 asks again; keeping your version is fine.
+After upgrading to v0.1.6, calibrate the camera poses again. From v0.1.6
+the server corrects the lens distortion of every image first, and poses
+solved before that still load but are less accurate. The Operator Console
+and the client's setup workspace flag them with **Poses were solved before
+image rectification**. A `bilateral_mask_threshold` line in a `live.yaml`
+you kept is ignored from v0.1.6 and can be deleted. Calibrate again after a downgrade to v0.1.5 too.
 From v0.1.3 camera poses are no longer mirrored in Y. A camera-pose
 calibration committed on v0.1.2 stays valid and now shows correctly, but a
 placement chosen while the scene looked mirrored may need placing again.
@@ -3876,7 +3884,10 @@ calibration are kept.
   the unknown key. Downgrading from v0.1.0-poc.10 to poc.9 or earlier: also
   delete the `lan_viewers` line under `serving:` and restart; otherwise the
   older server refuses to start with `Unsupported serving key: lan_viewers`.
-  Downgrading from v0.1.5 to v0.1.4 needs no change, but v0.1.4 turns disabled services back on and lacks
+  Downgrading from v0.1.6 to v0.1.5 works with the packaged `live.yaml`. If you added settings that are new in
+  v0.1.6, such as `seam_filter_enabled`, `bilateral_fill_holes` or `mask_foreground_threshold`, delete them first:
+  the older server refuses to start with keys it doesn't know. v0.1.5 ignores a board set from the console, the floor
+  and the calibration reports, and uses the board from `live.yaml` or the default again. Downgrading from v0.1.5 to v0.1.4 needs no change, but v0.1.4 turns disabled services back on and lacks
   the renewal fixes. Downgrading from v0.1.4 to v0.1.3, from v0.1.3 to v0.1.2, or from v0.1.2 to v0.1.1, needs no change, but
   without a `calibration.board` block, v0.1.3 and earlier expect the old 7 × 5 board. Downgrading from
   v0.1.1 or later to v0.1.0 or earlier with `network_probes` set:
@@ -3971,6 +3982,10 @@ server PC. In short:
    `https://<server-LAN-IP>:8443`. The name or address must be one the
    server's certificate covers;
    `sudo /usr/lib/orbbec-streamer/tls/orbbec-tls status` lists them.
+
+From v0.1.6 the page server doesn't serve the Operator Console to other
+computers: `https://<server-hostname>.local:8443/operator` answers `404`.
+Use the console on the server PC.
 
 The page server's certificate is renewed with the others. From v0.1.5 the
 page server picks up the renewed certificate by itself; up to v0.1.4, run
@@ -4149,8 +4164,12 @@ solution came within 0.12° and 2.7 to 3.7 mm of the truth. The programme's
 goal is 0.1° and 2 mm; this is not met yet and has to be validated on the
 rig. Every figure is simulated.
 
-The Operator Console doesn't show the quality figures yet. After a run,
-`journalctl -u orbbec-streamer` has one line for the run and one per
+The Operator Console shows the figures and advisories in a **Quality**
+section on its calibration screens, and fetches the full report with
+**Calibration report**; see
+[Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
+The client's setup workspace lists the advisories too. After a run,
+`journalctl -u orbbec-streamer` also has one line for the run and one per
 camera and per pair, and each commit writes
 `/var/lib/orbbec-streamer/calibration/camera-pose.report.json`. Short
 codes called advisories flag a calibration you shouldn't trust as it is,
@@ -4159,12 +4178,12 @@ than 40 minutes: let the cameras warm up before you calibrate. See
 [Quality figures in the log](/docs/server/camera-calibration#quality-figures-in-the-log) and
 [Advisories](/docs/server/camera-calibration#advisories).
 
-| Kind               | On the server                                                                                                                                                                                                                                                                               | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Camera pose        | One camera needs none: from v0.1.0-poc.7 the server writes its identity pose at start. Several cameras: works from the local console with a ChArUco board, tested with synthetic cameras and not yet validated on hardware. See [Camera pose calibration](/docs/server/camera-calibration). | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid, unless the session has the operator role. From v0.1.0-poc.11, the Operator Console has the operator role on the server PC and calibrates a missing pose; see [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses). Up to poc.10, a missing pose must be calibrated on the server.                                                                                                                                                                                                                                                                                                                                           |
-| Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator).                                                                                                                                                                                     | The server runs it for a client that holds the setup lock (since v0.1.0-poc.4): it samples live, masked depth, and a solved run waits for a commit, which swaps the new profile in without a restart. From v0.1.0-poc.6, the client can also commit the run against a real server: it follows the server's "solved; awaiting commit" behaviour. This was tested against the mock server; a check on real hardware is pending. With poc.5, the client can start, watch and cancel a run but not commit it, so use the calibrator or `orbbec-console calibrate depth --commit` (see [Terminal console](/docs/operator/terminal-console#calibrate-from-a-script)). The full flow works against the client's [mock server](/docs/client/developer/mock-server). See [Calibrate depth](/docs/client/calibration#depth-quantization). |
-| Floor              | From v0.1.6 the server measures the floor plane from the running cameras; it needs a valid camera pose. Tested in simulation, not yet on hardware.                                                                                                                                          | From v0.1.6, a session with the operator role and the setup lock measures and commits it: in the Operator Console, see [Measure the floor](/docs/operator#measure-the-floor); in the client's setup workspace, see [Calibrate the floor](/docs/client/calibrate-floor). **Level to floor** turns the result into a placement draft that you commit yourself.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.                                                                                                                                                                                            | Not available.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Kind               | On the server                                                                                                                                                                                                                                                                                                                                                                                | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Camera pose        | One camera needs none: from v0.1.0-poc.7 the server writes its identity pose at start. Several cameras: works from the local console with a ChArUco board, tested with synthetic cameras and not yet validated on hardware. See [Camera pose calibration](/docs/server/camera-calibration).                                                                                                  | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid, unless the session has the operator role. From v0.1.0-poc.11, the Operator Console has the operator role on the server PC and calibrates a missing pose; see [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses). Up to poc.10, a missing pose must be calibrated on the server.                                                                                                                                                                                                                                                                                                                                           |
+| Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator).                                                                                                                                                                                                                                                                                      | The server runs it for a client that holds the setup lock (since v0.1.0-poc.4): it samples live, masked depth, and a solved run waits for a commit, which swaps the new profile in without a restart. From v0.1.0-poc.6, the client can also commit the run against a real server: it follows the server's "solved; awaiting commit" behaviour. This was tested against the mock server; a check on real hardware is pending. With poc.5, the client can start, watch and cancel a run but not commit it, so use the calibrator or `orbbec-console calibrate depth --commit` (see [Terminal console](/docs/operator/terminal-console#calibrate-from-a-script)). The full flow works against the client's [mock server](/docs/client/developer/mock-server). See [Calibrate depth](/docs/client/calibration#depth-quantization). |
+| Floor              | From v0.1.6 the server measures the floor plane from the running cameras; it needs a valid camera pose. In simulation (five rigs pitched 20° to 40° down, with a table, a person and 3 mm depth noise) the worst case was 0.0053° for the floor's normal and 0.25 mm for its offset; not yet tested on hardware. See [Measure the floor](/docs/server/camera-calibration#measure-the-floor). | From v0.1.6, a session with the operator role and the setup lock measures and commits it: in the Operator Console, see [Measure the floor](/docs/operator#measure-the-floor); in the client's setup workspace, see [Calibrate the floor](/docs/client/calibrate-floor). **Level to floor** turns the result into a placement draft that you commit yourself.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.                                                                                                                                                                                                                                                                                             | Not available.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### Before a depth run from a browser [#before-a-depth-run-from-a-browser]
 
@@ -4456,10 +4475,10 @@ order; each one ends with what you should see.
     the page server's drop-in, `lan_viewers: true` in `live.yaml`, the
     firewall ports, and the installation's certificate authority trusted once
     on each viewer. Then open `https://<server-hostname>.local:8443` on the
-    viewer. A LAN viewer never gets the operator role: it can open the
-    Operator Console at `/operator` only as a viewer. From v0.1.6 a viewer
-    can't take the setup lock or calibrate the depth range; up to v0.1.5 it
-    could.
+    viewer. A LAN viewer never gets the operator role. From v0.1.6 it can't
+    open the Operator Console at all (`/operator` answers `404` on port 8443);
+    up to v0.1.5 it could open it as a viewer, which could still take the setup
+    lock and calibrate the depth range.
 
     You should see the same point cloud on the viewer as in the console's
     **Preview**.
@@ -4834,11 +4853,12 @@ closed until a client opens them (see [Cameras closed](#cameras-closed)).
 By default both services listen on this machine only, so other computers
 can't open the console. With
 [LAN viewers](/docs/getting-started/install-package#remote-viewers-on-the-lan)
-turned on, other computers can open it at
+turned on, up to v0.1.5 other computers can open it at
 `https://<server-hostname>.local:8443/operator`, but only as a viewer (see
-[The operator role](#the-operator-role)). From v0.1.6 a viewer can't take
-the setup lock or calibrate the depth range, so the console there is
-read-only; up to v0.1.5 a viewer could do both.
+[The operator role](#the-operator-role)). From v0.1.6 the page server
+doesn't serve the console to other computers at all (that address answers
+`404`), and a viewer can't take the setup lock or calibrate the depth
+range.
 
 ## The operator role [#the-operator-role]
 
@@ -5083,8 +5103,14 @@ restart](/docs/server/camera-calibration#reload-the-board-without-a-restart).
 7. Select **Leave setup**.
 
 From v0.1.6 the server solves all poses together and checks them against
-its targets, but the console doesn't show those quality figures yet. Read
-them in `journalctl -u orbbec-streamer` and in
+its targets. The screen's **Quality** section shows the figures of the
+last solve attempt, the last run and the **Committed poses**:
+**Reprojection error**, **Depth residual** and **Observations**, a **Per
+camera** and a **Per camera pair** table, and **Advisories from the
+server**, each with what to do. A figure over its target is marked
+**Above target**. **Calibration report** fetches the full report of the
+committed calibration, with **Copy JSON**; it needs the operator role. The
+same figures are in `journalctl -u orbbec-streamer` and in
 `/var/lib/orbbec-streamer/calibration/camera-pose.report.json`; see
 [Calibration](/docs/guides/calibration). Let the cameras stream for about
 40 minutes before you calibrate.
@@ -5419,7 +5445,7 @@ the package). After a rotation, enter the new hash, or use discovery.
 | **No cameras reported**                                                                   | The server sees no camera. Check the USB 3 cable and `journalctl -u orbbec-streamer`, then select **Refresh**.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | The console opens as **Opened as viewer** on the server PC                                | The page's address isn't a console origin, or `serving.console_origins` is missing from a `live.yaml` you kept from an older version. See [The operator role](#the-operator-role) and [Upgrade](/docs/getting-started/install-package#upgrade).                                                                                                                                                                                                                                                                                                    |
 | Sensor and profile screens read `Cameras are closed. Start the cameras to see them here.` | The cameras are closed (from poc.9). Select **Start cameras** on **Overview** (from poc.10), or on the server's card in the [client](/docs/client/server-card).                                                                                                                                                                                                                                                                                                                                                                                    |
-| It doesn't work from another computer                                                     | Expected: by default the console opens on the server PC only, and on other computers only as a viewer once LAN viewers are on. Other computers can view the cameras; see [Remote viewers on the LAN](/docs/getting-started/install-package#remote-viewers-on-the-lan).                                                                                                                                                                                                                                                                             |
+| It doesn't work from another computer                                                     | Expected: the console opens on the server PC only. From v0.1.6 other computers get `404` even with LAN viewers on; up to v0.1.5 they could open it as a viewer. Other computers can view the cameras; see [Remote viewers on the LAN](/docs/getting-started/install-package#remote-viewers-on-the-lan).                                                                                                                                                                                                                                            |
 
 
 # Terminal console (preview) (https://irc-hslu.github.io/orbbecstreamer/docs/operator/terminal-console)

@@ -50,11 +50,12 @@ closed until a client opens them (see [Cameras closed](#cameras-closed)).
 By default both services listen on this machine only, so other computers
 can't open the console. With
 [LAN viewers](/docs/getting-started/install-package#remote-viewers-on-the-lan)
-turned on, other computers can open it at
+turned on, up to v0.1.5 other computers can open it at
 `https://<server-hostname>.local:8443/operator`, but only as a viewer (see
-[The operator role](#the-operator-role)). From v0.1.6 a viewer can't take
-the setup lock or calibrate the depth range, so the console there is
-read-only; up to v0.1.5 a viewer could do both.
+[The operator role](#the-operator-role)). From v0.1.6 the page server
+doesn't serve the console to other computers at all (that address answers
+`404`), and a viewer can't take the setup lock or calibrate the depth
+range.
 
 ## The operator role [#the-operator-role]
 
@@ -299,8 +300,14 @@ restart](/docs/server/camera-calibration#reload-the-board-without-a-restart).
 7. Select **Leave setup**.
 
 From v0.1.6 the server solves all poses together and checks them against
-its targets, but the console doesn't show those quality figures yet. Read
-them in `journalctl -u orbbec-streamer` and in
+its targets. The screen's **Quality** section shows the figures of the
+last solve attempt, the last run and the **Committed poses**:
+**Reprojection error**, **Depth residual** and **Observations**, a **Per
+camera** and a **Per camera pair** table, and **Advisories from the
+server**, each with what to do. A figure over its target is marked
+**Above target**. **Calibration report** fetches the full report of the
+committed calibration, with **Copy JSON**; it needs the operator role. The
+same figures are in `journalctl -u orbbec-streamer` and in
 `/var/lib/orbbec-streamer/calibration/camera-pose.report.json`; see
 [Calibration](/docs/guides/calibration). Let the cameras stream for about
 40 minutes before you calibrate.
@@ -635,4 +642,4 @@ the package). After a rotation, enter the new hash, or use discovery.
 | **No cameras reported**                                                                   | The server sees no camera. Check the USB 3 cable and `journalctl -u orbbec-streamer`, then select **Refresh**.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | The console opens as **Opened as viewer** on the server PC                                | The page's address isn't a console origin, or `serving.console_origins` is missing from a `live.yaml` you kept from an older version. See [The operator role](#the-operator-role) and [Upgrade](/docs/getting-started/install-package#upgrade).                                                                                                                                                                                                                                                                                                    |
 | Sensor and profile screens read `Cameras are closed. Start the cameras to see them here.` | The cameras are closed (from poc.9). Select **Start cameras** on **Overview** (from poc.10), or on the server's card in the [client](/docs/client/server-card).                                                                                                                                                                                                                                                                                                                                                                                    |
-| It doesn't work from another computer                                                     | Expected: by default the console opens on the server PC only, and on other computers only as a viewer once LAN viewers are on. Other computers can view the cameras; see [Remote viewers on the LAN](/docs/getting-started/install-package#remote-viewers-on-the-lan).                                                                                                                                                                                                                                                                             |
+| It doesn't work from another computer                                                     | Expected: the console opens on the server PC only. From v0.1.6 other computers get `404` even with LAN viewers on; up to v0.1.5 they could open it as a viewer. Other computers can view the cameras; see [Remote viewers on the LAN](/docs/getting-started/install-package#remote-viewers-on-the-lan).                                                                                                                                                                                                                                            |

@@ -9,7 +9,7 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling; v0.1.6 adds lens correction, a Board screen and a floor measurement to the console, and leaves setup to the operator only. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
@@ -73,18 +73,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.5-1_amd64.deb` from the
-    [v0.1.5 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.5),
+    Download `orbbec-streamer_0.1.6-1_amd64.deb` from the
+    [v0.1.6 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.6),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.5-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.6-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.5-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `1440738759927db206c152a19bfaec0cb2ab594476c3b257a7a362280f9c3ba2`.
+    `sha256sum` must print `orbbec-streamer_0.1.6-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `83f3bfb7752d429d2512bf5d86ede85fee6d5e6586f25a795541e5fb782409ef`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -93,7 +93,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.5-1`. It sorts above every
+    The package version inside the file is `0.1.6-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -301,11 +301,19 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.5-1`.
+Replace `<version>` with the new file's version, for example `0.1.6-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
 yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
-version. It is unchanged from v0.1.2 to v0.1.5, so an upgrade from v0.1.1 or later doesn't ask.
+version. It is unchanged from v0.1.2 to v0.1.5. It changed again in v0.1.6 (an ignored
+setting removed, comments updated), so if you edited yours, the upgrade to
+v0.1.6 asks again; keeping your version is fine.
+After upgrading to v0.1.6, calibrate the camera poses again. From v0.1.6
+the server corrects the lens distortion of every image first, and poses
+solved before that still load but are less accurate. The Operator Console
+and the client's setup workspace flag them with **Poses were solved before
+image rectification**. A `bilateral_mask_threshold` line in a `live.yaml`
+you kept is ignored from v0.1.6 and can be deleted. Calibrate again after a downgrade to v0.1.5 too.
 From v0.1.3 camera poses are no longer mirrored in Y. A camera-pose
 calibration committed on v0.1.2 stays valid and now shows correctly, but a
 placement chosen while the scene looked mirrored may need placing again.
@@ -352,7 +360,10 @@ calibration are kept.
   the unknown key. Downgrading from v0.1.0-poc.10 to poc.9 or earlier: also
   delete the `lan_viewers` line under `serving:` and restart; otherwise the
   older server refuses to start with `Unsupported serving key: lan_viewers`.
-  Downgrading from v0.1.5 to v0.1.4 needs no change, but v0.1.4 turns disabled services back on and lacks
+  Downgrading from v0.1.6 to v0.1.5 works with the packaged `live.yaml`. If you added settings that are new in
+  v0.1.6, such as `seam_filter_enabled`, `bilateral_fill_holes` or `mask_foreground_threshold`, delete them first:
+  the older server refuses to start with keys it doesn't know. v0.1.5 ignores a board set from the console, the floor
+  and the calibration reports, and uses the board from `live.yaml` or the default again. Downgrading from v0.1.5 to v0.1.4 needs no change, but v0.1.4 turns disabled services back on and lacks
   the renewal fixes. Downgrading from v0.1.4 to v0.1.3, from v0.1.3 to v0.1.2, or from v0.1.2 to v0.1.1, needs no change, but
   without a `calibration.board` block, v0.1.3 and earlier expect the old 7 × 5 board. Downgrading from
   v0.1.1 or later to v0.1.0 or earlier with `network_probes` set:
@@ -447,6 +458,10 @@ server PC. In short:
    `https://<server-LAN-IP>:8443`. The name or address must be one the
    server's certificate covers;
    `sudo /usr/lib/orbbec-streamer/tls/orbbec-tls status` lists them.
+
+From v0.1.6 the page server doesn't serve the Operator Console to other
+computers: `https://<server-hostname>.local:8443/operator` answers `404`.
+Use the console on the server PC.
 
 The page server's certificate is renewed with the others. From v0.1.5 the
 page server picks up the renewed certificate by itself; up to v0.1.4, run
