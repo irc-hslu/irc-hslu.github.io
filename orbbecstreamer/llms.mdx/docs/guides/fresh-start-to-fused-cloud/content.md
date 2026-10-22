@@ -174,7 +174,13 @@ order; each one ends with what you should see.
     board.
 
     In the Operator Console, open **Camera pose** under **Calibration**, select
-    **Take setup lock**, then **Start camera-pose calibration**. Move the board
+    **Take setup lock**, then **Start camera-pose calibration**. From v0.1.6,
+    start only after the cameras have streamed for about 40 minutes: their
+    depth drifts while they warm up, and the server flags a pose solved
+    earlier (`solved-before-warm-up`). From v0.1.6
+    each camera's tile shows its live image with the detected board drawn on
+    it and `Board seen (N corners)`; hold the board still for a moment at each
+    spot so the server keeps the view, then move or tilt it to a new one. Move the board
     as the screen's instruction says, until every highlighted region of every
     camera is covered and **Camera links** joins all cameras. When the screen
     shows **Proposed camera pose**, select **Commit camera pose**, then
@@ -240,6 +246,21 @@ order; each one ends with what you should see.
 
     {/* TODO M6: confirm from a second machine on the rig run; real screenshot. */}
   </Step>
+
+  {/* Floor pending (W8 server floor solve): when it lands, restore this step before "Check the network":
+    ## Measure the floor (optional)
+    From v0.1.6 the server can measure the floor from the running cameras, so
+    that the scene stands level in the viewer. It needs a valid camera pose
+    and the operator role, so do it in the client on the server PC: select
+    **Set up** on the server's card, then **Calibrate floor** in the **Floor**
+    section. When the section reads `The floor was measured. Commit it or
+    cancel.`, select **Commit**. Then select **Level to floor**: it opens a
+    placement draft, which you commit in **Placement**. Nothing is levelled
+    without that commit. See [Calibrate the floor](/docs/client/calibrate-floor).
+
+    You should see the card's chip read **Floor valid** and, with **Show
+    floor** on in the view settings, the floor grid under the scene.
+    */}
 
   <Step>
     ## Check the network [#check-the-network]

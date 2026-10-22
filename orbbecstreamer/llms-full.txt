@@ -4073,6 +4073,35 @@ v0.1.0-poc.7 the session also carries live video (see
 setup commands only. The team has not yet checked depth calibration on a
 live scene on real hardware.
 
+From v0.1.6 the camera-pose run keeps views by itself while the board is
+held still, sorts them by distance, tilt and image region, and detects the
+board in each camera's own colour image; the Operator Console shows each
+camera's live image with the detected board. See
+[Run a calibration](/docs/server/camera-calibration#run-a-calibration) and
+[Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
+These changes were tested in simulation, not yet on hardware.
+
+From v0.1.6 the server solves all camera poses together (a joint rig
+adjustment) and checks the result against targets: 0.5 px reprojection
+error and 10 mm between the cameras of each pair. In simulation, the joint
+solution came within 0.12° and 2.7 to 3.7 mm of the truth. The programme's
+goal is 0.1° and 2 mm; this is not met yet and has to be validated on the
+rig. Every figure is simulated.
+
+The Operator Console doesn't show the quality figures yet. After a run,
+`journalctl -u orbbec-streamer` has one line for the run and one per
+camera and per pair, and each commit writes
+`/var/lib/orbbec-streamer/calibration/camera-pose.report.json`. Short
+codes called advisories flag a calibration you shouldn't trust as it is,
+for example `solved-before-warm-up` when a camera had streamed for less
+than 40 minutes: let the cameras warm up before you calibrate. See
+[Quality figures in the log](/docs/server/camera-calibration#quality-figures-in-the-log) and
+[Advisories](/docs/server/camera-calibration#advisories).
+
+{/* Floor pending (W8 server floor solve): when it lands, add back the Floor row to the table ("From v0.1.6, from the client's setup workspace by a session with the operator role and the setup lock: Calibrate floor, then Commit; Level to floor makes a placement draft", link /docs/client/calibrate-floor), change "three calibration kinds" to four, and add a step 4 for the floor with the Floor chip. */}
+
+{/* Board-form pending: when the Operator Console's board form lands (0.1.6), describe it here and replace "the Operator Console has no form for that yet" in operator/index.md (a .md page, so it can't hold this marker). */}
+
 | Kind               | On the server                                                                                                                                                                                                                                                                               | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Camera pose        | One camera needs none: from v0.1.0-poc.7 the server writes its identity pose at start. Several cameras: works from the local console with a ChArUco board, tested with synthetic cameras and not yet validated on hardware. See [Camera pose calibration](/docs/server/camera-calibration). | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid, unless the session has the operator role. From v0.1.0-poc.11, the Operator Console has the operator role on the server PC and calibrates a missing pose; see [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses). Up to poc.10, a missing pose must be calibrated on the server.                                                                                                                                                                                                                                                                                                                                           |
@@ -4303,7 +4332,13 @@ order; each one ends with what you should see.
     board.
 
     In the Operator Console, open **Camera pose** under **Calibration**, select
-    **Take setup lock**, then **Start camera-pose calibration**. Move the board
+    **Take setup lock**, then **Start camera-pose calibration**. From v0.1.6,
+    start only after the cameras have streamed for about 40 minutes: their
+    depth drifts while they warm up, and the server flags a pose solved
+    earlier (`solved-before-warm-up`). From v0.1.6
+    each camera's tile shows its live image with the detected board drawn on
+    it and `Board seen (N corners)`; hold the board still for a moment at each
+    spot so the server keeps the view, then move or tilt it to a new one. Move the board
     as the screen's instruction says, until every highlighted region of every
     camera is covered and **Camera links** joins all cameras. When the screen
     shows **Proposed camera pose**, select **Commit camera pose**, then
@@ -4369,6 +4404,21 @@ order; each one ends with what you should see.
 
     {/* TODO M6: confirm from a second machine on the rig run; real screenshot. */}
   </Step>
+
+  {/* Floor pending (W8 server floor solve): when it lands, restore this step before "Check the network":
+    ## Measure the floor (optional)
+    From v0.1.6 the server can measure the floor from the running cameras, so
+    that the scene stands level in the viewer. It needs a valid camera pose
+    and the operator role, so do it in the client on the server PC: select
+    **Set up** on the server's card, then **Calibrate floor** in the **Floor**
+    section. When the section reads `The floor was measured. Commit it or
+    cancel.`, select **Commit**. Then select **Level to floor**: it opens a
+    placement draft, which you commit in **Placement**. Nothing is levelled
+    without that commit. See [Calibrate the floor](/docs/client/calibrate-floor).
+
+    You should see the card's chip read **Floor valid** and, with **Show
+    floor** on in the view settings, the floor grid under the scene.
+    */}
 
   <Step>
     ## Check the network [#check-the-network]
@@ -4901,6 +4951,15 @@ screen shows only a diagram of the squares. See
 [Camera pose calibration](/docs/server/camera-calibration) for how to
 print the board from the server. You need one person to move the board.
 
+From v0.1.6 the board can also change while the server runs: edit
+`calibration.board` in `live.yaml` and run `sudo systemctl reload
+orbbec-streamer`, or set it from a console session over the wire (the
+Operator Console has no form for that yet). The committed pose stays
+valid; a run already going keeps the board it started with. If the
+screen's board changes while you watch, a tile's **Board** line adds
+` · board changed`. See [Reload the board without a
+restart](/docs/server/camera-calibration#reload-the-board-without-a-restart).
+
 1. Select **Take setup lock**.
 
 2. Read the board line and `The run times out after 2:00.` On a rig that
@@ -4925,6 +4984,22 @@ print the board from the server. You need one person to move the board.
    tells you what to do next, for example `Show the board to Camera 2.` or
    `Hold the board where Camera 2 and a neighbouring camera both see it.`
 
+   From v0.1.6 each tile shows the camera's live colour image, with the
+   board corners and marker outlines the server detected drawn on it, and
+   a **Board** line: `Board seen (38 corners)` or `Board not seen`. The
+   tile's title adds the detection rate, for example `Detection 15 Hz`.
+   Watch for `Board seen` on at least two cameras at once where they
+   overlap. Up to v0.1.5 a tile shows a still image with the corners as
+   dots.
+
+   From v0.1.6 the server keeps a view by itself once the board has been
+   still for about 0.3 s. Before the next view, move the board at least
+   2 cm or turn it at least 3°, and vary its distance, tilt (15° to 45°
+   works well) and place in the image: views that repeat an earlier pose
+   don't count. The server detects the board in each camera's own colour
+   image. See [Run a calibration](/docs/server/camera-calibration#run-a-calibration) for the
+   rules and the server's log messages when no view is kept.
+
    <img alt="The Camera pose screen during a run: a tile per camera with its coverage grid, the accepted views, time left, the Collecting stage, the camera links and the next instruction" src="__img2" />
 
 5. There is no button to end collecting. When enough views are in, the
@@ -4942,6 +5017,13 @@ print the board from the server. You need one person to move the board.
    changes from **Needs setup** to **Ready**.
 
 7. Select **Leave setup**.
+
+From v0.1.6 the server solves all poses together and checks them against
+its targets, but the console doesn't show those quality figures yet. Read
+them in `journalctl -u orbbec-streamer` and in
+`/var/lib/orbbec-streamer/calibration/camera-pose.report.json`; see
+[Calibration](/docs/guides/calibration). Let the cameras stream for about
+40 minutes before you calibrate.
 
 A view counts only if its error is at most the limit the screen shows
 (`A view counts only if its error is at most 1.00 px` by default). That

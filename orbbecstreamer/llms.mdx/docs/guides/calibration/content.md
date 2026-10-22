@@ -9,6 +9,35 @@ v0.1.0-poc.7 the session also carries live video (see
 setup commands only. The team has not yet checked depth calibration on a
 live scene on real hardware.
 
+From v0.1.6 the camera-pose run keeps views by itself while the board is
+held still, sorts them by distance, tilt and image region, and detects the
+board in each camera's own colour image; the Operator Console shows each
+camera's live image with the detected board. See
+[Run a calibration](/docs/server/camera-calibration#run-a-calibration) and
+[Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
+These changes were tested in simulation, not yet on hardware.
+
+From v0.1.6 the server solves all camera poses together (a joint rig
+adjustment) and checks the result against targets: 0.5 px reprojection
+error and 10 mm between the cameras of each pair. In simulation, the joint
+solution came within 0.12° and 2.7 to 3.7 mm of the truth. The programme's
+goal is 0.1° and 2 mm; this is not met yet and has to be validated on the
+rig. Every figure is simulated.
+
+The Operator Console doesn't show the quality figures yet. After a run,
+`journalctl -u orbbec-streamer` has one line for the run and one per
+camera and per pair, and each commit writes
+`/var/lib/orbbec-streamer/calibration/camera-pose.report.json`. Short
+codes called advisories flag a calibration you shouldn't trust as it is,
+for example `solved-before-warm-up` when a camera had streamed for less
+than 40 minutes: let the cameras warm up before you calibrate. See
+[Quality figures in the log](/docs/server/camera-calibration#quality-figures-in-the-log) and
+[Advisories](/docs/server/camera-calibration#advisories).
+
+{/* Floor pending (W8 server floor solve): when it lands, add back the Floor row to the table ("From v0.1.6, from the client's setup workspace by a session with the operator role and the setup lock: Calibrate floor, then Commit; Level to floor makes a placement draft", link /docs/client/calibrate-floor), change "three calibration kinds" to four, and add a step 4 for the floor with the Floor chip. */}
+
+{/* Board-form pending: when the Operator Console's board form lands (0.1.6), describe it here and replace "the Operator Console has no form for that yet" in operator/index.md (a .md page, so it can't hold this marker). */}
+
 | Kind               | On the server                                                                                                                                                                                                                                                                               | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Camera pose        | One camera needs none: from v0.1.0-poc.7 the server writes its identity pose at start. Several cameras: works from the local console with a ChArUco board, tested with synthetic cameras and not yet validated on hardware. See [Camera pose calibration](/docs/server/camera-calibration). | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid, unless the session has the operator role. From v0.1.0-poc.11, the Operator Console has the operator role on the server PC and calibrates a missing pose; see [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses). Up to poc.10, a missing pose must be calibrated on the server.                                                                                                                                                                                                                                                                                                                                           |

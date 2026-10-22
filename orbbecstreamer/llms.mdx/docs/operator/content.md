@@ -232,6 +232,15 @@ screen shows only a diagram of the squares. See
 [Camera pose calibration](/docs/server/camera-calibration) for how to
 print the board from the server. You need one person to move the board.
 
+From v0.1.6 the board can also change while the server runs: edit
+`calibration.board` in `live.yaml` and run `sudo systemctl reload
+orbbec-streamer`, or set it from a console session over the wire (the
+Operator Console has no form for that yet). The committed pose stays
+valid; a run already going keeps the board it started with. If the
+screen's board changes while you watch, a tile's **Board** line adds
+` · board changed`. See [Reload the board without a
+restart](/docs/server/camera-calibration#reload-the-board-without-a-restart).
+
 1. Select **Take setup lock**.
 
 2. Read the board line and `The run times out after 2:00.` On a rig that
@@ -256,6 +265,22 @@ print the board from the server. You need one person to move the board.
    tells you what to do next, for example `Show the board to Camera 2.` or
    `Hold the board where Camera 2 and a neighbouring camera both see it.`
 
+   From v0.1.6 each tile shows the camera's live colour image, with the
+   board corners and marker outlines the server detected drawn on it, and
+   a **Board** line: `Board seen (38 corners)` or `Board not seen`. The
+   tile's title adds the detection rate, for example `Detection 15 Hz`.
+   Watch for `Board seen` on at least two cameras at once where they
+   overlap. Up to v0.1.5 a tile shows a still image with the corners as
+   dots.
+
+   From v0.1.6 the server keeps a view by itself once the board has been
+   still for about 0.3 s. Before the next view, move the board at least
+   2 cm or turn it at least 3°, and vary its distance, tilt (15° to 45°
+   works well) and place in the image: views that repeat an earlier pose
+   don't count. The server detects the board in each camera's own colour
+   image. See [Run a calibration](/docs/server/camera-calibration#run-a-calibration) for the
+   rules and the server's log messages when no view is kept.
+
    <img alt="The Camera pose screen during a run: a tile per camera with its coverage grid, the accepted views, time left, the Collecting stage, the camera links and the next instruction" src="__img2" />
 
 5. There is no button to end collecting. When enough views are in, the
@@ -273,6 +298,13 @@ print the board from the server. You need one person to move the board.
    changes from **Needs setup** to **Ready**.
 
 7. Select **Leave setup**.
+
+From v0.1.6 the server solves all poses together and checks them against
+its targets, but the console doesn't show those quality figures yet. Read
+them in `journalctl -u orbbec-streamer` and in
+`/var/lib/orbbec-streamer/calibration/camera-pose.report.json`; see
+[Calibration](/docs/guides/calibration). Let the cameras stream for about
+40 minutes before you calibrate.
 
 A view counts only if its error is at most the limit the screen shows
 (`A view counts only if its error is at most 1.00 px` by default). That
