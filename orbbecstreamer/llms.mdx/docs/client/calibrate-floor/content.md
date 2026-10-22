@@ -43,8 +43,20 @@ A new camera pose makes the floor **stale**: the old plane no longer matches the
 * If you have unsaved placement edits, they are kept and the client says so. Select **Level to floor** to replace them.
 * If the measured floor points down or sideways in the current placement, there is no draft: `The measured floor points down in this placement; level it by hand.` **Level to floor** is off with the same reason.
 
+## Correct the floor by hand [#correct-the-floor-by-hand]
+
+If the level draft is close but not right, nudge it in the Floor section, under **Correct by hand**:
+
+* **Pitch** ±0.5°. Plus lifts the far side of the cloud (away from you along +Z).
+* **Roll** ±0.5°. Plus lifts the +X side.
+* **Height** ±1 cm. Plus lifts the whole cloud.
+
+**Tilt** and **Height** next to the buttons show the measured floor under the draft, live. Nudge until both read 0.
+
+These buttons edit the placement draft (they open one if none is open). They never commit: `Adjusts the placement draft; commit it in Placement.` The rotation turns about the floor point, not the scene origin, so the cloud does not swing. Yaw is never changed. The buttons are off without a measured floor, for a viewer, and while the draft is being committed; each says why.
+
 ## Use a keyboard or screen reader [#use-a-keyboard-or-screen-reader]
 
-**Calibrate floor**, **Commit**, **Cancel** and **Level to floor** are buttons in the tab order. Unavailable ones stay reachable and name their reason. When **Commit** or **Cancel** go away, focus moves to **Calibrate floor**. Screen readers announce, without moving focus, that the floor was measured and waits for **Commit**, a failure with its stage, that the floor is stale, and the result of the level draft.
+**Calibrate floor**, **Commit**, **Cancel**, **Level to floor** and the **Pitch**, **Roll** and **Height** nudges are buttons in the tab order. Unavailable ones stay reachable and name their reason. When **Commit** or **Cancel** go away, focus moves to **Calibrate floor**. Screen readers announce, without moving focus, that the floor was measured and waits for **Commit**, a failure with its stage, that the floor is stale, and the result of the level draft.
 
 See also [Show the floor](/docs/client/what-you-can-tweak#view-section) in the 3D view.
