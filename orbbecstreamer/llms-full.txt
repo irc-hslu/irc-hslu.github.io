@@ -239,6 +239,8 @@ These are the common browser problems and their fixes:
 
 The floor step measures where the floor is, in the server’s own frame, from the running cameras. It is there only when the server offers it; a server that doesn’t offer it shows no **Floor** section and no floor chip. Measuring needs the operator role and the setup lock, like the other setup steps. A viewer sees the status only.
 
+The team has not yet tried this on the real rig; it has been checked only against a simulated server. How the server measures the floor, and what to expect from the numbers, is in the server docs: [Measure the floor](/docs/server/camera-calibration#measure-the-floor).
+
 The measured floor is a plane. Nothing moves when you commit it. To bring the cloud level, use **Level to floor** (see below), which opens a placement draft that you commit in **Placement**.
 
 ## Measure the floor [#measure-the-floor]
@@ -246,7 +248,7 @@ The measured floor is a plane. Nothing moves when you commit it. To bring the cl
 1. Open the setup view: select **Set up** on the card. The session chip must read **Active**.
 2. The server’s camera pose must be **valid**. Otherwise **Calibrate floor** is off, with the tip `Needs a valid camera pose first.` The cameras must also be running.
 3. In **Floor**, select **Calibrate floor**. The state chip reads **running**.
-4. While it runs, a line shows the best candidate so far, for example `candidate 4.2 mm, 91 % inliers (12 of 20 frames)`. Nothing is in force yet.
+4. While it runs, a line shows the best candidate so far: its residual in mm, its inlier share, and how many frames it used, in the form `candidate … mm, … % inliers (… of … frames)`. Nothing is in force yet.
 5. When the run is solved, **Commit** appears next to **Cancel**. Select **Commit** to keep the floor, or **Cancel** to throw the run away.
 
 After **Commit**, the chip reads for example **valid · r2**, and the numbers below it are those of the committed floor:
