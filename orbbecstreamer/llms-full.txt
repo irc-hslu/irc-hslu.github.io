@@ -4125,7 +4125,7 @@ client too? See [Run the client](/docs/client/dev-build).
 
 
 
-There are three calibration kinds. Each one is a server-side state; a client
+There are four calibration kinds. Each one is a server-side state; a client
 can show it and, for some kinds, run it over a browser session. From
 v0.1.0-poc.7 the session also carries live video (see
 [Serve to browsers](/docs/server/serving)); up to poc.6 it carries status and
@@ -4157,14 +4157,11 @@ than 40 minutes: let the cameras warm up before you calibrate. See
 [Quality figures in the log](/docs/server/camera-calibration#quality-figures-in-the-log) and
 [Advisories](/docs/server/camera-calibration#advisories).
 
-{/* Floor pending (W8 server floor solve): when it lands, add back the Floor row to the table ("From v0.1.6, from the client's setup workspace by a session with the operator role and the setup lock: Calibrate floor, then Commit; Level to floor makes a placement draft", link /docs/client/calibrate-floor), change "three calibration kinds" to four, and add a step 4 for the floor with the Floor chip. */}
-
-{/* Board-form pending: when the Operator Console's board form lands (0.1.6), describe it here and replace "the Operator Console has no form for that yet" in operator/index.md (a .md page, so it can't hold this marker). */}
-
 | Kind               | On the server                                                                                                                                                                                                                                                                               | From a browser, against a real server                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Camera pose        | One camera needs none: from v0.1.0-poc.7 the server writes its identity pose at start. Several cameras: works from the local console with a ChArUco board, tested with synthetic cameras and not yet validated on hardware. See [Camera pose calibration](/docs/server/camera-calibration). | The server accepts a camera-pose run from a client that holds the setup lock. With `autocalibrate: false` (the packaged default) that only re-runs a pose that is already valid, unless the session has the operator role. From v0.1.0-poc.11, the Operator Console has the operator role on the server PC and calibrates a missing pose; see [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses). Up to poc.10, a missing pose must be calibrated on the server.                                                                                                                                                                                                                                                                                                                                           |
 | Depth quantization | Works from a CLI tool. See [Depth quantization calibrator](/docs/server/depth-quantization-calibrator).                                                                                                                                                                                     | The server runs it for a client that holds the setup lock (since v0.1.0-poc.4): it samples live, masked depth, and a solved run waits for a commit, which swaps the new profile in without a restart. From v0.1.0-poc.6, the client can also commit the run against a real server: it follows the server's "solved; awaiting commit" behaviour. This was tested against the mock server; a check on real hardware is pending. With poc.5, the client can start, watch and cancel a run but not commit it, so use the calibrator or `orbbec-console calibrate depth --commit` (see [Terminal console](/docs/operator/terminal-console#calibrate-from-a-script)). The full flow works against the client's [mock server](/docs/client/developer/mock-server). See [Calibrate depth](/docs/client/calibration#depth-quantization). |
+| Floor              | From v0.1.6 the server measures the floor plane from the running cameras; it needs a valid camera pose. Tested in simulation, not yet on hardware.                                                                                                                                          | From v0.1.6, a session with the operator role and the setup lock measures and commits it: in the Operator Console, see [Measure the floor](/docs/operator#measure-the-floor); in the client's setup workspace, see [Calibrate the floor](/docs/client/calibrate-floor). **Level to floor** turns the result into a placement draft that you commit yourself.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Network            | Not available. A stream is reserved in the wire format, but no calibration procedure exists yet.                                                                                                                                                                                            | Not available.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### Before a depth run from a browser [#before-a-depth-run-from-a-browser]
@@ -4210,6 +4207,10 @@ Run camera pose and depth quantization on the server:
 3. Start the server. A browser connected to it sees the committed result:
    the server card's **Pose** and **Depth** chips, or the console's
    Overview.
+4. Optionally, from v0.1.6, measure the floor and level the placement to
+   it; see [Measure the floor](/docs/operator#measure-the-floor). The
+   client's server card then shows a **Floor** chip, for example
+   `Floor valid · r2`.
 
 [First stream](/docs/getting-started/first-stream) has a config already set
 up for your cameras.
@@ -4464,20 +4465,23 @@ order; each one ends with what you should see.
     {/* TODO M6: confirm from a second machine on the rig run; real screenshot. */}
   </Step>
 
-  {/* Floor pending (W8 server floor solve): when it lands, restore this step before "Check the network":
-    ## Measure the floor (optional)
-    From v0.1.6 the server can measure the floor from the running cameras, so
-    that the scene stands level in the viewer. It needs a valid camera pose
-    and the operator role, so do it in the client on the server PC: select
-    **Set up** on the server's card, then **Calibrate floor** in the **Floor**
-    section. When the section reads `The floor was measured. Commit it or
-    cancel.`, select **Commit**. Then select **Level to floor**: it opens a
-    placement draft, which you commit in **Placement**. Nothing is levelled
-    without that commit. See [Calibrate the floor](/docs/client/calibrate-floor).
+  <Step>
+    ## Measure the floor (optional) [#measure-the-floor-optional]
 
-    You should see the card's chip read **Floor valid** and, with **Show
-    floor** on in the view settings, the floor grid under the scene.
-    */}
+    From v0.1.6 the server can measure the floor from the running cameras, so
+    that the scene stands level in the viewer. It needs a valid camera pose and
+    the operator role. In the Operator Console, open **Floor** under
+    **Calibration**, select **Take setup lock**, then **Measure floor**. When
+    the screen reads `Solved. Not in force until committed.`, select **Commit
+    floor**. Then select **Level to floor**: it opens a placement draft, which
+    you commit with **Commit placement (expected revision N)**. Nothing is
+    levelled without that commit. See
+    [Measure the floor](/docs/operator#measure-the-floor). The floor
+    measurement was tested in simulation, not yet on hardware.
+
+    You should see `Floor: measured · revision N` and, in the client with
+    **Show floor** on in the view settings, the floor grid under the scene.
+  </Step>
 
   <Step>
     ## Check the network [#check-the-network]
@@ -5012,8 +5016,7 @@ print the board from the server. You need one person to move the board.
 
 From v0.1.6 the board can also change while the server runs: edit
 `calibration.board` in `live.yaml` and run `sudo systemctl reload
-orbbec-streamer`, or set it from a console session over the wire (the
-Operator Console has no form for that yet). The committed pose stays
+orbbec-streamer`, or set it on the console's **Board** screen (below). The committed pose stays
 valid; a run already going keeps the board it started with. If the
 screen's board changes while you watch, a tile's **Board** line adds
 ` · board changed`. See [Reload the board without a
@@ -5105,6 +5108,65 @@ both cases the previous pose stays in force.
 | `This server needs an operator to start camera-pose calibration. …`                            | The session doesn't have the operator role, and `calibration.autocalibrate` is `false`. Open the console on the server PC, or calibrate on the server.                                                       |
 | `This server does not report board guidance. …`                                                | A server older than poc.11. Move the board through every camera's view; only the counts are shown.                                                                                                           |
 | `Live images before setup completes are sent to operator sessions only. …`                     | The run belongs to a viewer session. Place the board by the counts and the coverage grid.                                                                                                                    |
+
+## Set the calibration board [#set-the-calibration-board]
+
+From v0.1.6 the **Board** screen (under **Calibration** in the left
+navigation, at `/operator/calibration/board`) shows the board the server
+expects: **Type**, **Squares**, **Square size**, **Marker size**,
+**Dictionary**, **Top-left square**, **Marker ids**, **Revision** and
+**Source** (`Server configuration` or `Set from the console`). Change it
+only to match the board you printed.
+
+It needs the [operator role](#the-operator-role) and the setup lock, so
+use the console on the server PC. A viewer sees `Viewer session: open the
+console on the server machine to change the board.`
+
+1. Select **Take setup lock**.
+2. Select **Edit board** and enter the printed board's values. The preview
+   shows the board as entered, with `Preview of the values above. Not
+   applied yet.`
+3. Select **Apply board**. The screen reads **Board applied**, and the
+   board's revision goes up by one. The committed camera pose stays valid.
+
+During a camera-pose run, the screen says `Board changes apply after the
+current run`: the run keeps the board it started with. **Reset to config
+board** appears only for a board set from the console; it returns to the
+board in `live.yaml`, or the default. If the server refuses, the screen
+shows **Board not applied** with the reason and what to do. See
+[Set the board from the console](/docs/server/camera-calibration#set-the-board-from-the-console).
+
+## Measure the floor [#measure-the-floor]
+
+From v0.1.6 the **Floor** screen (under **Calibration**, at
+`/operator/calibration/floor`) measures the floor from the depth of the
+running cameras, so that the scene stands level. The setup checklist has
+it as an optional step after **Calibration**, with **Skip: no floor
+levelling**. It needs a valid camera pose, the operator role and the setup
+lock. Without a valid pose the screen reads `Calibrate camera pose first`
+with **Open camera pose**. A server without floor support shows `This
+server does not support floor levelling`. The floor measurement was tested
+in simulation, not yet on hardware.
+
+1. Keep the floor in view and clear of people and objects. Select **Take
+   setup lock**, then **Measure floor**.
+2. While it runs, the screen shows the elapsed time, the frame sets used
+   and the candidate plane's **Residual** and **Inlier share**. When it
+   reads `Solved. Not in force until committed.`, select **Commit floor**.
+   The state line reads `Floor: measured · revision N`.
+3. To level the scene, select **Level to floor**. It opens a placement
+   draft, shown as `Floor tilt X°, Y m below the anchor`; nothing is
+   levelled yet. Select **Commit placement (expected revision N)**, or
+   **Discard draft**.
+
+**Cancel run** ends a run without committing; the previous floor stays in
+force. A new camera-pose commit makes the floor stale: the state line reads
+`Floor: measured against older camera poses · revision N. Measure again.`
+If a run fails, the screen shows **The floor measurement failed**, the
+server's message and what to change, for example `No flat floor was found.
+Clear the floor area of people and objects, then measure again.` The
+client's setup workspace has the same measurement; see
+[Calibrate the floor](/docs/client/calibrate-floor).
 
 ## Take over the setup lock [#take-over-the-setup-lock]
 

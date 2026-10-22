@@ -234,8 +234,7 @@ print the board from the server. You need one person to move the board.
 
 From v0.1.6 the board can also change while the server runs: edit
 `calibration.board` in `live.yaml` and run `sudo systemctl reload
-orbbec-streamer`, or set it from a console session over the wire (the
-Operator Console has no form for that yet). The committed pose stays
+orbbec-streamer`, or set it on the console's **Board** screen (below). The committed pose stays
 valid; a run already going keeps the board it started with. If the
 screen's board changes while you watch, a tile's **Board** line adds
 ` · board changed`. See [Reload the board without a
@@ -327,6 +326,65 @@ both cases the previous pose stays in force.
 | `This server needs an operator to start camera-pose calibration. …`                            | The session doesn't have the operator role, and `calibration.autocalibrate` is `false`. Open the console on the server PC, or calibrate on the server.                                                       |
 | `This server does not report board guidance. …`                                                | A server older than poc.11. Move the board through every camera's view; only the counts are shown.                                                                                                           |
 | `Live images before setup completes are sent to operator sessions only. …`                     | The run belongs to a viewer session. Place the board by the counts and the coverage grid.                                                                                                                    |
+
+## Set the calibration board [#set-the-calibration-board]
+
+From v0.1.6 the **Board** screen (under **Calibration** in the left
+navigation, at `/operator/calibration/board`) shows the board the server
+expects: **Type**, **Squares**, **Square size**, **Marker size**,
+**Dictionary**, **Top-left square**, **Marker ids**, **Revision** and
+**Source** (`Server configuration` or `Set from the console`). Change it
+only to match the board you printed.
+
+It needs the [operator role](#the-operator-role) and the setup lock, so
+use the console on the server PC. A viewer sees `Viewer session: open the
+console on the server machine to change the board.`
+
+1. Select **Take setup lock**.
+2. Select **Edit board** and enter the printed board's values. The preview
+   shows the board as entered, with `Preview of the values above. Not
+   applied yet.`
+3. Select **Apply board**. The screen reads **Board applied**, and the
+   board's revision goes up by one. The committed camera pose stays valid.
+
+During a camera-pose run, the screen says `Board changes apply after the
+current run`: the run keeps the board it started with. **Reset to config
+board** appears only for a board set from the console; it returns to the
+board in `live.yaml`, or the default. If the server refuses, the screen
+shows **Board not applied** with the reason and what to do. See
+[Set the board from the console](/docs/server/camera-calibration#set-the-board-from-the-console).
+
+## Measure the floor [#measure-the-floor]
+
+From v0.1.6 the **Floor** screen (under **Calibration**, at
+`/operator/calibration/floor`) measures the floor from the depth of the
+running cameras, so that the scene stands level. The setup checklist has
+it as an optional step after **Calibration**, with **Skip: no floor
+levelling**. It needs a valid camera pose, the operator role and the setup
+lock. Without a valid pose the screen reads `Calibrate camera pose first`
+with **Open camera pose**. A server without floor support shows `This
+server does not support floor levelling`. The floor measurement was tested
+in simulation, not yet on hardware.
+
+1. Keep the floor in view and clear of people and objects. Select **Take
+   setup lock**, then **Measure floor**.
+2. While it runs, the screen shows the elapsed time, the frame sets used
+   and the candidate plane's **Residual** and **Inlier share**. When it
+   reads `Solved. Not in force until committed.`, select **Commit floor**.
+   The state line reads `Floor: measured · revision N`.
+3. To level the scene, select **Level to floor**. It opens a placement
+   draft, shown as `Floor tilt X°, Y m below the anchor`; nothing is
+   levelled yet. Select **Commit placement (expected revision N)**, or
+   **Discard draft**.
+
+**Cancel run** ends a run without committing; the previous floor stays in
+force. A new camera-pose commit makes the floor stale: the state line reads
+`Floor: measured against older camera poses · revision N. Measure again.`
+If a run fails, the screen shows **The floor measurement failed**, the
+server's message and what to change, for example `No flat floor was found.
+Clear the floor area of people and objects, then measure again.` The
+client's setup workspace has the same measurement; see
+[Calibrate the floor](/docs/client/calibrate-floor).
 
 ## Take over the setup lock [#take-over-the-setup-lock]
 

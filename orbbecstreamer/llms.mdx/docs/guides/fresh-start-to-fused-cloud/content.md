@@ -247,20 +247,23 @@ order; each one ends with what you should see.
     {/* TODO M6: confirm from a second machine on the rig run; real screenshot. */}
   </Step>
 
-  {/* Floor pending (W8 server floor solve): when it lands, restore this step before "Check the network":
-    ## Measure the floor (optional)
-    From v0.1.6 the server can measure the floor from the running cameras, so
-    that the scene stands level in the viewer. It needs a valid camera pose
-    and the operator role, so do it in the client on the server PC: select
-    **Set up** on the server's card, then **Calibrate floor** in the **Floor**
-    section. When the section reads `The floor was measured. Commit it or
-    cancel.`, select **Commit**. Then select **Level to floor**: it opens a
-    placement draft, which you commit in **Placement**. Nothing is levelled
-    without that commit. See [Calibrate the floor](/docs/client/calibrate-floor).
+  <Step>
+    ## Measure the floor (optional) [#measure-the-floor-optional]
 
-    You should see the card's chip read **Floor valid** and, with **Show
-    floor** on in the view settings, the floor grid under the scene.
-    */}
+    From v0.1.6 the server can measure the floor from the running cameras, so
+    that the scene stands level in the viewer. It needs a valid camera pose and
+    the operator role. In the Operator Console, open **Floor** under
+    **Calibration**, select **Take setup lock**, then **Measure floor**. When
+    the screen reads `Solved. Not in force until committed.`, select **Commit
+    floor**. Then select **Level to floor**: it opens a placement draft, which
+    you commit with **Commit placement (expected revision N)**. Nothing is
+    levelled without that commit. See
+    [Measure the floor](/docs/operator#measure-the-floor). The floor
+    measurement was tested in simulation, not yet on hardware.
+
+    You should see `Floor: measured · revision N` and, in the client with
+    **Show floor** on in the view settings, the floor grid under the scene.
+  </Step>
 
   <Step>
     ## Check the network [#check-the-network]
