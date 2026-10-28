@@ -932,6 +932,8 @@ manager.pipeline(id)?.resetLatency(); // clear the windows
 
 `latencyReport()` sorts the sample windows, so call it for diagnostics, not per frame.
 
+Each stage reports `p50`, `p90`, `p95`, `p99` and `max` in milliseconds. For the end-to-end figure alone, `captureToPresent(pipeline)` from `src/app/latencyApi.ts` returns `{ p50Ms, p95Ms, samples }` of the capture-to-present stage, or `null` when the probe is off or nothing has been presented yet. The Operator Console's stats strip uses it.
+
 ## Run the end-to-end benchmark [#run-the-end-to-end-benchmark]
 
 This runs the client media path in Node. The path is: byte source, transport, router, keyframe gate, decoder, pairing, feed, then a recording upload target. The browser parts are simulated:
