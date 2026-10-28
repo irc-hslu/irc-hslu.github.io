@@ -134,15 +134,56 @@ cameras:
     role: "primary"
 ```
 
-| Key             | Type                   | Default     | Description                                                                                                                                     |
-| --------------- | ---------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`            | string                 | none        | Your name for the camera, used in logs, recordings, `setup.json` and as the client-facing camera id. Non-empty and unique.                      |
-| `vendor`        | string                 | `orbbec`    | Only `orbbec` is supported.                                                                                                                     |
-| `serial_number` | string                 | empty       | Selects the device. Empty takes the next unused device. Unique when set.                                                                        |
-| `required`      | bool                   | `true`      | The live server only logs it; a missing camera never stops start-up. The depth calibrator enforces it (`Required camera is unavailable: <id>`). |
-| `role`          | `primary`, `secondary` | `secondary` | Hardware-sync role.                                                                                                                             |
+| Key                  | Type                   | Default                                 | Description                                                                                                                                                                                               |
+| -------------------- | ---------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                 | string                 | none                                    | Your name for the camera, used in logs, recordings, `setup.json` and as the client-facing camera id. Non-empty and unique.                                                                                |
+| `vendor`             | `orbbec`, `uvc`        | `orbbec`                                | The camera backend. `uvc` is a webcam, see [Webcam (2D) camera](#webcam-2d-camera). A server runs all-`orbbec` cameras or exactly one `uvc` camera.                                                       |
+| `serial_number`      | string                 | empty                                   | Selects the device. Empty takes the next unused device. Unique when set. A webcam's is `<name>/<usb serial>` (`Logitech BRIO/72E9FCD0`), or `<name>@<usb port>` without a serial; `--uvc-test` prints it. |
+| `required`           | bool                   | `true`                                  | The live server only logs it; a missing camera never stops start-up. The depth calibrator enforces it (`Required camera is unavailable: <id>`).                                                           |
+| `role`               | `primary`, `secondary` | `secondary`                             | Hardware-sync role.                                                                                                                                                                                       |
+| `depth_source`       | `sensor`, `none`       | `sensor` for `orbbec`, `none` for `uvc` | Where the camera's depth comes from. `none` is the only value a `uvc` camera accepts; `estimated` (monocular depth) is refused with an error until a later release.                                       |
+| `fourcc`             | string                 | `MJPG`                                  | `uvc` only: the pixel format requested from the webcam (four characters). `MJPG` carries 720p at 30 fps over USB 2; the CPU decodes it.                                                                   |
+| `horizontal_fov_deg` | number                 | `70`                                    | `uvc` only: the horizontal field of view the camera's intrinsics are computed from, between 10 and 170.                                                                                                   |
 
 Cameras missing after `camera_wait_timeout_ms` are logged as `neglecting missing camera` and left out. Start-up fails only when no camera is found.
+
+#### Webcam (2D) camera [#webcam-2d-camera]
+
+A machine with a UVC webcam runs the same server binary with `vendor: "uvc"`. The camera delivers colour only, so its depth source is `none`: every colour frame is paired with a depth frame of the same size that holds code 0 (invalid) in every pixel, and the rest of the pipeline is unchanged.
+
+```yaml
+cameras:
+  - id: "webcam0"
+    vendor: "uvc"
+sync:
+  enabled: false
+streams:
+  alignment: "color_to_depth"
+  depth:
+    width: 640
+    height: 360
+    fps: 15
+    format: "depth_u16"
+  color:
+    width: 1280
+    height: 720
+    fps: 15
+    format: "rgb8"
+mask:
+  backend: "none"
+```
+
+Take the other sections from the [minimal example](#minimal-example).
+
+* **One camera per server.** A `uvc` camera is the only camera of its server. A config that mixes `uvc` and `orbbec` cameras, or lists two `uvc` cameras, is refused at load and again when capture opens; run each webcam on its own server and connect the client to all of them ([multi-server](./multi-server)). `sync.enabled` is `false`: the camera is standalone.
+* **Tile size.** `streams.color` is what the webcam is asked for and must be a mode it offers (it is checked, and the server stops with the delivered size if it differs). `streams.depth` is the size the server works at (the tile): the same aspect ratio, not larger, and even (the encoder needs even sizes). A smaller tile downscales the image on the CPU. Colour and depth tiles are always equal. The rates are 15 or 30 fps, as for every camera.
+* **Intrinsics.** The depth intrinsics are the colour intrinsics (one image plane; colour to depth is the identity). Until the camera has its own calibration they come from `horizontal_fov_deg`: square pixels, the principal point at the tile centre, no distortion.
+* **Processing.** A camera without depth gets no person mask and no depth filter; its colour is the whole image and is encoded as it is. `mask.backend: none` avoids building a segmentation engine for nothing.
+* **Calibration.** Depth quantization, floor, pose refinement and camera pose are refused for it with `calibration-unavailable`. The drift monitor needs two cameras and never monitors it. Place the camera in the shared world with placement in the client.
+* **Timestamps.** A webcam gives no device clock. The capture timestamp is the host time when the frame was read, on the system clock like the Orbbec timestamps, so it is later than the real exposure by the camera, USB and decode latency (tens of milliseconds).
+* **Try it.** `orbbec_streamer --uvc-test` opens the first webcam for about 3 seconds (1280x720 MJPG, 640x360 tile), prints its id and the delivered frame rate, and is skipped when there is none. It never opens an Orbbec camera.
+
+The depth source is not on the wire yet: until the protocol change that adds it (0050) is integrated, a client sees an RGB-D camera whose depth is empty.
 
 ### `sync` [#sync]
 
