@@ -708,6 +708,176 @@ floor, a wall only, a ceiling only or too little depth fails with the stage
 above. Every number is **simulated**; the accuracy of a lit rig session is not
 measured yet and has to be validated on the rig.
 
+## Watch for drift and refine without the board [#watch-for-drift-and-refine-without-the-board]
+
+After a camera-pose commit a camera can still move: a bumped tripod, a loose
+mount, thermal creep. Nothing in the pose file notices. The server can,
+because it has the full-precision depth of every camera and the committed pose
+of each, and overlapping cameras see the same static walls and floor. Two
+minor-2 features use this. A client sees them only if its hello lists them.
+
+| Feature       | What it adds                                                                                                                                                                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pose-drift`  | The **drift monitor**. It only watches. It adds `poseDrift` to the `camera-pose` item (every session with the feature) and the per-pair figures `server.calibration.drift` (operator sessions with the feature). It never starts a run, takes no lease and never commits. |
+| `pose-refine` | The calibration kind `pose-refine`: **refine without the board**. An operator with the setup lock starts it, reviews the candidate and commits it explicitly. The server never starts or commits it.                                                                      |
+
+### How the monitor works [#how-the-monitor-works]
+
+Every `calibration.drift.interval_s` (300 s) the monitor collects a window of
+`window_frames` depth frames from every camera, at most `tap_rate_hz` a second,
+and builds each camera's **static background**: the per-pixel median of the
+rectified depth, without every pixel that moved, that the person mask marked
+in any frame of the window (plus a margin), that is a flying pixel or at a
+grazing angle, or that differs from the reference taken at the baseline (a
+moved chair). It then runs a projective point-to-plane ICP for every pair of
+cameras whose views overlap by the committed geometry, starting at the
+committed relative pose. The ICP gives the 6-dof difference and its 6x6
+information matrix. Only the **observable** directions are reported: a floor
+and one wall leave the slide along their intersection unseen, a floor alone
+leaves three directions unseen. Those directions are listed in
+`unobservedDirections` and never reported as zero.
+
+What the monitor compares is not the committed pose but a **baseline**: the
+median of the pair's first `min_estimates` (5) estimates after the commit, once
+both cameras are warmed up. A depth bias, for example a camera that reads 12
+mm too far, puts a constant offset between the surfaces and the committed pose;
+the baseline absorbs it and `offsetFromCommitted` shows it. The alert is on the
+drift **since the baseline**, as the median of the last five estimates:
+
+* it raises when the translation exceeds 5 mm (and twice its own sigma) or the
+  rotation 0.3 degrees (and twice its sigma), or an estimate hit the 50 mm /
+  3 degree step cap;
+* it clears below 3 mm and 0.2 degrees.
+
+**The 5 mm / 0.3 degree thresholds are provisional.** They are the programme's
+numbers, not measured on the rig; the systematic depth bias of the sensor may
+sit close to 5 mm. `server.calibration.drift` says so (`thresholds.provisional:
+true`) until `calibration.drift.thresholds_provisional` is turned off after the
+empty-room baseline run on the rig.
+
+`poseDrift.status` is one of `inactive` (no valid pose, fewer than two cameras,
+or `calibration.drift.enabled: false`), `unmonitored`, `warming-up`,
+`monitoring`, `not-monitorable` and `suspected`, with `suspectedCameraIds`
+naming the camera the pairs point at.
+
+### What keeps it quiet [#what-keeps-it-quiet]
+
+| Situation                            | Behaviour                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| People                               | They are masked by the person segmentation and the moving pixels are dropped. If more than 30 percent of a camera's overlap is dynamic the pair is `not-monitorable` for that cycle (`dynamic-scene`).                                                                                                                           |
+| No person segmentation               | With `mask.backend` `fill_all`, `none` or `rgb_luma_threshold` the status is `unmonitored` with reason `no-segmentation`; the monitor does not run and a refine start is refused.                                                                                                                                                |
+| Warm-up                              | For `calibration.joint.warm_up_minutes` (40) after the cameras open, estimates are computed and shown, but they never raise, clear or form a baseline.                                                                                                                                                                           |
+| Degraded sync, a disconnected camera | The windows are not counted (`sync-degraded`, `camera-disconnected`).                                                                                                                                                                                                                                                            |
+| A commit, a restart                  | A camera-pose commit (a board run or a refine) discards the baselines and alerts and the status goes back to `warming-up`. Baselines are saved next to the pose file (`camera-pose.drift-baseline.json`, tied to the revision), so a restart does not take a new baseline on a camera that was bumped while the server was down. |
+| A run of any kind, cameras closed    | No cycle runs; the last value is kept.                                                                                                                                                                                                                                                                                           |
+
+One worker thread at idle scheduling priority does the numerics; the frame path
+only copies shared references into a one-slot mailbox. Capture, the hub and
+the media never wait for it.
+
+### Refine without the board [#refine-without-the-board]
+
+When the monitor says a camera moved, the board run recovers the pose but needs
+the board, a person and half an hour. **Refine poses without board** uses the
+same numerics and starts from the committed pose:
+
+1. The operator takes the setup lock and starts a `pose-refine` run. The
+   start is refused with `pose-refine-needs-pose` (no valid camera pose),
+   `pose-refine-needs-segmentation`, `pose-refine-warming-up` or
+   `pose-refine-no-overlap`, after the usual role, lease, `rig-restarting`,
+   capture and `calibration-running` checks. A board run and a refine exclude
+   each other.
+2. The run collects `calibration.refine.required_windows` (3) static windows.
+   A window with no measurable pair is rejected with a reason (for example
+   `not-static` while people walk through) and counted in `refineWindows`.
+   After that it tries a solve after every further window, and ends at the
+   first one that passes the gates, or fails after
+   `calibration.refine.timeout_seconds` (120) with the furthest stage reached.
+3. Each measurable pair is an edge of a pose graph. A pair with a baseline of
+   this revision is **restored**: the target undoes the measured drift and keeps
+   the relation the board solve gave, including its depth-bias offset. A pair
+   without a baseline is **aligned**: the target is the best agreement of the
+   depth surfaces, which carries each camera's depth bias; that raises the
+   advisory `pose-refine-surfaces-aligned` and never refuses the run. The first
+   camera of each connected component stays where it is. Directions the room
+   does not constrain keep their committed value, and a camera with no
+   measurable pair keeps its pose (`pose-refine-partial`).
+4. The candidate is shown in `refineCandidate` (per camera correction with its
+   sigma, unobserved directions, per-pair residuals). Nothing is in force
+   until the operator commits it. Cancel, a lease loss, a capture stop or a
+   rig restart never commit and leave the poses, the reports and the monitor
+   as they were.
+5. The commit is a camera-pose commit: `calibrationRevision` + 1, the poses and
+   `camera-pose.json` are written, the floor goes stale, the drift monitor
+   starts over (`warming-up`), and the `camera-pose` item carries the
+   advisories `pose-refined` and `quality-unknown` (there is no board report
+   for that revision). The report is `pose-refine.report.json`
+   (`pose-refine-report-v1`, read with `client.calibration.report.get` kind
+   `pose-refine`), and it is also how a restart knows the pose came from a
+   refine.
+
+A solved attempt must pass these gates; a failing attempt fails only that
+attempt:
+
+| Message starts with                | Meaning                                                                                                           |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `not-static`                       | No window had enough static background: people were moving.                                                       |
+| `no-overlap`                       | The measured overlap or support was too small on every pair.                                                      |
+| `degenerate`                       | The measurable pairs did not reach `calibration.drift.min_observable_dof` (a planar room).                        |
+| `too-few-inliers`, `not-converged` | No pair converged with enough inliers.                                                                            |
+| `step-limit`                       | A correction is beyond 50 mm / 3 degrees: the camera moved too far. Recalibrate with the board.                   |
+| `no-improvement`                   | The refined poses do not fit the room better, or the poses fitted on the even frames are worse on the odd frames. |
+| `inconsistent`                     | The pair consistency after the solve is above `calibration.refine.max_pair_translation_rms_m` (15 mm).            |
+
+The targets that only raise advisories are `calibration.refine.target_residual_mm`
+(5 mm) and `target_pair_translation_m` (10 mm).
+
+### What it cannot fix [#what-it-cannot-fix]
+
+It cannot see what the room does not constrain, a rigid move of the whole rig
+relative to the room, or a depth bias (the 0045 depth correction is not
+applied). A camera knocked more than the step cap needs the board. The size
+of a move beyond the cap is a lower bound.
+
+### Simulated accuracy [#simulated-accuracy-2]
+
+`ctest -L simulated` runs `SyntheticDriftAcceptanceTests` and
+`SyntheticPoseRefineAcceptanceTests`: the real setup service on a fake clock, a
+ray-cast room (floor, two walls, a cabinet) with a person, three cameras at
+320 x 288, depth noise of 2.5 mm plus 0.1 percent of the range, 20-frame
+windows. The true pose of a camera moves while the committed one stays. Every
+figure is **simulated**; none of them says anything about a lit rig session.
+
+| Scenario                                                                                                                                                 | Result                                                                                                                                                                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rest, 120 cycles after the baseline, camera 0 reading 12 mm too far and 0.4 percent too much                                                             | Never raised. Peak smoothed drift 0.19 mm and 0.0034 degrees. `offsetFromCommitted` shows the bias, 34 mm.                                                                                                                                                    |
+| Camera 2 moves 10 mm and 0.5 degrees                                                                                                                     | Raised after 3 cycles (the median of five flips), `suspectedCameraIds` is `["cam2"]`. Reported drift of the pairs with camera 2 is within 0.10 mm and 0.0003 degrees of the injected move.                                                                    |
+| The pose is put back                                                                                                                                     | Cleared after 3 cycles.                                                                                                                                                                                                                                       |
+| A 60 mm knock along camera 2's y axis                                                                                                                    | Raised after 3 cycles; the reported 8.3 mm is a lower bound, because that direction is a slide along the walls and only the floor sees it.                                                                                                                    |
+| A person walking through the overlap for 12 cycles; a masked person standing still through baseline and 12 cycles; an unmasked moving blob for 10 cycles | Never raised. While the walker covers more than 30 percent of an overlap the pair is not monitorable (8 of the 12 cycles).                                                                                                                                    |
+| `fill_all`                                                                                                                                               | `unmonitored` / `no-segmentation`; no cycle ever runs and no figures are sent.                                                                                                                                                                                |
+| A floor alone: 30 mm slide and 1 degree yaw in the floor plane                                                                                           | Never raised; 3 of 6 directions listed as unobserved. A 10 mm change of height is raised after 3 cycles.                                                                                                                                                      |
+| A floor and a wall: 40 mm slide along their intersection                                                                                                 | Never raised; 1 direction unobserved.                                                                                                                                                                                                                         |
+| Cameras looking away from each other                                                                                                                     | `not-monitorable`, never raised.                                                                                                                                                                                                                              |
+| A camera bumped while the server was down                                                                                                                | `warming-up` for 8 cycles with the figure shown, raised in the first cycle after the warm-up, from the persisted baseline.                                                                                                                                    |
+| Six windows with degraded sync on camera 2                                                                                                               | Not counted; the move is raised 3 cycles after sync returns.                                                                                                                                                                                                  |
+| Refinement: camera 1 moved +10 mm / 0.5 degrees and camera 2 -8 mm / 0.4 degrees                                                                         | With a baseline: 3 windows, then the worst camera is 0.28 mm and 0.0026 degrees from the truth, the worst pair 0.32 mm, pair consistency 0.18 mm, residual 1.75 mm. After the commit the monitor takes a new baseline (5 cycles) and stays quiet for 10 more. |
+| Refinement without a baseline, with depth biases of +12 mm x1.004, -6 mm and +4 mm                                                                       | `align-surfaces`, residual 2.17 mm; the poses carry the bias (largest correction 45.7 mm, worst camera 42.6 mm from the truth). Advisory `pose-refine-surfaces-aligned`.                                                                                      |
+| Refinement of a person walking for the whole run / a floor alone with 4 directions required / a 60 mm knock                                              | `not-static`, `degenerate` and `step-limit` at the run limit, each leaving the poses, the reports and the revision untouched.                                                                                                                                 |
+
+The monitor's cost, measured while a cycle ran on its worker thread: a pair
+estimate takes 173 ms (320 x 288, both directions, three levels), a
+three-pair cycle 0.8 s, which is about 5 s for 28 pairs once every five
+minutes. A fixed hot-path work loop timed beside it went from p50 173.4 to 182.5
+microseconds and p99 182.5 to 185.5 microseconds. The worker runs at idle
+scheduling priority where the system allows it. Where the ICP stands alone
+(`drift_numerics_tests`), 10 mm and 0.5 degrees are recovered within 0.06 mm
+and 0.0011 degrees at 2.5 mm noise, and the predicted sigmas match 200 Monte
+Carlo seeds to within 17 percent. The tests pin the bounds near these figures.
+Every number is **simulated**; the accuracy on a lit rig is not measured yet,
+and the thresholds have to be set on the rig first (an empty, warmed-up room
+for 30 to 60 minutes, recording the per-pair drift).
+
 ## Troubleshooting [#troubleshooting]
 
 | Message or symptom                                                                                                                                           | Cause and fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
