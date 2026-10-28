@@ -3151,6 +3151,7 @@ Select **Exit VR** in the panel, or use the headset's own exit. The desktop page
 
 * **Apple Vision Pro:** gaze and pinch. No stick, so use the panel for snap turn.
 * **Meta Quest 3 / 3S:** controllers or hands. Right-stick snap turn.
+* **When frames run slow:** the viewer lowers detail by itself. On Quest it draws the edges of the view at lower resolution and may drop to 72 Hz. The panel header then shows **Reduced detail**. If that is still not enough, the pill shows **Too many points for this headset**: hide some cameras or servers. These steps are untested on a headset.
 
 ## Troubleshooting [#troubleshooting]
 
