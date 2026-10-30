@@ -6,7 +6,7 @@ A server can have a 2D camera, such as a webcam, instead of a depth camera. The 
 
 ## A camera with no depth [#a-camera-with-no-depth]
 
-A camera with no depth appears in the 3D view as a flat picture: a rectangle that shows the camera's whole colour image. It sits 1.5 m in front of the camera, in the same place as that camera's points would be, so it follows the server's placement. Points of other servers in front of it hide it, and points behind it do not. It has no points, so it adds nothing to the point count, and the client does not report missing depth for it.
+A camera with no depth appears in the 3D view as a flat picture: a rectangle that shows the camera's whole colour image. It sits 1.5 m in front of the camera, in the same place as that camera's points would be, so it follows the server's placement. Points of other servers in front of it hide it, and points behind it do not. It has no points, so it adds nothing to the point count, and the client does not report missing depth for it. When every camera of a server is a 2D camera, the server card shows the depth calibration as a neutral **Depth missing** chip, not a problem, because that calibration needs measured depth.
 
 The picture is drawn on WebGPU and on WebGL2, which VR uses. In VR it is not dimmed or faded with the panel (not built). The depth test was checked with a synthetic scene read back from a real GPU on WebGPU and WebGL2; it has not been checked on a headset.
 
