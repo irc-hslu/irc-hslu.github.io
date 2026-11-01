@@ -4407,6 +4407,8 @@ up for your cameras.
 
 
 
+
+
 {/* SKELETON for the core release (operator/design/release-core.md, M7).
     Not for publication until every step is filled and has been followed
     literally on a fresh rig install. Each TODO names the milestone that
@@ -4453,9 +4455,9 @@ order; each one ends with what you should see.
     **Opened as viewer**, the sensor and profile screens are read-only; the
     banner names the cause.
 
-        <img alt="Operator Console Overview: Connected, Setup lock: free, Ready and Streaming, one camera connected with sync OK, and a hint that the depth range is not calibrated" src="__img0" />
+        <img alt="Operator Console Overview: Connected, Setup lock: free, Ready and Streaming, 2 of 2 cameras connected, sync OK with a max offset of 0.14 ms, camera pose and depth range valid" src="__img0" />
 
-    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark.*
+    *Captured on 2026-10-28 from v0.1.6 installed from the package, on the two-camera rig (two Femto Bolts, sync on), about 75 s after **Start cameras**. Both cameras still read **Degraded**, so **Cameras** shows **2 cameras need attention**.*
   </Step>
 
   <Step>
@@ -4481,16 +4483,20 @@ order; each one ends with what you should see.
     connected on a good link and captures in sync. See
     [What each panel shows](/docs/operator#what-each-panel-shows).
 
-        <img alt="Cameras & sync with one Femto Bolt: Connected, health OK, USB 3, sync role Standalone" src="__img1" />
+        <img alt="Cameras & sync with two Femto Bolts: both Connected on USB 3, sync status OK, one Primary and one Secondary, frame-set spread 0.14 ms against a tolerance of 5.00 ms" src="__img1" />
 
-    *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark. The serial number is blurred.*
+    *Captured on 2026-10-28 from v0.1.6 installed from the package, on the two-camera rig (two Femto Bolts, sync on), about 75 s after **Start cameras**. Both cameras read **Degraded**. The serial numbers are blurred.*
+
+    With sync on, each camera's **Sync status** reads **OK**, exactly one camera
+    has **Sync role** **Primary** and the others **Secondary**, and the line
+    above the table shows the frame-set spread against the tolerance.
 
     In the first minute after **Start cameras**, a camera's health can read
     **Degraded**: the camera drops a few frame sets at each start while it
     syncs its clock. That is normal; it turns **OK** by itself.
 
-    {/* TODO M4: hardware-sync status row and its healthy values (the console
-        shows it as Not reported until protocol change 0029); what to do when a
+    {/* TODO M4: a secondary's Sync signal reads Not reported until protocol
+        change 0029; what to do when a
         camera is out of sync. */}
   </Step>
 
@@ -4614,6 +4620,13 @@ order; each one ends with what you should see.
     with a **What to do** link; see
     [When WebGPU can't draw](/docs/client/browser-requirements#when-webgpu-cant-draw).
 
+    The **Live** step of the **Setup checklist** confirms it: **Server ready**,
+    **Streams available** and **Live images** each read **OK**.
+
+        <img alt="Setup checklist, step 6 Live: Server ready OK, Streams available 1/1 OK, Live images OK; steps 1 to 4 done and step 5 Floor upcoming" src="__img5" />
+
+    *Captured on 2026-10-28 from v0.1.6 installed from the package, on the two-camera rig (two Femto Bolts, sync on).*
+
     {/* TODO M1: real (not test-pattern) preview screenshots; what a correct
         fused cloud looks like. */}
   </Step>
@@ -4670,7 +4683,7 @@ order; each one ends with what you should see.
     the server to each viewer. A `≥` before a rate means the real value is at
     least that high; see [Read the estimates](/docs/guides/network#read-the-estimates).
 
-        <img alt="The Network panel with two loopback sessions, the console (Operator, You) and one viewer, with rates, round-trip time and loss" src="__img5" />
+        <img alt="The Network panel with two loopback sessions, the console (Operator, You) and one viewer, with rates, round-trip time and loss" src="__img6" />
 
     *Captured on 2026-10-17 from v0.1.2 installed from the package, with its default `live.yaml` (one Femto Bolt, sync off); the room was dark. The viewer tab received no video, so **Media, Mbit/s** reads `— not measured`.*
 
