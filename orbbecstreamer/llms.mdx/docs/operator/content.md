@@ -135,6 +135,11 @@ lists **Colour sensor**, **Depth sensor** and **Stream profile**; see
 * **Cameras & sync** lists every camera with its connection (Connected or
   Disconnected) and health (OK, Degraded or Error). Open a row for its depth
   intrinsics. **Refresh** asks the server for its current state again.
+  From v0.1.8, each camera's name carries its depth source: **Measured
+  depth**, **Estimated depth** or **Colour only (no depth)**; see
+  [Use a webcam as a camera](/docs/guides/webcam). In **Preview**, a
+  colour-only camera's depth tile is black by design and reads **No depth:
+  colour-only camera**.
 * **Network**, for the [operator role](#the-operator-role) only, shows
   the network estimates for every connected session, from v0.1.1. See [Network sensing](/docs/guides/network).
 * **License** shows the server ID, with **Copy server id**.
