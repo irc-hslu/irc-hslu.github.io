@@ -339,6 +339,27 @@ both cases the previous pose stays in force.
 | `This server does not report board guidance. …`                                                | A server older than poc.11. Move the board through every camera's view; only the counts are shown.                                                                                                           |
 | `Live images before setup completes are sent to operator sessions only. …`                     | The run belongs to a viewer session. Place the board by the counts and the coverage grid.                                                                                                                    |
 
+### Pose drift and Auto-calibrate (no board) [#pose-drift-and-auto-calibrate-no-board]
+
+From v0.1.7 the **Camera pose** screen also watches whether the cameras
+have moved since the last calibration. Both features were tested in
+simulation only, not yet on the real rig.
+
+* **Camera pose drift**, above the board run, reads `Camera poses look
+  stable`, `Camera pose may have moved: <cameras>. Recalibrate camera
+  pose.`, or why it can't watch, for example `Drift monitor warming up
+  (cameras need about 40 min after start)`. The server takes its baseline
+  itself after the cameras have streamed for about 40 minutes, and renews
+  it after every camera-pose commit. It alerts at 5 mm or 0.3° (provisional
+  thresholds). It only warns; nothing starts by itself. A viewer sees only
+  `Camera pose may have drifted`.
+* **Auto-calibrate (no board)** refits the poses from the room itself, with
+  people masked out. Keep the room clear and still, take the setup lock and
+  select **Auto-calibrate (no board)**. It needs a valid camera pose,
+  person segmentation and warm cameras, and says why when it can't start.
+  It ends by itself with `Solved. Not in force until committed.`; nothing
+  is in force until you commit. Cancel commits nothing.
+
 ## Set the calibration board [#set-the-calibration-board]
 
 From v0.1.6 the **Board** screen (under **Calibration** in the left
@@ -375,8 +396,10 @@ it as an optional step after **Calibration**, with **Skip: no floor
 levelling**. It needs a valid camera pose, the operator role and the setup
 lock. Without a valid pose the screen reads `Calibrate camera pose first`
 with **Open camera pose**. A server without floor support shows `This
-server does not support floor levelling`. The floor measurement was tested
-in simulation, not yet on hardware.
+server does not support floor levelling`. The cameras must see open
+floor: on the lab rig, cameras at desk height looking at a wall were
+refused with `normal-outside-gravity-gate` (the flattest plane 94.4
+degrees from up).
 
 1. Keep the floor in view and clear of people and objects. Select **Take
    setup lock**, then **Measure floor**.
@@ -504,7 +527,9 @@ controls work without it.
   preview, or it reconnects, with cameras still hidden, it opens only the
   shown cameras' streams. It remembers hidden cameras until you reload the page.
 * The table below the view shows each camera's stream statistics, once a
-  second.
+  second. From v0.1.7 the line under it also shows the end-to-end
+  latency, capture to screen: `End-to-end N ms (p95 N ms)`, or
+  `End-to-end: measuring…` at first.
 
 <img alt="Live preview in Colour tiles view: two camera tiles, and a table with frame sets per second, decode latency, dropped frame sets and the decoder for each camera" src="__img4" />
 

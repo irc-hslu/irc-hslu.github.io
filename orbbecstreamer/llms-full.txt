@@ -3687,7 +3687,7 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling; v0.1.6 adds lens correction, a Board screen and a floor measurement to the console, and leaves setup to the operator only. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling; v0.1.6 adds lens correction, a Board screen and a floor measurement to the console, and leaves setup to the operator only; v0.1.7 adds a camera-pose drift warning and an auto-calibration without the board, and a camera-pose calibration that works on a real two-camera rig. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
@@ -3751,18 +3751,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.6-1_amd64.deb` from the
-    [v0.1.6 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.6),
+    Download `orbbec-streamer_0.1.7-1_amd64.deb` from the
+    [v0.1.7 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.7),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.6-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.7-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.6-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `83f3bfb7752d429d2512bf5d86ede85fee6d5e6586f25a795541e5fb782409ef`.
+    `sha256sum` must print `orbbec-streamer_0.1.7-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `c7b6723a998727b0e13931f9154c2a81ae82e0a82373854a38dcb6f9020dea03`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -3771,7 +3771,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.6-1`. It sorts above every
+    The package version inside the file is `0.1.7-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -3941,8 +3941,10 @@ Two or more cameras must be hardware-synchronised:
    [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
    Up to poc.10, do it on the server; see
    [Camera pose calibration](/docs/server/camera-calibration). Until then the
-   server stays in “needs setup” and sends no video. The team has tested
-   this calibration with synthetic cameras only, not yet on hardware. One
+   server stays in “needs setup” and sends no video. From v0.1.7 a run
+   needs 5 board views. It was validated once on a packaged v0.1.7 install
+   (one lab rig, two Femto Bolts: 5 views, 0.10 px, 7.5 mm between the
+   cameras). One
    camera needs no calibration (from poc.7).
 
 See [Configuration](/docs/server/configuration#sync) for every sync key.
@@ -3979,7 +3981,7 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.6-1`.
+Replace `<version>` with the new file's version, for example `0.1.7-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
 yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
@@ -3992,6 +3994,11 @@ solved before that still load but are less accurate. The Operator Console
 and the client's setup workspace flag them with **Poses were solved before
 image rectification**. A `bilateral_mask_threshold` line in a `live.yaml`
 you kept is ignored from v0.1.6 and can be deleted. Calibrate again after a downgrade to v0.1.5 too.
+The upgrade from v0.1.6 to v0.1.7 asks no questions: no packaged
+configuration changed, and camera poses from v0.1.6 stay valid.
+Recalibrating is optional; it uses the v0.1.7 pair solve. Downgrading to
+v0.1.6 works: it ignores `camera-pose.drift-baseline.json` and
+`pose-refine.report.json` next to the pose.
 From v0.1.3 camera poses are no longer mirrored in Y. A camera-pose
 calibration committed on v0.1.2 stays valid and now shows correctly, but a
 placement chosen while the scene looked mirrored may need placing again.
@@ -4309,7 +4316,10 @@ board in each camera's own colour image; the Operator Console shows each
 camera's live image with the detected board. See
 [Run a calibration](/docs/server/camera-calibration#run-a-calibration) and
 [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
-These changes were tested in simulation, not yet on hardware.
+These changes were tested in simulation. From v0.1.7 a camera pair is
+solved from the depth of all shared board views together, and a run needs
+5 views; this was validated once on a packaged v0.1.7 install (one lab
+rig, two Femto Bolts: 0.10 px, 7.5 mm between the cameras).
 
 From v0.1.6 the server solves all camera poses together (a joint rig
 adjustment) and checks the result against targets: 0.5 px reprojection
@@ -4589,9 +4599,10 @@ order; each one ends with what you should see.
     You should see **Camera pose committed (revision N)** and `The new poses
     are in force.`, and the top bar change from **Needs setup** to **Ready**.
     The **Calibration** step of the **Setup checklist** shows the same screen;
-    see [The setup checklist](/docs/operator#the-setup-checklist). The team
-    has tested this calibration with synthetic cameras only, not yet on
-    hardware.
+    see [The setup checklist](/docs/operator#the-setup-checklist). From
+    v0.1.7 a run needs 5 board views. It was validated once on a packaged
+    v0.1.7 install (one lab rig, two Femto Bolts: 5 views, 0.10 px, 7.5 mm
+    between the cameras).
 
         <img alt="Camera pose calibration with one camera: Camera pose: valid · revision 1, the ChArUco board description and Start camera-pose calibration" src="__img4" />
 
@@ -4613,7 +4624,9 @@ order; each one ends with what you should see.
     **Preview** the cameras' points drawn in 3D, with **Pause drawing**,
     **Frame all** and **Reset view**. **Colour tiles** and **Depth tiles** show
     each camera's pictures, and the table below shows frame sets per second,
-    decode latency and dropped frame sets. While a tile has no picture it reads
+    decode latency and dropped frame sets. From v0.1.7 the line under the
+    table also shows the end-to-end latency, capture to screen, as
+    `End-to-end N ms (p95 N ms)`. While a tile has no picture it reads
     **Waiting for first frame**. The preview needs WebGPU and an HEVC decoder;
     see [Check your browser](/docs/client/browser-requirements). If WebGPU
     can't draw, the preview uses WebGL2 and shows a notice
@@ -4664,8 +4677,10 @@ order; each one ends with what you should see.
     floor**. Then select **Level to floor**: it opens a placement draft, which
     you commit with **Commit placement (expected revision N)**. Nothing is
     levelled without that commit. See
-    [Measure the floor](/docs/operator#measure-the-floor). The floor
-    measurement was tested in simulation, not yet on hardware.
+    [Measure the floor](/docs/operator#measure-the-floor). The cameras must
+    see open floor: on the lab rig, cameras at desk height looking at a wall
+    were refused (`normal-outside-gravity-gate`, the flattest plane 94.4
+    degrees from up).
 
     You should see `Floor: measured · revision N` and, in the client with
     **Show floor** on in the view settings, the floor grid under the scene.
@@ -5435,6 +5450,27 @@ both cases the previous pose stays in force.
 | `This server does not report board guidance. …`                                                | A server older than poc.11. Move the board through every camera's view; only the counts are shown.                                                                                                           |
 | `Live images before setup completes are sent to operator sessions only. …`                     | The run belongs to a viewer session. Place the board by the counts and the coverage grid.                                                                                                                    |
 
+### Pose drift and Auto-calibrate (no board) [#pose-drift-and-auto-calibrate-no-board]
+
+From v0.1.7 the **Camera pose** screen also watches whether the cameras
+have moved since the last calibration. Both features were tested in
+simulation only, not yet on the real rig.
+
+* **Camera pose drift**, above the board run, reads `Camera poses look
+  stable`, `Camera pose may have moved: <cameras>. Recalibrate camera
+  pose.`, or why it can't watch, for example `Drift monitor warming up
+  (cameras need about 40 min after start)`. The server takes its baseline
+  itself after the cameras have streamed for about 40 minutes, and renews
+  it after every camera-pose commit. It alerts at 5 mm or 0.3° (provisional
+  thresholds). It only warns; nothing starts by itself. A viewer sees only
+  `Camera pose may have drifted`.
+* **Auto-calibrate (no board)** refits the poses from the room itself, with
+  people masked out. Keep the room clear and still, take the setup lock and
+  select **Auto-calibrate (no board)**. It needs a valid camera pose,
+  person segmentation and warm cameras, and says why when it can't start.
+  It ends by itself with `Solved. Not in force until committed.`; nothing
+  is in force until you commit. Cancel commits nothing.
+
 ## Set the calibration board [#set-the-calibration-board]
 
 From v0.1.6 the **Board** screen (under **Calibration** in the left
@@ -5471,8 +5507,10 @@ it as an optional step after **Calibration**, with **Skip: no floor
 levelling**. It needs a valid camera pose, the operator role and the setup
 lock. Without a valid pose the screen reads `Calibrate camera pose first`
 with **Open camera pose**. A server without floor support shows `This
-server does not support floor levelling`. The floor measurement was tested
-in simulation, not yet on hardware.
+server does not support floor levelling`. The cameras must see open
+floor: on the lab rig, cameras at desk height looking at a wall were
+refused with `normal-outside-gravity-gate` (the flattest plane 94.4
+degrees from up).
 
 1. Keep the floor in view and clear of people and objects. Select **Take
    setup lock**, then **Measure floor**.
@@ -5600,7 +5638,9 @@ controls work without it.
   preview, or it reconnects, with cameras still hidden, it opens only the
   shown cameras' streams. It remembers hidden cameras until you reload the page.
 * The table below the view shows each camera's stream statistics, once a
-  second.
+  second. From v0.1.7 the line under it also shows the end-to-end
+  latency, capture to screen: `End-to-end N ms (p95 N ms)`, or
+  `End-to-end: measuring…` at first.
 
 <img alt="Live preview in Colour tiles view: two camera tiles, and a table with frame sets per second, decode latency, dropped frame sets and the decoder for each camera" src="__img4" />
 

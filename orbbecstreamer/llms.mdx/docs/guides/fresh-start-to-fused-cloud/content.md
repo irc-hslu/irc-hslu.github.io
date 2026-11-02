@@ -196,9 +196,10 @@ order; each one ends with what you should see.
     You should see **Camera pose committed (revision N)** and `The new poses
     are in force.`, and the top bar change from **Needs setup** to **Ready**.
     The **Calibration** step of the **Setup checklist** shows the same screen;
-    see [The setup checklist](/docs/operator#the-setup-checklist). The team
-    has tested this calibration with synthetic cameras only, not yet on
-    hardware.
+    see [The setup checklist](/docs/operator#the-setup-checklist). From
+    v0.1.7 a run needs 5 board views. It was validated once on a packaged
+    v0.1.7 install (one lab rig, two Femto Bolts: 5 views, 0.10 px, 7.5 mm
+    between the cameras).
 
         <img alt="Camera pose calibration with one camera: Camera pose: valid · revision 1, the ChArUco board description and Start camera-pose calibration" src="__img4" />
 
@@ -220,7 +221,9 @@ order; each one ends with what you should see.
     **Preview** the cameras' points drawn in 3D, with **Pause drawing**,
     **Frame all** and **Reset view**. **Colour tiles** and **Depth tiles** show
     each camera's pictures, and the table below shows frame sets per second,
-    decode latency and dropped frame sets. While a tile has no picture it reads
+    decode latency and dropped frame sets. From v0.1.7 the line under the
+    table also shows the end-to-end latency, capture to screen, as
+    `End-to-end N ms (p95 N ms)`. While a tile has no picture it reads
     **Waiting for first frame**. The preview needs WebGPU and an HEVC decoder;
     see [Check your browser](/docs/client/browser-requirements). If WebGPU
     can't draw, the preview uses WebGL2 and shows a notice
@@ -271,8 +274,10 @@ order; each one ends with what you should see.
     floor**. Then select **Level to floor**: it opens a placement draft, which
     you commit with **Commit placement (expected revision N)**. Nothing is
     levelled without that commit. See
-    [Measure the floor](/docs/operator#measure-the-floor). The floor
-    measurement was tested in simulation, not yet on hardware.
+    [Measure the floor](/docs/operator#measure-the-floor). The cameras must
+    see open floor: on the lab rig, cameras at desk height looking at a wall
+    were refused (`normal-outside-gravity-gate`, the flattest plane 94.4
+    degrees from up).
 
     You should see `Floor: measured · revision N` and, in the client with
     **Show floor** on in the view settings, the floor grid under the scene.

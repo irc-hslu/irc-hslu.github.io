@@ -9,7 +9,7 @@ Nothing is built from source. To build from source instead, see
 
 <Callout type="warn">
   v0.1.0 was the first complete release: install, start the cameras,
-  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling; v0.1.6 adds lens correction, a Board screen and a floor measurement to the console, and leaves setup to the operator only. It is a non-commercial proof of concept
+  calibrate and view in a browser. v0.1.1 adds network sensing; v0.1.2 fills in the media rate on the Network page and fixes from the live run; v0.1.3 adds a hardware check, the WebGL2 fallback notice and console discovery, and fixes mirrored camera poses; v0.1.4 changes the default calibration board and draws it on the **Camera pose** screen, with a download to print, and blends overlapping cameras with WebGL2 where it works well; v0.1.5 fixes certificate renewal and reinstalling; v0.1.6 adds lens correction, a Board screen and a floor measurement to the console, and leaves setup to the operator only; v0.1.7 adds a camera-pose drift warning and an auto-calibration without the board, and a camera-pose calibration that works on a real two-camera rig. It is a non-commercial proof of concept
   (GPL-3.0 segmenter, no licence check), for evaluation only. Live video (from
   v0.1.0-poc.7): browsers on the server PC get status, setup and
   the cameras' colour and depth (see
@@ -73,18 +73,18 @@ Nothing is built from source. To build from source instead, see
   <Step>
     ## Install the package [#install-the-package]
 
-    Download `orbbec-streamer_0.1.6-1_amd64.deb` from the
-    [v0.1.6 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.6),
+    Download `orbbec-streamer_0.1.7-1_amd64.deb` from the
+    [v0.1.7 release](https://github.com/irc-hslu/orbbecstreamer/releases/tag/v0.1.7),
     together with `SHA256SUMS`, or from the release link you were given. In
     the download folder, check the file, then install it:
 
     ```bash
     sha256sum --check --ignore-missing SHA256SUMS
-    sudo apt install ./orbbec-streamer_0.1.6-1_amd64.deb
+    sudo apt install ./orbbec-streamer_0.1.7-1_amd64.deb
     ```
 
-    `sha256sum` must print `orbbec-streamer_0.1.6-1_amd64.deb: OK`. The
-    release lists its SHA-256 as `83f3bfb7752d429d2512bf5d86ede85fee6d5e6586f25a795541e5fb782409ef`.
+    `sha256sum` must print `orbbec-streamer_0.1.7-1_amd64.deb: OK`. The
+    release lists its SHA-256 as `c7b6723a998727b0e13931f9154c2a81ae82e0a82373854a38dcb6f9020dea03`.
 
     The release also carries the source of the segmentation model and a relink
     kit for the client's video decoder, which the decoder's LGPL licence
@@ -93,7 +93,7 @@ Nothing is built from source. To build from source instead, see
     The release page is in a private repository, so only people with access to
     it can download from there. There is no public download yet.
 
-    The package version inside the file is `0.1.6-1`. It sorts above every
+    The package version inside the file is `0.1.7-1`. It sorts above every
     poc package, so upgrading from a poc works as usual. The install:
 
     * creates the system user `orbbec-streamer`, the empty group
@@ -263,8 +263,10 @@ Two or more cameras must be hardware-synchronised:
    [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
    Up to poc.10, do it on the server; see
    [Camera pose calibration](/docs/server/camera-calibration). Until then the
-   server stays in “needs setup” and sends no video. The team has tested
-   this calibration with synthetic cameras only, not yet on hardware. One
+   server stays in “needs setup” and sends no video. From v0.1.7 a run
+   needs 5 board views. It was validated once on a packaged v0.1.7 install
+   (one lab rig, two Femto Bolts: 5 views, 0.10 px, 7.5 mm between the
+   cameras). One
    camera needs no calibration (from poc.7).
 
 See [Configuration](/docs/server/configuration#sync) for every sync key.
@@ -301,7 +303,7 @@ Install the newer package the same way:
 sudo apt install ./orbbec-streamer_<version>_amd64.deb
 ```
 
-Replace `<version>` with the new file's version, for example `0.1.6-1`.
+Replace `<version>` with the new file's version, for example `0.1.7-1`.
 Upgrading from a poc package works the same way. The packaged `live.yaml`
 changed in v0.1.1 (a commented-out `network_probes` line), so if you edited
 yours, the upgrade to v0.1.1 or later asks whether to keep it: keep your
@@ -314,6 +316,11 @@ solved before that still load but are less accurate. The Operator Console
 and the client's setup workspace flag them with **Poses were solved before
 image rectification**. A `bilateral_mask_threshold` line in a `live.yaml`
 you kept is ignored from v0.1.6 and can be deleted. Calibrate again after a downgrade to v0.1.5 too.
+The upgrade from v0.1.6 to v0.1.7 asks no questions: no packaged
+configuration changed, and camera poses from v0.1.6 stay valid.
+Recalibrating is optional; it uses the v0.1.7 pair solve. Downgrading to
+v0.1.6 works: it ignores `camera-pose.drift-baseline.json` and
+`pose-refine.report.json` next to the pose.
 From v0.1.3 camera poses are no longer mirrored in Y. A camera-pose
 calibration committed on v0.1.2 stays valid and now shows correctly, but a
 placement chosen while the scene looked mirrored may need placing again.

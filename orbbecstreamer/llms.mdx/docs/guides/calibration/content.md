@@ -15,7 +15,10 @@ board in each camera's own colour image; the Operator Console shows each
 camera's live image with the detected board. See
 [Run a calibration](/docs/server/camera-calibration#run-a-calibration) and
 [Calibrate the camera poses](/docs/operator#calibrate-the-camera-poses).
-These changes were tested in simulation, not yet on hardware.
+These changes were tested in simulation. From v0.1.7 a camera pair is
+solved from the depth of all shared board views together, and a run needs
+5 views; this was validated once on a packaged v0.1.7 install (one lab
+rig, two Femto Bolts: 0.10 px, 7.5 mm between the cameras).
 
 From v0.1.6 the server solves all camera poses together (a joint rig
 adjustment) and checks the result against targets: 0.5 px reprojection
