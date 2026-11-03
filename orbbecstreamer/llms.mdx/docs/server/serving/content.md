@@ -247,7 +247,7 @@ Referrer-Policy: no-referrer
 ```
 
 * A request on the loopback listener, or with a loopback `Host`, gets `127.0.0.1` (never `localhost`: the listener is IPv4 UDP) and the hashes of `wt-current`, then `wt-next`.
-* Any other request gets `https://<its own Host>:<port><path>` and an empty `hashes` list, because the browser verifies the CA leaf. With a CA certificate (`serving.certificate`) the list is always empty.
+* Any other request gets `https://<its own Host>:<port><path>`. With `serving.lan_viewers` it also gets the hashes of `wt-current`, then `wt-next`, because WebTransport presents `wt-current` to LAN viewers as well. Without `lan_viewers` the list is empty. With a CA certificate (`serving.certificate`) the list is always empty.
 * `Cache-Control: no-store`. Other methods get 405.
 * Certificates not loaded yet: 503 with `Retry-After`. Never 404, which means "this origin has no discovery".
 
@@ -348,17 +348,17 @@ The page passes the certificate's SHA-256 hash in the `serverCertificateHashes` 
 
 ### Production: a CA-issued certificate [#production-a-ca-issued-certificate]
 
-Use a certificate from a public CA (for example Let's Encrypt) or from a CA the client machines trust, issued for the host name the browsers use. The browser then connects without a hash, and the 14-day and ECDSA rules don't apply. Set `serving.certificate` and `serving.private_key`. The gateway refuses a key file that group or others can read (`chmod 600`).
+Use a certificate from a public CA (for example Let's Encrypt), issued for the host name the browsers use. The browser then connects without a hash, and the 14-day and ECDSA rules don't apply. A CA the client machines trust only because it was installed locally does not work for WebTransport in Chrome: Chrome refuses QUIC certificates that chain to a locally installed root. Set `serving.certificate` and `serving.private_key`. The gateway refuses a key file that group or others can read (`chmod 600`).
 
 ### Packaged certificates [#packaged-certificates]
 
 The Debian package's `orbbec-tls` tool keeps the certificates in `/etc/orbbec-streamer/tls/`. Set `serving.tls_directory` to that folder. Each certificate and its key live in their own folder `pairs/<id>/` (`cert.pem`, `key.pem`), and three symlinks select them:
 
-| Symlink      | Certificate                                                                                     | Used for                                                                                                     |
-| ------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `https`      | The leaf of the per-installation local CA (90 days; host name, `.local` name and LAN addresses) | HTTPS pages, and WebTransport to any address that is not loopback                                            |
-| `wt-current` | A self-signed ECDSA P-256 certificate valid for 13 days                                         | WebTransport to `127.0.0.1` or `localhost`, pinned with `serverCertificateHashes` by a page on the server PC |
-| `wt-next`    | The next 13-day certificate                                                                     | Only its hash is published, before it is switched to                                                         |
+| Symlink      | Certificate                                                                                     | Used for                                                                                                                       |
+| ------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `https`      | The leaf of the per-installation local CA (90 days; host name, `.local` name and LAN addresses) | HTTPS pages; WebTransport to a non-loopback address only while `lan_viewers` is off                                            |
+| `wt-current` | A self-signed ECDSA P-256 certificate valid for 13 days                                         | WebTransport to `127.0.0.1` or `localhost`, and with `lan_viewers` to the LAN names too, pinned with `serverCertificateHashes` |
+| `wt-next`    | The next 13-day certificate                                                                     | Only its hash is published, before it is switched to                                                                           |
 
 * The gateway resolves each symlink once per load and reads `cert.pem` and `key.pem` from the folder it resolved, so a rotation between the two reads cannot pair a certificate with the wrong key. A symlink that points outside the TLS folder, or into `private/`, is refused. The gateway never opens `private/`, where the CA key is kept.
 * Keys must not be readable by group or others (`orbbec-tls --key-owner` writes them with mode 600).
@@ -369,11 +369,12 @@ The Debian package's `orbbec-tls` tool keeps the certificates in `/etc/orbbec-st
 
 By default the gateway offers the `https` leaf to any non-loopback connection. Set `serving.lan_viewers: true` (needs `tls_directory`) to serve remote browsers on the LAN deliberately, on the same UDP port as the loopback viewer:
 
-* The gateway picks the certificate per handshake. A loopback address or the name `localhost` gets `wt-current`, unchanged. Otherwise, if the server name or the address the client connected to is one of the `https` leaf's names or addresses, it gets that leaf. A browser that trusts the local CA (`public/orbbec-ca.crt`) connects without `serverCertificateHashes`. Anything else fails the handshake.
+* WebTransport always presents `wt-current`, pinned by hash: Chrome refuses a QUIC certificate that chains to a locally installed root, even a trusted one (`TLS handshake failure`, `is_issued_by_known_root=false`). A loopback address or the name `localhost` gets it as before. A LAN handshake gets it when the server name or the address the client connected to is one of the `https` leaf's names or addresses; anything else fails the handshake. The LAN page's discovery document carries the `wt-current` and `wt-next` hashes, so the viewer pins them.
+* Trusting the local CA (`public/orbbec-ca.crt`) is needed only for the HTTPS page on `page_listen_address`, not for WebTransport.
 * The browser origins `https://<name>[:port]` of the leaf's names and addresses are accepted in addition to `allowed_origins`. Loopback names and wildcards are left out. The port is `lan_page_port`, else the port of `page_listen_address`, else 443 (no port in the origin).
 * These origins never get the operator role: only `console_origins` do, and they stay loopback-only. A LAN viewer can look at the rig but cannot take the setup lock; see [a viewer cannot take the setup lock](#a-viewer-cannot-take-the-setup-lock).
 * `SIGHUP` re-resolves the `https` link and swaps the certificate and the derived origins together. Open sessions are not dropped.
-* With the `https` link missing, LAN handshakes fail until it appears; loopback is unaffected.
+* With the `https` link missing, LAN handshakes fail until it appears (it supplies the names a LAN handshake is checked against); loopback is unaffected.
 
 The gateway makes its own development certificate when no CA certificate is set: ECDSA P-256, valid for 13 days, renewed one day before it expires. Each new hash is written to `serving.dev_certificate_hash_path`. You don't need the `openssl` steps above for the gateway.
 
