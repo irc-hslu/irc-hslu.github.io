@@ -166,3 +166,27 @@ table.runs td:first-child .sub{max-width:none;overflow:hidden;text-overflow:elli
 table.runs td[colspan]{white-space:normal;overflow:visible}
 tr.filters select{padding-right:var(--s4)!important;background-position:right 6px center}
 table.runs th:not(:first-child),table.runs td:not(:first-child){padding-left:10px!important;padding-right:10px!important}
+/* ---- details v4 ---- */
+.sumbox{display:flex;flex-wrap:wrap;gap:var(--s5) var(--s6);align-items:flex-start;margin-bottom:var(--s4)}
+dl.kv.sum{margin:0}
+.mgroups{display:flex;gap:var(--s4)}
+.mg{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);padding:var(--s3) var(--s4);min-width:150px}
+.mg-h{display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2);text-transform:uppercase;font-size:.75rem;letter-spacing:.05em}
+.mrow{display:flex;justify-content:space-between;gap:var(--s4);font-size:.88rem}
+.atts{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--s3)}
+.att{margin:0!important;padding:var(--s3) var(--s4)!important}
+.att-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s2)}
+.att dl.kv{margin:0;gap:var(--s1) var(--s4)}
+/* ---- gantt ---- */
+.gantt{margin-top:var(--s6)}
+.gantt h2{font-size:1.2rem;margin-bottom:var(--s2)}
+.lane{display:flex;gap:var(--s4);align-items:stretch;border-top:1px solid var(--line);padding:var(--s3) 0}
+.lane-h{width:150px;flex:none;font-weight:600;padding-top:var(--s2)}
+.lane-b{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;min-width:0}
+.wrap-b{align-items:stretch}
+.blk{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);padding:var(--s2) var(--s3);min-width:150px;max-width:260px}
+.blk.run{border-color:var(--run);min-width:240px} .blk.q{border-style:dashed} .blk.plan{opacity:.85}
+.blk-t{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
+.chain{display:inline-flex;align-items:center;gap:var(--s2)}
+.gantt .bar{max-width:none}
+.gantt .sub{max-width:none;white-space:normal;overflow:visible}.lane-h{width:180px;overflow-wrap:anywhere}

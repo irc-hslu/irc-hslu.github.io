@@ -72,12 +72,20 @@ const RB = (() => {
     e.stopPropagation(); navigator.clipboard?.writeText(b.dataset.copy); b.textContent = "copied"; setTimeout(() => (b.textContent = "copy"), 1200);
   });
   /** Per-tab UI state (search, filters, sort), kept in sessionStorage so each tab restores its own. */
+  // search + Dataset/Noise/Status filters are ONE state shared by all run tabs; only the sort is per tab
   const TAB_DEFAULT = () => ({q: "", f: {dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1});
   const tabStore = {
     read() { try { return JSON.parse(sessionStorage.getItem("rb-tabs")) || {}; } catch (e) { return {}; } },
     write(o) { try { sessionStorage.setItem("rb-tabs", JSON.stringify(o)); } catch (e) {} },
-    get(tab, store = this.read()) { const d = TAB_DEFAULT(), s = store[tab] || {}; return {...d, ...s, f: {...d.f, ...(s.f || {})}}; },
-    put(tab, state, store = this.read()) { store[tab] = {q: state.q, f: {...state.f}, sort: state.sort, dir: state.dir}; return store; },
+    get(tab, store = this.read()) {
+      const d = TAB_DEFAULT(), sh = store.shared || {}, t = (store.tabs || {})[tab] || {};
+      return {q: sh.q ?? d.q, f: {...d.f, ...(sh.f || {})}, sort: t.sort ?? d.sort, dir: t.dir ?? d.dir};
+    },
+    put(tab, state, store = this.read()) {
+      store.shared = {q: state.q, f: {...state.f}};
+      (store.tabs ||= {})[tab] = {sort: state.sort, dir: state.dir};
+      return store;
+    },
   };
   return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme};
 })();
@@ -110,7 +118,7 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("runs", () => ({
     ...base(), tab: decodeURIComponent(location.hash.slice(1)) || "PromptDA", q: "", f: {dataset: "", noise: "", status: ""},
     sort: "modified_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS,
-    cols: [["title", "Run"], ["stage", "Stage", "hide-sm"], ["dataset", "Dataset", "hide-sm"], ["noise", "Noise", "hide-sm"], ["status", "Status"],
+    cols: [["title", "Run"], ["dataset", "Dataset", "hide-sm"], ["noise", "Noise", "hide-sm"], ["status", "Status"],
            ["rmse", "RMSE"], ["host", "Host", "hide-sm"], ["modified_at", "Modified"]],
     afterLoad() {
       for (const r of this.D.runs) if (this.open.includes(r.id)) { this.tab = this.tabOf(r); break; }
@@ -145,12 +153,20 @@ document.addEventListener("alpine:init", () => {
     rmse, hostOf, host: (r) => RB.hostName(hostOf(r)), tip: (r) => RB.hostTip(hostOf(r)),
     when(r) { return RB.relTime(r.modified_at, this.now); },
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
-    facts(r) { return RB.kv({id: r.id, kind: r.kind, lineage: r.lineage, submitted: r.submitted_at ? RB.relTime(r.submitted_at, this.now) + " (" + this.abs(r.submitted_at) + ")" : "", parent: r.parent_id, notes: r.notes, source: r.source, ...Object.fromEntries(Object.entries(r.summary_metrics || {}).filter(([k, v]) => v != null && k !== "protocol").map(([k, v]) => ["metric " + k, typeof v === "number" ? +v.toFixed(4) : v])), protocol: (r.summary_metrics || {}).protocol, registry: r.registry}); },
-    attFacts(a) { return RB.kv({"W&B name": a.wandb_name, "commit": a.code_commit, "worktree": a.worktree, "job file": a.job_file, "output dir": a.output_dir,
-      "checkpoint": a.checkpoint, "checkpoint sha256": a.checkpoint_sha256, "eval files": a.eval_files, "failure reason": a.failure_reason, "raw status": a.raw_status,
-      "metrics": a.metrics, "warm start parent": a.warm_start_parent, "notes": a.notes}); },
-    span(a) { if (!a.started_at) return "not started"; const m = a.ended_at ? Math.round((new Date(a.ended_at) - new Date(a.started_at)) / 60000) : null;
-      return RB.clock(a.started_at) + (a.ended_at ? " → " + RB.clock(a.ended_at) + (m >= 60 ? ` (${(m / 60).toFixed(1)} h)` : ` (${m} min)`) : ""); },
+    metrics(g) { // g = metrics_best | metrics_last -> [[label, value]] with em dash for missing
+      const f = (v, d = 3) => (typeof v === "number" ? v.toFixed(d) : "\u2014");
+      return g ? [["RMSE", f(g.rmse)], ["MAE", f(g.mae)], ["AbsRel", f(g.absrel)], ["F1", typeof g.f1 === "number" ? g.f1.toFixed(1) : "\u2014"]] : [];
+    },
+    attempts(r) { return [...(r.attempts || [])].reverse(); },  // latest first
+    dur(a) {
+      if (!a.started_at) return "not started";
+      if (a.status === "running") return "still running";
+      if (!a.ended_at) return "\u2014";
+      const m = Math.round((new Date(a.ended_at) - new Date(a.started_at)) / 60000);
+      return m >= 60 ? (m / 60).toFixed(1) + " h" : m + " min";
+    },
+    sha: (c) => (c ? c.slice(0, 7) : ""),
+    commitUrl: (c) => "https://github.com/irc-hslu/metricsplat/commit/" + c,
   }));
   Alpine.data("queues", () => ({
     ...base(),
@@ -161,6 +177,16 @@ document.addEventListener("alpine:init", () => {
     pct(j) { return parseInt((j.progress || "").match(/\((\d+)%/)?.[1] || 0); },
     link(id) { const r = this.D.runs.find((x) => x.id === id); return `index.html?open=${encodeURIComponent(id)}#${r ? (r.kind === "scratch" ? "Scratch" : r.tab) : ""}`; },
     clock: RB.clock,
+    /** Lane per host: running job (elapsed, progress, ETA when progress is known) then queued jobs in order. */
+    eta(j) {
+      const p = this.pct(j), t0 = j.started && new Date(j.started).getTime();
+      if (!t0 || !p) return "";
+      const total = (this.now - t0) / (p / 100), left = total - (this.now - t0);
+      return "ETA " + (left < 5400e3 ? Math.max(1, Math.round(left / 60e3)) + " min" : (left / 3600e3).toFixed(1) + " h");
+    },
+    elapsed(j) { return j.started ? RB.relTime(j.started, this.now).replace(" ago", "") : ""; },
+    lanes() { return this.hosts().map((h) => ({k: h.k, name: h.name, running: h.running || [], queued: h.queued || []})); },
+    planned() { return this.D ? this.D.runs.filter((r) => r.status === "planned" && r.source !== "wandb") : []; },
     seen(h) { return h.reachable ? "checked " + RB.relTime(h.checked_at, this.now) : (h.note || "offline"); },
   }));
 });

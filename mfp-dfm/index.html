@@ -26,7 +26,7 @@
     <a class="push" href="queues.html">GPU queues &rarr;</a>
   </div>
   <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span x-text="rows.length"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
-  <div style="overflow-x:auto"><table class="runs"><colgroup><col><col style="width:112px"><col style="width:116px"><col style="width:90px"><col style="width:118px"><col style="width:118px"><col style="width:194px"><col style="width:118px"></colgroup>
+  <div style="overflow-x:auto"><table class="runs"><colgroup><col><col style="width:126px"><col style="width:90px"><col style="width:118px"><col style="width:118px"><col style="width:194px"><col style="width:118px"></colgroup>
     <thead><tr><template x-for="c in cols" :key="c[0]"><th :class="[c[2], sort === c[0] && 'sorted', c[0] === 'rmse' && 'r']" @click="setSort(c[0])"><span x-text="c[1]"></span><span x-show="sort === c[0]" x-text="dir > 0 ? ' ▲' : ' ▼'"></span></th></template></tr>
     <tr class="filters"><template x-for="c in cols" :key="'f' + c[0]"><th :class="c[2]" @click.stop>
       <select x-show="f[c[0]] !== undefined" x-model="f[c[0]]" :aria-label="'Filter ' + c[1]"><option value="">All</option>
@@ -34,20 +34,38 @@
     <template x-for="r in rows" :key="r.id"><tbody class="run">
       <tr class="row" @click="flip(r)" :id="'run-' + r.id">
         <td><div class="title" :title="r.title"><span x-text="isOpen(r) ? '▾ ' : '▸ '"></span><span x-text="r.title"></span></div><div class="sub" :title="r.id" x-text="r.id"></div></td>
-        <td class="hide-sm" x-text="r.stage"></td><td class="hide-sm" x-text="r.dataset"></td><td class="hide-sm" x-text="r.noise"></td>
+        <td class="hide-sm" x-text="r.dataset"></td><td class="hide-sm" x-text="r.noise"></td>
         <td><span class="badge" :class="'s-' + r.status" x-text="r.status"></span></td>
         <td class="num r"><template x-if="rmse(r)[0] != null"><span><span x-text="rmse(r)[0].toFixed(3)"></span><span class="tag" x-text="rmse(r)[1]"></span></span></template><span class="muted" x-show="rmse(r)[0] == null">-</span></td>
         <td class="hide-sm" :title="tip(r)" x-text="host(r)"></td>
         <td class="num" :title="abs(r.modified_at)" x-text="when(r) || 'not started'"></td>
       </tr>
-      <tr class="det" x-show="isOpen(r)" x-cloak><td colspan="8" @click.stop>
-        <div x-html="facts(r)"></div>
-        <template x-for="a in r.attempts" :key="a.n"><div class="att">
-          <h4><span>Attempt <span x-text="a.n"></span></span><span class="badge" :class="'s-' + a.status" x-text="a.status"></span>
-            <span class="muted" x-text="a.host ? RB.hostName(a.host) : ''"></span><span class="muted" x-text="span(a)"></span>
-            <a x-show="a.wandb_url" :href="a.wandb_url" target="_blank" rel="noopener" x-text="'W&B ' + a.wandb_id"></a>
-            <span x-show="!a.wandb_url && a.wandb_id" class="mono" x-text="'W&B ' + a.wandb_id"></span></h4>
-          <div x-html="attFacts(a)"></div></div></template>
+      <tr class="det" x-show="isOpen(r)" x-cloak><td colspan="7" @click.stop>
+        <div class="sumbox">
+          <dl class="kv sum">
+            <dt>Stage</dt><dd x-text="r.stage"></dd>
+            <dt>Pretraining</dt><dd x-text="r.pretrain || 'none'"></dd>
+            <dt>SFT</dt><dd x-text="r.sft || 'none'"></dd>
+            <dt>Model</dt><dd x-text="r.variant"></dd>
+            <dt>Lineage</dt><dd><span class="lin" :class="'lin-' + r.lineage" x-text="r.lineage"></span><span x-show="r.parent_id" class="muted"> &middot; parent <span class="mono" x-text="r.parent_id"></span></span></dd>
+          </dl>
+          <div class="mgroups">
+            <template x-for="g in [['best', r.metrics_best], ['last', r.metrics_last]]" :key="g[0]"><div class="mg">
+              <div class="mg-h"><b x-text="g[0]"></b><span class="tag" x-text="g[1] ? g[1].src : ''"></span></div>
+              <template x-for="m in metrics(g[1])" :key="m[0]"><div class="mrow"><span class="muted" x-text="m[0]"></span><span class="num" x-text="m[1]"></span></div></template></div></template>
+          </div>
+        </div>
+        <div class="atts">
+        <template x-for="a in attempts(r)" :key="a.n"><div class="att">
+          <div class="att-h"><span class="muted">Attempt <span x-text="a.n"></span></span><span class="badge" :class="'s-' + a.status" x-text="a.status"></span></div>
+          <dl class="kv">
+            <dt>W&amp;B</dt><dd><a x-show="a.wandb_url" :href="a.wandb_url" target="_blank" rel="noopener" x-text="a.wandb_id"></a><span x-show="!a.wandb_url" x-text="a.wandb_id || '\u2014'"></span></dd>
+            <dt>Started</dt><dd :title="abs(a.started_at)" x-text="a.started_at ? RB.relTime(a.started_at, now) : 'not started'"></dd>
+            <dt>Duration</dt><dd x-text="dur(a)"></dd>
+            <dt>Host</dt><dd :title="RB.hostTip(a.host)" x-text="a.host ? RB.hostName(a.host) : '\u2014'"></dd>
+            <dt>Commit</dt><dd><a x-show="a.code_commit" :href="commitUrl(a.code_commit)" target="_blank" rel="noopener" class="mono" x-text="sha(a.code_commit)"></a><span x-show="!a.code_commit">&mdash;</span></dd>
+            <dt x-show="a.failure_reason">Reason</dt><dd x-show="a.failure_reason" x-text="a.failure_reason"></dd>
+          </dl></div></template></div>
         <p class="muted" x-show="!r.attempts.length">No attempts yet.</p>
       </td></tr>
     </tbody></template>
