@@ -27,7 +27,7 @@
   </div>
   <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span x-text="rows.length"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
   <div style="overflow-x:auto"><table class="runs">
-    <thead><tr><template x-for="c in cols" :key="c[0]"><th :class="[c[2], sort === c[0] && 'sorted']" @click="setSort(c[0])"><span x-text="c[1]"></span><span x-show="sort === c[0]" x-text="dir > 0 ? ' ▲' : ' ▼'"></span></th></template></tr>
+    <thead><tr><template x-for="c in cols" :key="c[0]"><th :class="[c[2], sort === c[0] && 'sorted', c[0] === 'rmse' && 'r']" @click="setSort(c[0])"><span x-text="c[1]"></span><span x-show="sort === c[0]" x-text="dir > 0 ? ' ▲' : ' ▼'"></span></th></template></tr>
     <tr class="filters"><template x-for="c in cols" :key="'f' + c[0]"><th :class="c[2]" @click.stop>
       <select x-show="f[c[0]] !== undefined" x-model="f[c[0]]" :aria-label="'Filter ' + c[1]"><option value="">All</option>
         <template x-for="v in (f[c[0]] !== undefined ? opts(c[0]) : [])" :key="v"><option :value="v" x-text="v"></option></template></select></th></template></tr></thead>
@@ -36,7 +36,7 @@
         <td><div class="title" :title="r.title"><span x-text="isOpen(r) ? '▾ ' : '▸ '"></span><span x-text="r.title"></span></div><div class="sub" :title="r.id" x-text="r.id"></div></td>
         <td class="hide-sm" x-text="r.stage"></td><td class="hide-sm" x-text="r.dataset"></td><td class="hide-sm" x-text="r.noise"></td>
         <td><span class="badge" :class="'s-' + r.status" x-text="r.status"></span></td>
-        <td class="num"><template x-if="rmse(r)[0] != null"><span><span x-text="rmse(r)[0].toFixed(3)"></span><span class="tag" x-text="rmse(r)[1]"></span></span></template><span class="muted" x-show="rmse(r)[0] == null">-</span></td>
+        <td class="num r"><template x-if="rmse(r)[0] != null"><span><span x-text="rmse(r)[0].toFixed(3)"></span><span class="tag" x-text="rmse(r)[1]"></span></span></template><span class="muted" x-show="rmse(r)[0] == null">-</span></td>
         <td class="hide-sm" :title="tip(r)" x-text="host(r)"></td>
         <td class="num" :title="abs(r.modified_at)" x-text="when(r) || 'not started'"></td>
       </tr>

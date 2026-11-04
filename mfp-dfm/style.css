@@ -118,3 +118,42 @@ details.recent summary{cursor:pointer;font-size:.9rem;margin:0}
 .switch[aria-checked=true] .thumb{transform:translateX(28px)}
 .switch[aria-checked=false] .sun,.switch[aria-checked=true] .moon{stroke:var(--ink)}.switch[aria-checked=false] .sun{stroke:var(--ink)}.switch[aria-checked=true] .moon{fill:var(--ink)}
 @media (prefers-reduced-motion:reduce){.switch .thumb{transition:none}}
+/* ---- spacing refinement: scale 4/8/12/16/24/32 ---- */
+:root{--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--r:10px;--r-sm:6px}
+body{line-height:1.5}
+.wrap{padding:0 var(--s5) calc(var(--s6)*2)}
+header.top{padding:var(--s6) 0 var(--s4);gap:var(--s3) var(--s5)}
+header.top .meta{gap:var(--s4)}
+.tabs{margin-bottom:var(--s5)}
+.tabs button,.tabs a{padding:var(--s3) var(--s4)}
+.tabs .n{padding:2px var(--s2);margin-left:var(--s2)}
+.count{margin:0 0 var(--s4);gap:var(--s4)}
+input.small{height:2.25rem;padding:var(--s1) var(--s3)}
+table.runs{border-radius:var(--r);overflow:hidden;border-collapse:separate;border-spacing:0}
+table.runs td,table.runs th{padding:var(--s3) var(--s4)!important;line-height:1.4}
+.r{text-align:right!important}
+tr.filters th{padding:var(--s2) var(--s4) var(--s3)!important}
+tr.filters select{height:2.1rem;padding:0 var(--s5) 0 var(--s3);border-radius:var(--r-sm)}
+.title,.sub{max-width:200px}
+table.runs{font-size:.88rem}
+table.runs td:nth-child(7){max-width:170px}
+.sub{margin-top:2px}
+.badge{padding:2px var(--s3);border-radius:var(--r-sm)}
+.tag{padding:0 6px;margin-left:var(--s2)}
+tbody.run tr.det td{padding:var(--s5)!important}
+dl.kv{gap:var(--s2) var(--s5);margin:var(--s3) 0 var(--s4)}
+.att{padding:var(--s4) var(--s5);margin:var(--s4) 0;border-radius:var(--r)}
+.att h4{margin-bottom:var(--s3);gap:var(--s2) var(--s4)}
+.cp{padding:0 var(--s2);margin-left:var(--s3)}
+.cols{gap:var(--s5)}
+.col{gap:var(--s4)}
+.gpu{padding:var(--s4) var(--s5) var(--s5);border-radius:var(--r)}
+.gpu-live{margin-bottom:var(--s3)}
+.gpu-slot{padding:var(--s3) var(--s4);border-radius:var(--r-sm);min-height:96px}
+.timeline{padding-left:var(--s4);gap:var(--s3)}
+.qjob{padding:var(--s2) var(--s3);gap:var(--s3);border-radius:var(--r-sm)}
+details.recent{padding:var(--s3) var(--s4);border-radius:var(--r-sm)}
+.rjob{padding:var(--s2) 0}
+.runjob .badge{margin-bottom:var(--s1)}
+.rj-title{margin:var(--s2) 0}
+.gpu-top b{flex:1;min-width:0;font-size:1rem}.dot{flex-shrink:0;margin-right:0}.state{margin:0 0 0 18px}
