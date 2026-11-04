@@ -59,10 +59,11 @@ const RB = (() => {
     apply(t) { // 'system' (null) resolves to the OS preference so our palette and Pico's always agree
       const dark = typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
       document.documentElement.dataset.theme = t || (dark ? "dark" : "light"); },
-    cycle() { // system -> light -> dark -> system
-      const n = {null: "light", light: "dark", dark: null}[this.get()];
-      try { n ? localStorage.setItem("rb-theme", n) : localStorage.removeItem("rb-theme"); } catch (e) {}
-      this.apply(n); return n || "system";
+    isDark() { return document.documentElement.dataset.theme === "dark"; },
+    toggle() { // explicit light <-> dark; the choice is remembered, until then the system preference applies
+      const n = this.isDark() ? "light" : "dark";
+      try { localStorage.setItem("rb-theme", n); } catch (e) {}
+      this.apply(n); return n === "dark";
     },
   };
   theme.apply(theme.get());
@@ -77,14 +78,14 @@ if (typeof module !== "undefined") module.exports = RB;
 /* Common page state: data, password gate, header. */
 function base() {
   return {
-    D: null, gate: false, err: "", pw: "", ok: null, themeLabel: RB.theme.get() || "system", now: Date.now(), RB,
+    D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB,
     async init() {
       this.D = await RB.load((ok) => new Promise((res) => { this.gate = true; this.ok = async () => {
         try { const d = await ok(this.pw); this.gate = false; res(d); } catch (e) { this.err = "Wrong password."; } }; }));
       setInterval(() => (this.now = Date.now()), 30000);
       if (this.afterLoad) this.afterLoad();
     },
-    toggleTheme() { this.themeLabel = RB.theme.cycle(); },
+    toggleTheme() { this.dark = RB.theme.toggle(); },
     // methods, not getters: object spread would freeze getter values at init (D still null)
     updated() { return this.D ? new Date(this.D.last_updated).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""; },
     stale() { return !!this.D && this.now - new Date(this.D.last_updated) > 3 * 3600e3; },
