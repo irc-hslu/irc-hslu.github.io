@@ -13,30 +13,38 @@
   <input type="password" x-model="pw" placeholder="Password" autocomplete="current-password"><small x-text="err" class="stale"></small><button>Unlock</button></form></div>
 <div class="wrap" x-show="D">
   <header class="top"><h1>GPU queues</h1>
-    <div class="meta"><div class="upd"><small>last updated</small><b x-text="updated()"></b><small :class="stale() && 'stale'" x-text="ago()"></small></div>
+    <div class="meta"><div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
       <button class="btn" @click="toggleTheme()" x-text="'Theme: ' + themeLabel"></button></div></header>
   <div class="tabs"><a href="index.html">&larr; Runs</a></div>
-  <div class="hosts">
-    <template x-for="h in hosts()" :key="h.k"><article class="host">
-      <header><h2><span class="dot" :class="!h.reachable && 'off'"></span><span x-text="h.name"></span></h2>
-        <span class="muted"><span x-text="h.tip.replace(h.name + ' ', '')"></span> &middot; <span x-text="h.reachable ? (h.gpu_status || 'online') : 'offline'"></span> &middot; <span x-text="seen(h)"></span></span></header>
-      <section><h3>Running</h3>
-        <template x-for="j in h.running" :key="j.name"><div class="job">
-          <b x-text="j.name.replace('.job','')"></b> <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a><span class="badge s-planned" x-show="!j.run_id">unmapped</span>
-          <div class="muted" x-text="j.desc"></div><div class="sub" x-text="'started ' + clock(j.started)"></div>
-          <template x-if="j.progress"><div><div class="sub" x-text="j.progress"></div><div class="bar"><i :style="'width:' + pct(j) + '%'"></i></div></div></template></div></template>
-        <p class="muted" x-show="!h.running.length">Idle.</p></section>
-      <section><h3>Queued, in order</h3>
-        <template x-for="j in h.queued" :key="j.name"><div class="job"><b x-text="j.name.replace('.job','')"></b> <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a><div class="muted" x-text="j.desc"></div></div></template>
-        <p class="muted" x-show="!h.queued.length">Nothing queued.</p></section>
-      <section><h3>Recent failures</h3>
-        <template x-for="j in h.failed_recent" :key="j.name"><div class="job"><b x-text="j.name.replace('.job','')"></b> <span class="badge" :class="j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-show="j.exit" x-text="j.exit === 'lost' ? 'killed' : 'exit ' + j.exit"></span>
-          <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a><span class="badge s-planned" x-show="!j.run_id">unmapped</span><div class="muted" x-text="j.desc"></div><div class="sub" x-show="j.finished" x-text="clock(j.finished)"></div></div></template>
-        <p class="muted" x-show="!h.failed_recent.length">None.</p></section>
-      <section><h3>Recently finished</h3>
-        <template x-for="j in (h.done_recent || []).slice(0, 4)" :key="j.name"><div class="job"><b x-text="j.name.replace('.job','')"></b> <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a><span class="badge s-planned" x-show="!j.run_id">unmapped</span><div class="sub" x-text="clock(j.finished)"></div></div></template>
-        <p class="muted" x-show="!(h.done_recent || []).length">None.</p></section>
-    </article></template>
+  <div class="cols">
+    <template x-for="h in hosts()" :key="h.k"><div class="col">
+      <div class="gpu" :class="!h.reachable && 'off'">
+        <div class="gpu-top"><span class="dot" :class="!h.reachable && 'off'"></span><b x-text="h.name"></b><span class="state" x-text="h.reachable ? 'online' : 'offline'"></span></div>
+        <div class="gpu-model" x-text="h.tip.replace(h.name + ' ', '')"></div>
+        <div class="gpu-live" x-text="h.reachable ? (h.gpu_status || 'no GPU data') : seen(h)"></div>
+        <div class="gpu-slot">
+          <template x-for="j in h.running" :key="j.name"><div class="runjob">
+            <span class="badge s-running">running</span>
+            <div class="rj-title" x-text="title(j)"></div>
+            <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a><span class="badge s-planned" x-show="!j.run_id">unmapped</span>
+            <div class="sub" :title="abs(j.started)" x-text="'started ' + rel(j.started, now)"></div>
+            <template x-if="j.progress"><div><div class="sub" x-text="j.progress"></div><div class="bar"><i :style="'width:' + pct(j) + '%'"></i></div></div></template></div></template>
+          <div class="idle" x-show="!h.running.length" x-text="h.reachable ? 'idle / empty' : 'offline'"></div>
+        </div>
+      </div>
+      <div class="timeline">
+        <template x-for="j in h.queued" :key="j.name"><div class="qjob"><span class="arrow">&darr;</span>
+          <div><b x-text="j.name.replace('.job','')"></b><div class="sub" x-text="title(j)"></div>
+          <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a></div></div></template>
+        <p class="muted small" x-show="!h.queued.length">Nothing queued.</p>
+      </div>
+      <details class="recent"><summary>Recent finished / failed</summary>
+        <template x-for="j in [...(h.failed_recent || []), ...(h.done_recent || []).slice(0, 4)]" :key="j.name + j.state"><div class="rjob">
+          <span class="badge" :class="j.state === 'done' ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-text="j.state === 'done' ? 'done' : j.exit === 'lost' ? 'killed' : 'exit ' + (j.exit || '?')"></span>
+          <b x-text="j.name.replace('.job','')"></b> <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a>
+          <div class="sub" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished, now) : ''"></div></div></template>
+      </details>
+    </div></template>
   </div>
 </div>
 </body>

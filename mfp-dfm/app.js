@@ -56,7 +56,9 @@ const RB = (() => {
   }
   const theme = {
     get() { const q = new URLSearchParams(location.search).get("theme"); if (q) return q; try { return localStorage.getItem("rb-theme"); } catch (e) { return null; } },
-    apply(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; },
+    apply(t) { // 'system' (null) resolves to the OS preference so our palette and Pico's always agree
+      const dark = typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.dataset.theme = t || (dark ? "dark" : "light"); },
     cycle() { // system -> light -> dark -> system
       const n = {null: "light", light: "dark", dark: null}[this.get()];
       try { n ? localStorage.setItem("rb-theme", n) : localStorage.removeItem("rb-theme"); } catch (e) {}
@@ -97,24 +99,23 @@ const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => 
 
 document.addEventListener("alpine:init", () => {
   Alpine.data("runs", () => ({
-    ...base(), tab: decodeURIComponent(location.hash.slice(1)) || "PromptDA", q: "", f: {status: [], dataset: []},
+    ...base(), tab: decodeURIComponent(location.hash.slice(1)) || "PromptDA", q: "", f: {dataset: "", noise: "", status: ""},
     sort: "submitted_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS,
     cols: [["title", "Run"], ["stage", "Stage", "hide-sm"], ["dataset", "Dataset", "hide-sm"], ["noise", "Noise", "hide-sm"], ["status", "Status"],
            ["rmse", "RMSE"], ["host", "Host", "hide-sm"], ["submitted_at", "Submitted"]],
     afterLoad() { for (const r of this.D.runs) if (this.open.includes(r.id)) { this.tab = this.tabOf(r); break; } },
     tabOf(r) { return r.kind === "scratch" ? "Scratch" : r.tab; },
     count(t) { return this.D ? this.D.runs.filter((r) => this.tabOf(r) === t).length : 0; },
-    setTab(t) { this.tab = t; location.hash = t; this.f = {status: [], dataset: []}; },
+    setTab(t) { this.tab = t; location.hash = t; this.f = {dataset: "", noise: "", status: ""}; },
     opts(k) { const v = [...new Set(this.D.runs.filter((r) => this.tabOf(r) === this.tab).map((r) => r[k]))].filter((x) => x && x !== "-");
       return k === "status" ? v.sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b)) : v.sort(); },
-    toggle(k, v) { const a = this.f[k], i = a.indexOf(v); i < 0 ? a.push(v) : a.splice(i, 1); },
     key(r, k) { return k === "rmse" ? rmse(r)[0] : k === "host" ? RB.hostName(hostOf(r)) : k === "status" ? STATUS_ORDER.indexOf(r.status) : r[k]; },
     setSort(k) { this.dir = this.sort === k ? -this.dir : (["title", "stage", "dataset", "noise", "host", "status"].includes(k) ? 1 : -1); this.sort = k; },
     get rows() {
       if (!this.D) return [];
       const words = this.q.toLowerCase().split(/\s+/).filter(Boolean);
       const rows = this.D.runs.filter((r) => this.tabOf(r) === this.tab &&
-        Object.entries(this.f).every(([k, a]) => !a.length || a.includes(r[k])) &&
+        Object.entries(this.f).every(([k, v]) => !v || r[k] === v) &&
         words.every((w) => (r._s ??= JSON.stringify(r).toLowerCase()).includes(w)));
       const d = this.dir, miss = (x) => x == null || x === "" || x === "-";
       return rows.sort((a, b) => {
@@ -127,6 +128,7 @@ document.addEventListener("alpine:init", () => {
     flip(r) { const i = this.open.indexOf(r.id); i < 0 ? this.open.push(r.id) : this.open.splice(i, 1); },
     rmse, hostOf, host: (r) => RB.hostName(hostOf(r)), tip: (r) => RB.hostTip(hostOf(r)),
     when(r) { return RB.relTime(r.submitted_at, this.now); },
+    abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
     facts(r) { return RB.kv({id: r.id, kind: r.kind, lineage: r.lineage, parent: r.parent_id, notes: r.notes, source: r.source, ...Object.fromEntries(Object.entries(r.summary_metrics || {}).filter(([k, v]) => v != null && k !== "protocol").map(([k, v]) => ["metric " + k, typeof v === "number" ? +v.toFixed(4) : v])), protocol: (r.summary_metrics || {}).protocol, registry: r.registry}); },
     attFacts(a) { return RB.kv({"W&B name": a.wandb_name, "commit": a.code_commit, "worktree": a.worktree, "job file": a.job_file, "output dir": a.output_dir,
       "checkpoint": a.checkpoint, "checkpoint sha256": a.checkpoint_sha256, "eval files": a.eval_files, "failure reason": a.failure_reason, "raw status": a.raw_status,
@@ -137,7 +139,9 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("queues", () => ({
     ...base(),
     hosts() { return this.D ? Object.entries(this.D.queues || {}).map(([k, q]) => ({k, name: RB.hostName(k), tip: RB.hostTip(k), ...q})) : []; },
-    runId(j) { return j.run_id; },
+    title(j) { const r = j.run_id && this.D.runs.find((x) => x.id === j.run_id); return r ? r.title : (j.desc || ""); },
+    rel: (iso, now) => RB.relTime(iso, now),
+    abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
     pct(j) { return parseInt((j.progress || "").match(/\((\d+)%/)?.[1] || 0); },
     link(id) { const r = this.D.runs.find((x) => x.id === id); return `index.html?open=${encodeURIComponent(id)}#${r ? (r.kind === "scratch" ? "Scratch" : r.tab) : ""}`; },
     clock: RB.clock,

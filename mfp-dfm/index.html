@@ -15,7 +15,7 @@
   <header class="top">
     <h1>MFP runboard</h1>
     <div class="meta">
-      <div class="upd"><small>last updated</small><b x-text="updated()"></b><small :class="stale() && 'stale'" x-text="ago()"></small></div>
+      <div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
       <button class="btn" @click="toggleTheme()" :title="'Theme: ' + themeLabel" x-text="'Theme: ' + themeLabel"></button>
     </div>
   </header>
@@ -23,17 +23,12 @@
     <template x-for="t in tabs" :key="t"><button :class="tab === t && 'on'" @click="setTab(t)"><span x-text="t"></span><span class="n" x-text="count(t)"></span></button></template>
     <a class="push" href="queues.html">GPU queues &rarr;</a>
   </div>
-  <input type="search" x-model="q" placeholder="Search everything, including attempts">
-  <div class="chips">
-    <template x-for="k in ['status','dataset']" :key="k">
-      <template x-for="(v, i) in opts(k)" :key="k + v"><span style="display:contents">
-        <span class="lab" x-show="i === 0" x-text="k"></span>
-        <button class="chip" :class="f[k].includes(v) && 'on'" @click="toggle(k, v)" x-text="v"></button></span></template>
-    </template>
-  </div>
-  <div class="count"><span x-text="rows.length"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
+  <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span x-text="rows.length"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
   <div style="overflow-x:auto"><table class="runs">
-    <thead><tr><template x-for="c in cols" :key="c[0]"><th :class="[c[2], sort === c[0] && 'sorted']" @click="setSort(c[0])"><span x-text="c[1]"></span><span x-show="sort === c[0]" x-text="dir > 0 ? ' ▲' : ' ▼'"></span></th></template></tr></thead>
+    <thead><tr><template x-for="c in cols" :key="c[0]"><th :class="[c[2], sort === c[0] && 'sorted']" @click="setSort(c[0])"><span x-text="c[1]"></span><span x-show="sort === c[0]" x-text="dir > 0 ? ' ▲' : ' ▼'"></span></th></template></tr>
+    <tr class="filters"><template x-for="c in cols" :key="'f' + c[0]"><th :class="c[2]" @click.stop>
+      <select x-show="f[c[0]] !== undefined" x-model="f[c[0]]" :aria-label="'Filter ' + c[1]"><option value="">All</option>
+        <template x-for="v in (f[c[0]] !== undefined ? opts(c[0]) : [])" :key="v"><option :value="v" x-text="v"></option></template></select></th></template></tr></thead>
     <template x-for="r in rows" :key="r.id"><tbody class="run">
       <tr class="row" @click="flip(r)" :id="'run-' + r.id">
         <td><div class="title" :title="r.title"><span x-text="isOpen(r) ? '▾ ' : '▸ '"></span><span x-text="r.title"></span></div><div class="sub" :title="r.id" x-text="r.id"></div></td>
@@ -41,7 +36,7 @@
         <td><span class="badge" :class="'s-' + r.status" x-text="r.status"></span></td>
         <td class="num"><template x-if="rmse(r)[0] != null"><span><span x-text="rmse(r)[0].toFixed(3)"></span><span class="tag" x-text="rmse(r)[1]"></span></span></template><span class="muted" x-show="rmse(r)[0] == null">-</span></td>
         <td class="hide-sm" :title="tip(r)" x-text="host(r)"></td>
-        <td class="num" :title="r.submitted_at || ''" x-text="when(r) || 'not started'"></td>
+        <td class="num" :title="abs(r.submitted_at)" x-text="when(r) || 'not started'"></td>
       </tr>
       <tr class="det" x-show="isOpen(r)" x-cloak><td colspan="8" @click.stop>
         <div x-html="facts(r)"></div>
