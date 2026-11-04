@@ -71,7 +71,15 @@ const RB = (() => {
     const b = e.target.closest("[data-copy]"); if (!b) return;
     e.stopPropagation(); navigator.clipboard?.writeText(b.dataset.copy); b.textContent = "copied"; setTimeout(() => (b.textContent = "copy"), 1200);
   });
-  return {HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme};
+  /** Per-tab UI state (search, filters, sort), kept in sessionStorage so each tab restores its own. */
+  const TAB_DEFAULT = () => ({q: "", f: {dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1});
+  const tabStore = {
+    read() { try { return JSON.parse(sessionStorage.getItem("rb-tabs")) || {}; } catch (e) { return {}; } },
+    write(o) { try { sessionStorage.setItem("rb-tabs", JSON.stringify(o)); } catch (e) {} },
+    get(tab, store = this.read()) { const d = TAB_DEFAULT(), s = store[tab] || {}; return {...d, ...s, f: {...d.f, ...(s.f || {})}}; },
+    put(tab, state, store = this.read()) { store[tab] = {q: state.q, f: {...state.f}, sort: state.sort, dir: state.dir}; return store; },
+  };
+  return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme};
 })();
 if (typeof module !== "undefined") module.exports = RB;
 
@@ -104,10 +112,17 @@ document.addEventListener("alpine:init", () => {
     sort: "modified_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS,
     cols: [["title", "Run"], ["stage", "Stage", "hide-sm"], ["dataset", "Dataset", "hide-sm"], ["noise", "Noise", "hide-sm"], ["status", "Status"],
            ["rmse", "RMSE"], ["host", "Host", "hide-sm"], ["modified_at", "Modified"]],
-    afterLoad() { for (const r of this.D.runs) if (this.open.includes(r.id)) { this.tab = this.tabOf(r); break; } },
+    afterLoad() {
+      for (const r of this.D.runs) if (this.open.includes(r.id)) { this.tab = this.tabOf(r); break; }
+      Object.assign(this, RB.tabStore.get(this.tab));
+      for (const k of ["q", "f", "sort", "dir"]) this.$watch(k, () => RB.tabStore.write(RB.tabStore.put(this.tab, this)));
+    },
     tabOf(r) { return r.kind === "scratch" ? "Scratch" : r.tab; },
     count(t) { return this.D ? this.D.runs.filter((r) => this.tabOf(r) === t).length : 0; },
-    setTab(t) { this.tab = t; location.hash = t; this.f = {dataset: "", noise: "", status: ""}; },
+    setTab(t) {
+      const store = RB.tabStore.put(this.tab, this); RB.tabStore.write(store);  // save the tab we leave
+      this.tab = t; location.hash = t; Object.assign(this, RB.tabStore.get(t, store));  // restore the one we enter
+    },
     opts(k) { const v = [...new Set(this.D.runs.filter((r) => this.tabOf(r) === this.tab).map((r) => r[k]))].filter((x) => x && x !== "-");
       return k === "status" ? v.sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b)) : v.sort(); },
     key(r, k) { return k === "rmse" ? rmse(r)[0] : k === "host" ? RB.hostName(hostOf(r)) : k === "status" ? STATUS_ORDER.indexOf(r.status) : r[k]; },
