@@ -109,3 +109,4 @@ details.recent{background:var(--panel);border:1px solid var(--line);border-radiu
 details.recent summary{cursor:pointer;font-size:.9rem;margin:0}
 .rjob{padding:6px 0;border-top:1px solid var(--line);font-size:.85rem}
 .gpu-top{flex-wrap:wrap}.gpu-top b{overflow-wrap:anywhere}
+.state{flex-basis:100%;margin:0 0 0 18px}
