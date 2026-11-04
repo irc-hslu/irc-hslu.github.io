@@ -185,7 +185,7 @@ document.addEventListener("alpine:init", () => {
       return "ETA " + (left < 5400e3 ? Math.max(1, Math.round(left / 60e3)) + " min" : (left / 3600e3).toFixed(1) + " h");
     },
     elapsed(j) { return j.started ? RB.relTime(j.started, this.now).replace(" ago", "") : ""; },
-    lanes() { return this.hosts().map((h) => ({k: h.k, name: h.name, running: h.running || [], queued: h.queued || []})); },
+    lanes() { return this.hosts().filter((h) => !h.excluded).map((h) => ({k: h.k, name: h.name, running: h.running || [], queued: h.queued || []})); },
     planned() { return this.D ? this.D.runs.filter((r) => r.status === "planned" && r.source !== "wandb") : []; },
     seen(h) { return h.reachable ? "checked " + RB.relTime(h.checked_at, this.now) : (h.note || "offline"); },
   }));

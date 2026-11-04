@@ -20,18 +20,18 @@
   <div class="tabs"><a href="index.html">&larr; Runs</a></div>
   <div class="cols">
     <template x-for="h in hosts()" :key="h.k"><div class="col">
-      <div class="gpu" :class="!h.reachable && 'off'">
-        <div class="gpu-top"><span class="dot" :class="!h.reachable && 'off'"></span><b x-text="h.name"></b><span class="state" x-text="h.reachable ? 'online' : 'offline'"></span></div>
+      <div class="gpu" :class="[!h.reachable && 'off', h.excluded && 'excluded']">
+        <div class="gpu-top"><span class="dot" :class="h.excluded ? 'grey' : !h.reachable && 'off'"></span><b x-text="h.name"></b><span class="state" x-text="h.excluded ? 'excluded' : h.reachable ? 'online' : 'offline'"></span></div>
         <div class="gpu-model" x-text="h.tip.replace(h.name + ' ', '')"></div>
-        <div class="gpu-live" x-text="h.reachable ? (h.gpu_status || 'no GPU data') : seen(h)"></div>
+        <div class="gpu-live" x-text="h.excluded ? 'excluded by user' : h.reachable ? (h.gpu_status || 'no GPU data') : seen(h)"></div>
         <div class="gpu-slot">
-          <template x-for="j in h.running" :key="j.name"><div class="runjob">
+          <template x-for="j in (h.excluded ? [] : h.running)" :key="j.name"><div class="runjob">
             <span class="badge s-running">running</span>
             <div class="rj-title" x-text="title(j)"></div>
             <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a><span class="badge s-planned" x-show="!j.run_id">unmapped</span>
             <div class="sub" :title="abs(j.started)" x-text="'started ' + rel(j.started, now)"></div>
             <template x-if="j.progress"><div><div class="sub" x-text="j.progress"></div><div class="bar"><i :style="'width:' + pct(j) + '%'"></i></div></div></template></div></template>
-          <div class="idle" x-show="!h.running.length" x-text="h.reachable ? 'idle / empty' : 'offline'"></div>
+          <div class="idle" x-show="h.excluded || !h.running.length" x-text="h.excluded ? 'excluded' : h.reachable ? 'idle / empty' : 'offline'"></div>
         </div>
       </div>
       <div class="timeline">

@@ -190,3 +190,4 @@ dl.kv.sum{margin:0}
 .chain{display:inline-flex;align-items:center;gap:var(--s2)}
 .gantt .bar{max-width:none}
 .gantt .sub{max-width:none;white-space:normal;overflow:visible}.lane-h{width:180px;overflow-wrap:anywhere}
+.gpu.excluded{opacity:.5;filter:grayscale(1);border-style:dotted}.dot.grey{background:var(--muted)}
