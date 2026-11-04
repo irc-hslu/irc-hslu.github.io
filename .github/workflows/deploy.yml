@@ -109,8 +109,10 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: _site
-          # Deployed separately by irc-hslu/orbbecstreamer; keep it when cleaning.
-          clean-exclude: orbbecstreamer
+          # Deployed separately (irc-hslu/orbbecstreamer, irc-hslu/metricsplat runboard); keep them when cleaning.
+          clean-exclude: |
+            orbbecstreamer
+            mfp-dfm
           # Rebase instead of force-pushing, so a docs deploy that lands in between
           # is kept rather than overwritten.
           force: false
