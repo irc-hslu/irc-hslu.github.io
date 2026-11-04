@@ -100,9 +100,9 @@ const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => 
 document.addEventListener("alpine:init", () => {
   Alpine.data("runs", () => ({
     ...base(), tab: decodeURIComponent(location.hash.slice(1)) || "PromptDA", q: "", f: {dataset: "", noise: "", status: ""},
-    sort: "submitted_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS,
+    sort: "modified_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS,
     cols: [["title", "Run"], ["stage", "Stage", "hide-sm"], ["dataset", "Dataset", "hide-sm"], ["noise", "Noise", "hide-sm"], ["status", "Status"],
-           ["rmse", "RMSE"], ["host", "Host", "hide-sm"], ["submitted_at", "Submitted"]],
+           ["rmse", "RMSE"], ["host", "Host", "hide-sm"], ["modified_at", "Modified"]],
     afterLoad() { for (const r of this.D.runs) if (this.open.includes(r.id)) { this.tab = this.tabOf(r); break; } },
     tabOf(r) { return r.kind === "scratch" ? "Scratch" : r.tab; },
     count(t) { return this.D ? this.D.runs.filter((r) => this.tabOf(r) === t).length : 0; },
@@ -120,16 +120,16 @@ document.addEventListener("alpine:init", () => {
       const d = this.dir, miss = (x) => x == null || x === "" || x === "-";
       return rows.sort((a, b) => {
         const x = this.key(a, this.sort), y = this.key(b, this.sort);
-        if (miss(x) !== miss(y)) return miss(x) ? (this.sort === "submitted_at" ? -d : 1) : (this.sort === "submitted_at" ? d : -1);
+        if (miss(x) !== miss(y)) return miss(x) ? (this.sort === "modified_at" ? -d : 1) : (this.sort === "modified_at" ? d : -1);
         return (x < y ? -1 : x > y ? 1 : 0) * d || a.id.localeCompare(b.id);
       });
     },
     isOpen(r) { return this.open.includes(r.id); },
     flip(r) { const i = this.open.indexOf(r.id); i < 0 ? this.open.push(r.id) : this.open.splice(i, 1); },
     rmse, hostOf, host: (r) => RB.hostName(hostOf(r)), tip: (r) => RB.hostTip(hostOf(r)),
-    when(r) { return RB.relTime(r.submitted_at, this.now); },
+    when(r) { return RB.relTime(r.modified_at, this.now); },
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
-    facts(r) { return RB.kv({id: r.id, kind: r.kind, lineage: r.lineage, parent: r.parent_id, notes: r.notes, source: r.source, ...Object.fromEntries(Object.entries(r.summary_metrics || {}).filter(([k, v]) => v != null && k !== "protocol").map(([k, v]) => ["metric " + k, typeof v === "number" ? +v.toFixed(4) : v])), protocol: (r.summary_metrics || {}).protocol, registry: r.registry}); },
+    facts(r) { return RB.kv({id: r.id, kind: r.kind, lineage: r.lineage, submitted: r.submitted_at ? RB.relTime(r.submitted_at, this.now) + " (" + this.abs(r.submitted_at) + ")" : "", parent: r.parent_id, notes: r.notes, source: r.source, ...Object.fromEntries(Object.entries(r.summary_metrics || {}).filter(([k, v]) => v != null && k !== "protocol").map(([k, v]) => ["metric " + k, typeof v === "number" ? +v.toFixed(4) : v])), protocol: (r.summary_metrics || {}).protocol, registry: r.registry}); },
     attFacts(a) { return RB.kv({"W&B name": a.wandb_name, "commit": a.code_commit, "worktree": a.worktree, "job file": a.job_file, "output dir": a.output_dir,
       "checkpoint": a.checkpoint, "checkpoint sha256": a.checkpoint_sha256, "eval files": a.eval_files, "failure reason": a.failure_reason, "raw status": a.raw_status,
       "metrics": a.metrics, "warm start parent": a.warm_start_parent, "notes": a.notes}); },

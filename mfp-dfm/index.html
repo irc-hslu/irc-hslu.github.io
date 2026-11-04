@@ -36,7 +36,7 @@
         <td><span class="badge" :class="'s-' + r.status" x-text="r.status"></span></td>
         <td class="num"><template x-if="rmse(r)[0] != null"><span><span x-text="rmse(r)[0].toFixed(3)"></span><span class="tag" x-text="rmse(r)[1]"></span></span></template><span class="muted" x-show="rmse(r)[0] == null">-</span></td>
         <td class="hide-sm" :title="tip(r)" x-text="host(r)"></td>
-        <td class="num" :title="abs(r.submitted_at)" x-text="when(r) || 'not started'"></td>
+        <td class="num" :title="abs(r.modified_at)" x-text="when(r) || 'not started'"></td>
       </tr>
       <tr class="det" x-show="isOpen(r)" x-cloak><td colspan="8" @click.stop>
         <div x-html="facts(r)"></div>
