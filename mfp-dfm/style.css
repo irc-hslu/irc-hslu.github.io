@@ -157,3 +157,12 @@ details.recent{padding:var(--s3) var(--s4);border-radius:var(--r-sm)}
 .runjob .badge{margin-bottom:var(--s1)}
 .rj-title{margin:var(--s2) 0}
 .gpu-top b{flex:1;min-width:0;font-size:1rem}.dot{flex-shrink:0;margin-right:0}.state{margin:0 0 0 18px}
+/* ---- column widths (see <colgroup> in index.html): Run takes the rest, others fixed to content ---- */
+table.runs{table-layout:fixed;width:100%;font-size:.86rem}
+table.runs th,table.runs td{white-space:nowrap;padding-left:var(--s3)!important;padding-right:var(--s3)!important;overflow:hidden}
+table.runs th:first-child,table.runs td:first-child{padding-left:var(--s4)!important}
+table.runs td:first-child .title{white-space:normal;max-width:none;overflow-wrap:anywhere}
+table.runs td:first-child .sub{max-width:none;overflow:hidden;text-overflow:ellipsis}
+table.runs td[colspan]{white-space:normal;overflow:visible}
+tr.filters select{padding-right:var(--s4)!important;background-position:right 6px center}
+table.runs th:not(:first-child),table.runs td:not(:first-child){padding-left:10px!important;padding-right:10px!important}

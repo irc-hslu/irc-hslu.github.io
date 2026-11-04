@@ -26,7 +26,7 @@
     <a class="push" href="queues.html">GPU queues &rarr;</a>
   </div>
   <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span x-text="rows.length"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
-  <div style="overflow-x:auto"><table class="runs">
+  <div style="overflow-x:auto"><table class="runs"><colgroup><col><col style="width:112px"><col style="width:100px"><col style="width:90px"><col style="width:118px"><col style="width:118px"><col style="width:194px"><col style="width:118px"></colgroup>
     <thead><tr><template x-for="c in cols" :key="c[0]"><th :class="[c[2], sort === c[0] && 'sorted', c[0] === 'rmse' && 'r']" @click="setSort(c[0])"><span x-text="c[1]"></span><span x-show="sort === c[0]" x-text="dir > 0 ? ' ▲' : ' ▼'"></span></th></template></tr>
     <tr class="filters"><template x-for="c in cols" :key="'f' + c[0]"><th :class="c[2]" @click.stop>
       <select x-show="f[c[0]] !== undefined" x-model="f[c[0]]" :aria-label="'Filter ' + c[1]"><option value="">All</option>
