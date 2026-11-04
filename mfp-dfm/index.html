@@ -33,7 +33,7 @@
         <template x-for="v in (f[c[0]] !== undefined ? opts(c[0]) : [])" :key="v"><option :value="v" x-text="v"></option></template></select></th></template></tr></thead>
     <template x-for="r in rows" :key="r.id"><tbody class="run">
       <tr class="row" @click="flip(r)" :id="'run-' + r.id">
-        <td><div class="title" :title="r.title"><span x-text="isOpen(r) ? '▾ ' : '▸ '"></span><span x-text="r.title"></span></div><div class="sub" :title="r.id" x-text="r.id"></div></td>
+        <td><div class="title" :title="r.title"><span x-text="isOpen(r) ? '▾ ' : '▸ '"></span><span x-text="r.display_name || r.title"></span></div><div class="sub" :title="r.id" x-text="r.id"></div></td>
         <td class="hide-sm" x-text="r.dataset"></td><td class="hide-sm" x-text="r.noise"></td>
         <td><span class="badge" :class="'s-' + r.status" x-text="r.status"></span></td>
         <td class="num r"><template x-if="rmse(r)[0] != null"><span><span x-text="rmse(r)[0].toFixed(3)"></span><span class="tag" x-text="rmse(r)[1]"></span></span></template><span class="muted" x-show="rmse(r)[0] == null">-</span></td>
@@ -43,6 +43,7 @@
       <tr class="det" x-show="isOpen(r)" x-cloak><td colspan="7" @click.stop>
         <div class="sumbox">
           <dl class="kv sum">
+            <dt>W&amp;B name</dt><dd x-text="r.title"></dd>
             <dt>Stage</dt><dd x-text="r.stage"></dd>
             <dt>Pretraining</dt><dd x-text="r.pretrain || 'none'"></dd>
             <dt>SFT</dt><dd x-text="r.sft || 'none'"></dd>
