@@ -171,7 +171,9 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("queues", () => ({
     ...base(),
     hosts() { return this.D ? Object.entries(this.D.queues || {}).map(([k, q]) => ({k, name: RB.hostName(k), tip: RB.hostTip(k), ...q})) : []; },
-    title(j) { const r = j.run_id && this.D.runs.find((x) => x.id === j.run_id); return r ? r.title : (j.desc || ""); },
+    name(j) { const r = j.run_id && this.D.runs.find((x) => x.id === j.run_id); return r ? (r.display_name || r.title) : (j.desc || "unmapped job").slice(0, 60); },
+    stageWord: (s) => ({planned: "Planned", built: "Built", reviewed: "Ready", "host-tested": "Tested", queued: "Queued"}[s] || s),
+    waits(p) { const w = p.waits_for || p.unlock_event || ""; return w.length > 60 ? w.slice(0, 57) + "..." : w; },
     rel: (iso, now) => RB.relTime(iso, now),
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
     pct(j) { return parseInt((j.progress || "").match(/\((\d+)%/)?.[1] || 0); },
@@ -187,7 +189,7 @@ document.addEventListener("alpine:init", () => {
     elapsed(j) { return j.started ? RB.relTime(j.started, this.now).replace(" ago", "") : ""; },
     lanes() { return this.hosts().filter((h) => !h.excluded).map((h) => ({k: h.k, name: h.name, running: h.running || [], queued: h.queued || []})); },
     planned() { return this.D ? this.D.runs.filter((r) => r.status === "planned" && r.source !== "wandb") : []; },
-    next(k) { return this.D ? (this.D.plan || []).filter((p) => p.host_key === k && ["planned", "queued"].includes(p.run_status)) : []; },
+    next(k) { return this.D ? (this.D.plan || []).filter((p) => p.host_key === k && p.run_status === "planned" && p.stage_effective !== "queued") : []; },
     seen(h) { return h.reachable ? "checked " + RB.relTime(h.checked_at, this.now) : (h.note || "offline"); },
   }));
 });

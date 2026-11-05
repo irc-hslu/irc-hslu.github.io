@@ -22,13 +22,12 @@
     <template x-for="h in hosts()" :key="h.k"><div class="col">
       <div class="gpu" :class="[!h.reachable && 'off', h.excluded && 'excluded']">
         <div class="gpu-top"><span class="dot" :class="h.excluded ? 'grey' : !h.reachable && 'off'"></span><b x-text="h.name"></b><span class="state" x-text="h.excluded ? 'excluded' : h.reachable ? 'online' : 'offline'"></span></div>
-        <div class="gpu-model" x-text="h.tip.replace(h.name + ' ', '')"></div>
+        <div class="gpu-model" x-text="h.tip ? h.tip.replace(h.name + ' ', '') : h.gpu_label"></div>
         <div class="gpu-live" x-text="h.excluded ? 'excluded by user' : h.reachable ? (h.gpu_status || 'no GPU data') : seen(h)"></div>
         <div class="gpu-slot">
           <template x-for="j in (h.excluded ? [] : h.running)" :key="j.name"><div class="runjob">
             <span class="badge s-running">running</span>
-            <div class="rj-title" x-text="title(j)"></div>
-            <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a><span class="badge s-planned" x-show="!j.run_id">unmapped</span>
+            <div class="rj-title" x-text="name(j)"></div><span class="badge s-planned" x-show="!j.run_id">unmapped</span>
             <div class="sub" :title="abs(j.started)" x-text="'started ' + rel(j.started, now)"></div>
             <template x-if="j.progress"><div><div class="sub" x-text="j.progress"></div><div class="bar"><i :style="'width:' + pct(j) + '%'"></i></div></div></template></div></template>
           <div class="idle" x-show="h.excluded || !h.running.length" x-text="h.excluded ? 'excluded' : h.reachable ? 'idle / empty' : 'offline'"></div>
@@ -36,17 +35,16 @@
       </div>
       <div class="timeline">
         <template x-for="j in h.queued" :key="j.name"><div class="qjob"><span class="arrow">&darr;</span>
-          <div><b x-text="j.name.replace('.job','')"></b><div class="sub" x-text="title(j)"></div>
-          <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a></div></div></template>
-        <p class="muted small" x-show="!h.queued.length">Nothing queued.</p>
+          <div><b x-text="name(j)"></b></div></div></template>
+        <template x-for="p in next(h.k)" :key="p.id"><div class="qjob"><span class="arrow">&darr;</span>
+          <div><b x-text="p.display_name"></b> <span class="badge s-planned" x-text="stageWord(p.stage_effective)"></span> <span class="tag" x-text="p.owner"></span>
+            <div class="sub" x-show="waits(p)" x-text="'Waits for: ' + waits(p)"></div></div></div></template>
+        <p class="muted small" x-show="!h.queued.length && !next(h.k).length">Nothing queued.</p>
       </div>
-      <div class="next" x-show="next(h.k).length"><div class="muted small">Next</div>
-        <template x-for="p in next(h.k)" :key="p.id"><div><span class="badge s-planned" x-text="p.stage_effective"></span> <b x-text="p.id"></b>
-          <span class="muted small" x-text="p.owner + (p.unlock_event ? ' \u00b7 unlocks on ' + p.unlock_event : '')"></span></div></template></div>
       <details class="recent"><summary>Recent finished / failed</summary>
         <template x-for="j in [...(h.failed_recent || []), ...(h.done_recent || []).slice(0, 4)]" :key="j.name + j.state"><div class="rjob">
           <span class="badge" :class="j.state === 'done' ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-text="j.state === 'done' ? 'done' : j.exit === 'lost' ? 'killed' : 'exit ' + (j.exit || '?')"></span>
-          <b x-text="j.name.replace('.job','')"></b> <a x-show="j.run_id" :href="link(j.run_id)" x-text="j.run_id"></a>
+          <b x-text="name(j)"></b>
           <div class="sub" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished, now) : ''"></div></div></template>
       </details>
     </div></template>
@@ -54,13 +52,13 @@
   <section class="gantt"><h2>All enqueued runs</h2>
     <p class="muted small">Per host: running job, then queued jobs in order. ETA appears when progress is known; otherwise only the order is shown.</p>
     <template x-for="l in lanes()" :key="l.k"><div class="lane"><div class="lane-h" x-text="l.name"></div><div class="lane-b">
-      <template x-for="j in l.running" :key="j.name"><div class="blk run"><div class="blk-t"><span class="badge s-running">running</span> <b x-text="j.run_id || j.name.replace('.job','')"></b></div>
+      <template x-for="j in l.running" :key="j.name"><div class="blk run"><div class="blk-t"><span class="badge s-running">running</span> <b x-text="name(j)"></b></div>
         <div class="sub" x-text="'elapsed ' + elapsed(j) + (eta(j) ? ' \u00b7 ' + eta(j) : '')"></div><div class="bar" x-show="pct(j)"><i :style="'width:' + pct(j) + '%'"></i></div></div></template>
-      <template x-for="(j, i) in l.queued" :key="j.name"><span class="chain"><span class="arrow">&rarr;</span><div class="blk q"><div class="blk-t"><span class="badge s-queued" x-text="'#' + (i + 1)"></span> <b x-text="j.run_id || j.name.replace('.job','')"></b></div></div></span></template>
+      <template x-for="(j, i) in l.queued" :key="j.name"><span class="chain"><span class="arrow">&rarr;</span><div class="blk q"><div class="blk-t"><span class="badge s-queued" x-text="'#' + (i + 1)"></span> <b x-text="name(j)"></b></div></div></span></template>
       <span class="muted small" x-show="!l.running.length && !l.queued.length">idle, nothing queued</span>
     </div></div></template>
     <div class="lane"><div class="lane-h">Planned<br><span class="muted small">backlog</span></div><div class="lane-b wrap-b">
-      <template x-for="r in planned()" :key="r.id"><div class="blk plan"><span class="badge s-planned">planned</span> <b x-text="r.id"></b><div class="sub" x-text="r.title"></div></div></template></div></div>
+      <template x-for="r in planned()" :key="r.id"><div class="blk plan"><span class="badge s-planned">planned</span> <b x-text="r.display_name || r.title"></b></div></template></div></div>
   </section>
 </div>
 </body>
