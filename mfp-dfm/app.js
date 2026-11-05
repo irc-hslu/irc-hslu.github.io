@@ -170,27 +170,66 @@ document.addEventListener("alpine:init", () => {
   }));
   Alpine.data("queues", () => ({
     ...base(),
-    hosts() { return this.D ? Object.entries(this.D.queues || {}).map(([k, q]) => ({k, name: RB.hostName(k), tip: RB.hostTip(k), ...q})) : []; },
-    brk: (s) => (s || "").replace(/_/g, "_\u200b"),  // allow a line break after each underscore
-    name(j) { const r = j.run_id && this.D.runs.find((x) => x.id === j.run_id); return this.brk(r ? (r.display_name || r.title) : (j.desc || "unmapped job").slice(0, 60)); },
-    stageWord: (s) => ({planned: "Planned", built: "Built", reviewed: "Ready", "host-tested": "Tested", queued: "Queued"}[s] || s),
-    waits(p) { const w = p.waits_for || p.unlock_event || ""; return w.length > 60 ? w.slice(0, 57) + "..." : w; },
-    rel: (iso, now) => RB.relTime(iso, now),
-    abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
-    pct(j) { return parseInt((j.progress || "").match(/\((\d+)%/)?.[1] || 0); },
-    link(id) { const r = this.D.runs.find((x) => x.id === id); return `index.html?open=${encodeURIComponent(id)}#${r ? (r.kind === "scratch" ? "Scratch" : r.tab) : ""}`; },
-    clock: RB.clock,
-    /** Lane per host: running job (elapsed, progress, ETA when progress is known) then queued jobs in order. */
-    eta(j) {
-      const p = this.pct(j), t0 = j.started && new Date(j.started).getTime();
-      if (!t0 || !p) return "";
-      const total = (this.now - t0) / (p / 100), left = total - (this.now - t0);
-      return "ETA " + (left < 5400e3 ? Math.max(1, Math.round(left / 60e3)) + " min" : (left / 3600e3).toFixed(1) + " h");
+    STAGE: {running: "Running", queued: "Queued", reviewed: "Ready", "host-tested": "Tested", built: "Built", planned: "Planned"},
+    afterLoad() { this.runById = Object.fromEntries(this.D.runs.map((r) => [r.id, r])); this.planById = Object.fromEntries((this.D.plan || []).map((p) => [p.id, p])); },
+    /** Lanes in a fixed order: own hosts, then rented ones. */
+    hosts() {
+      if (!this.D) return [];
+      const order = ["local", "iradonis", "desktop"], q = this.D.queues || {};
+      return Object.keys(q).filter((k) => !q[k].excluded).sort((a, b) => ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99) || a.localeCompare(b))
+        .map((k) => ({k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_")}));
     },
-    elapsed(j) { return j.started ? RB.relTime(j.started, this.now).replace(" ago", "") : ""; },
-    lanes() { return this.hosts().filter((h) => !h.excluded).map((h) => ({k: h.k, name: h.name, running: h.running || [], queued: h.queued || []})); },
-    planned() { return this.D ? this.D.runs.filter((r) => r.status === "planned" && r.source !== "wandb") : []; },
-    next(k) { return this.D ? (this.D.plan || []).filter((p) => p.host_key === k && p.run_status === "planned" && p.stage_effective !== "queued") : []; },
-    seen(h) { return h.reachable ? "checked " + RB.relTime(h.checked_at, this.now) : (h.note || "offline"); },
+    gpuOf(k) { const q = (this.D.queues || {})[k] || {}; return (q.gpu_label || (RB.HOSTS[k] || {}).gpu || "").replace(/\s*\(.*\)$/, ""); },
+    /** Name with a break opportunity after every underscore only (never ellipsized). */
+    nameHtml: (s) => RB.esc(s || "").replace(/_/g, "_<wbr>"),
+    /** model · dataset · noise, model in the main-table form (PromptDA-B, SV-B, MV(3)-B); noise always shown ('noise ?' when unknown). */
+    chips(model, dataset, noise) {
+      const ok = (x) => x && !["none", "-", "\u2014", "all", "n.a."].includes(x);
+      const m = ok(model) ? ({promptda: "PromptDA-B", sv: "SV-B", mv: "MV(3)-B"}[String(model).toLowerCase()] || model) : "";
+      return [m, ok(dataset) ? dataset : "", ok(noise) ? noise : "noise ?"].filter(Boolean);
+    },
+    /** W&B heartbeat age at the build's W&B fetch (the data snapshot), not at view time. */
+    built() { return new Date(this.D.wandb_at || this.D.last_updated); },
+    hbAge(c) {
+      const s = Math.max(0, (this.built() - new Date(c.hb)) / 1000);
+      return s < 90 ? Math.round(s) + " s" : s < 5400 ? Math.round(s / 60) + " min" : (s / 3600).toFixed(1) + " h";
+    },
+    runAttempt(r) { const a = [...((r && r.attempts) || [])].reverse(); return a.find((x) => x.status === "running") || a[0] || {}; },
+    /** One card model for queue jobs, lane plan entries and backlog items. */
+    card(src, kind, i) {
+      const id = kind === "backlog" ? src.id : kind === "plan" ? src.id : src.run_id, r = id && this.runById[id], p = id && this.planById[id];
+      const att = this.runAttempt(r), m = att.metrics || {}, fam = r && {PromptDA: "PromptDA", Ours_SV: "SV", Ours_MV: "MV"}[r.tab];
+      const stage = kind === "running" ? "running" : kind === "queued" ? "queued" : (src.stage_effective || src.stage || "planned");
+      const name = kind === "backlog" ? src.name : (p && p.display_name) || (r && (r.display_name || r.title)) || (src.name || "").replace(/\.job$/, "");
+      const si = ["planned", "built", "reviewed", "host-tested", "queued"].indexOf(p ? p.stage_effective : "");
+      const det = [["Run id", id || "not mapped to a run"], ["Parent", (p && p.parent) || (r && r.parent_id) || src.parent],
+        ["Lineage", r && r.lineage !== "n.a." ? r.lineage : ""], ["Owner", (p && p.owner) || src.owner],
+        ["Unlock event", p && p.unlock_event !== p.waits_for ? p.unlock_event : ""],
+        ["Next command", (p && p.next_command) || src.next_command], ["Job file", kind === "running" || kind === "queued" ? src.name : ""],
+        ["Job sha", ((p && p.job_sha256) || src.sha256 || "").slice(0, 12)],
+        ["Receipts", p ? `review ${si >= 2 ? "yes" : "no"} · preflight ${si >= 3 ? "yes" : "no"}` : ""],
+        ["Last update", RB.relTime((p && p.updated) || att.heartbeat_at || (r && r.modified_at) || src.updated, this.now)]].filter(([, v]) => v);
+      return {key: kind + ":" + (id || src.name) + ":" + (i || 0), kind, id, stage, label: this.STAGE[stage] || stage, pos: kind === "queued" ? i + 1 : 0,
+        name, unmapped: (kind === "running" || kind === "queued") && !r,
+        chips: this.chips((r && r.variant !== "\u2014" && r.variant) || (kind === "backlog" ? src.model : p && p.model) || fam,
+          (kind === "backlog" ? src.dataset : p && p.dataset) || (r && r.dataset), (kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise)),
+        waits: kind === "plan" ? src.waits_for || src.unlock_event || "" : kind === "backlog" ? src.waits_for : "",
+        step: m.step, max: m.max_steps, hb: kind === "running" ? att.heartbeat_at : "", started: src.started, progress: src.progress,
+        wandb: att.wandb_url || "", hosts: kind === "backlog" ? src.candidate_hosts || [] : [], det};
+    },
+    lane(h) {
+      return [...(h.running || []).map((j, i) => this.card(j, "running", i)), ...(h.queued || []).map((j, i) => this.card(j, "queued", i)),
+        ...(this.D.plan || []).filter((p) => p.host_key === h.k && p.run_status === "planned" && p.stage_effective !== "queued").map((p, i) => this.card(p, "plan", i))];
+    },
+    backlog() { return this.D ? (this.D.backlog || []).map((b, i) => this.card(b, "backlog", i)) : []; },
+    num: (n) => (n == null ? "" : Number(n).toLocaleString("en-US")),
+    hbOld(c) { return c.hb && this.built() - new Date(c.hb) > 30 * 60e3; },
+    pct(c) { if (c.step && c.max) return Math.min(100, Math.round(100 * c.step / c.max)); return parseInt((c.progress || "").match(/\((\d+)%/)?.[1] || 0); },
+    rel(iso) { return RB.relTime(iso, this.now); },
+    abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
+    recent(h) { return [...(h.failed_recent || []), ...(h.done_recent || [])].sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).slice(0, 6); },
+    jobName(j) { const r = j.run_id && this.runById[j.run_id]; return r ? r.display_name || r.title : (j.name || "").replace(/\.job$/, ""); },
+    seen(h) { return h.reachable ? "" : "offline · last seen " + RB.relTime(h.checked_at, this.now); },
+    hostName: RB.hostName,
   }));
 });

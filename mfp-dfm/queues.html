@@ -4,61 +4,75 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>MFP GPU queues</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
-<link rel="stylesheet" href="style.css?v=968e0ddd90">
-<script src="app.js?v=dd4e231d0b"></script>
+<link rel="stylesheet" href="style.css?v=c8331e11e4">
+<script src="app.js?v=65a6aa8212"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="queues" x-cloak>
 <div id="gate" x-show="gate" x-cloak><form @submit.prevent="ok()"><h2>MFP runboard</h2><p class="muted">Enter the password to decrypt the data.</p>
   <input type="password" x-model="pw" placeholder="Password" autocomplete="current-password"><small x-text="err" class="stale"></small><button>Unlock</button></form></div>
-<div class="wrap" x-show="D">
+<div class="wrap qpage" x-show="D">
   <header class="top"><h1>GPU queues</h1>
     <div class="meta"><div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
       <button type="button" class="switch" role="switch" :aria-checked="dark" aria-label="Dark theme" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" @click="toggleTheme()">
         <svg class="ic sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
         <svg class="ic moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg><span class="thumb"></span></button></div></header>
   <div class="tabs"><a href="index.html">&larr; Runs</a></div>
-  <div class="cols">
-    <template x-for="h in hosts()" :key="h.k"><div class="col">
-      <div class="gpu" :class="[!h.reachable && 'off', h.excluded && 'excluded']">
-        <div class="gpu-top"><span class="dot" :class="h.excluded ? 'grey' : !h.reachable && 'off'"></span><b x-text="h.name"></b><span class="state" x-text="h.excluded ? 'excluded' : h.reachable ? 'online' : 'offline'"></span></div>
-        <div class="gpu-model" x-text="h.tip ? h.tip.replace(h.name + ' ', '') : h.gpu_label"></div>
-        <div class="gpu-live" x-text="h.excluded ? 'excluded by user' : h.reachable ? (h.gpu_status || 'no GPU data') : seen(h)"></div>
-        <div class="gpu-slot">
-          <template x-for="j in (h.excluded ? [] : h.running)" :key="j.name"><div class="runjob">
-            <span class="badge s-running">running</span>
-            <div class="rj-title" x-text="name(j)"></div><span class="badge s-planned" x-show="!j.run_id">unmapped</span>
-            <div class="sub" :title="abs(j.started)" x-text="'started ' + rel(j.started, now)"></div>
-            <template x-if="j.progress"><div><div class="sub" x-text="j.progress"></div><div class="bar"><i :style="'width:' + pct(j) + '%'"></i></div></div></template></div></template>
-          <div class="idle" x-show="h.excluded || !h.running.length" x-text="h.excluded ? 'excluded' : h.reachable ? 'idle / empty' : 'offline'"></div>
-        </div>
+  <section class="lanes" aria-label="GPU lanes">
+    <template x-for="h in hosts()" :key="h.k"><div class="hlane" :class="!h.reachable && 'off'">
+      <div class="hl-h">
+        <div class="hl-name"><span class="dot" :class="!h.reachable && 'off'" :title="h.reachable ? 'online' : 'offline'"></span><b x-text="h.name"></b></div>
+        <div class="hl-gpu"><span x-text="h.gpuName"></span><span class="tag" x-show="h.rented">rented</span></div>
+        <div class="hl-live" x-text="h.reachable ? (h.gpu_status ? 'GPU ' + h.gpu_status : 'no GPU data') : seen(h)"></div>
       </div>
-      <div class="timeline">
-        <template x-for="j in h.queued" :key="j.name"><div class="qjob"><span class="arrow">&darr;</span>
-          <div><b x-text="name(j)"></b></div></div></template>
-        <template x-for="p in next(h.k)" :key="p.id"><div class="qjob"><span class="arrow">&darr;</span>
-          <div><b x-text="brk(p.display_name)"></b> <span class="badge s-planned" x-text="stageWord(p.stage_effective)"></span> <span class="tag" x-text="p.owner"></span>
-            <div class="sub waits" x-show="waits(p)" :title="p.waits_for || p.unlock_event" x-text="'Waits for: ' + waits(p)"></div></div></div></template>
-        <p class="muted small" x-show="!h.queued.length && !next(h.k).length">Nothing queued.</p>
+      <div class="hl-cards">
+        <template x-for="c in lane(h)" :key="c.key">
+          <details class="qcard" :class="'k-' + c.kind">
+          <summary>
+            <div class="qc-top"><span class="badge" :class="'st-' + c.stage" x-text="c.pos ? c.label + ' #' + c.pos : c.label"></span>
+              <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span></div>
+            <div class="qc-name" x-html="nameHtml(c.name)"></div>
+            <div class="qc-chips" x-show="c.chips.length"><template x-for="t in c.chips" :key="t"><span class="pill" x-text="t"></span></template></div>
+            <template x-if="c.kind === 'running'"><div class="qc-prog">
+              <div class="qc-stats"><div x-show="c.step"><small>step</small><b x-text="num(c.step) + (c.max ? ' / ' + num(c.max) : '')"></b></div><div x-show="c.hb" :title="'W&B heartbeat ' + abs(c.hb) + '; age measured at the build (W&B fetch ' + abs(D.wandb_at || D.last_updated) + ')'"><small>heartbeat</small><b :class="hbOld(c) && 'stale'" x-text="c.hb ? hbAge(c) + ' at build' : ''"></b></div><div x-show="c.started" :title="abs(c.started)"><small>started</small><b x-text="rel(c.started)"></b></div></div>
+              <div class="bar" x-show="pct(c)"><i :style="'width:' + pct(c) + '%'"></i></div></div></template>
+            <div class="qc-waits" x-show="c.waits"><span>Waits for</span> <span x-text="c.waits"></span></div>
+            <div class="qc-hosts" x-show="c.hosts.length"><span>Possible GPUs</span><template x-for="k in c.hosts" :key="k"><span class="pill host" x-text="hostName(k)"></span></template></div>
+          </summary>
+          <dl class="kv qc-det"><template x-for="d in c.det" :key="d[0]"><div class="kvr" :class="['Unlock event','Next command','Job file','Parent'].includes(d[0]) && 'wide'"><dt x-text="d[0]"></dt><dd :class="['Run id','Job sha','Job file','Next command'].includes(d[0]) && 'mono'" x-text="d[1]"></dd></div></template>
+            <div class="kvr" x-show="c.wandb"><dt>W&amp;B</dt><dd><a :href="c.wandb" target="_blank" rel="noopener">open run</a></dd></div>
+            <div class="kvr" x-show="c.id && runById[c.id]"><dt>Runs table</dt><dd><a :href="'index.html?open=' + encodeURIComponent(c.id)">show row</a></dd></div></dl>
+        </details>
+        </template>
+        <p class="hl-empty" x-show="!lane(h).length">Idle, nothing queued or planned.</p>
       </div>
-      <details class="recent"><summary>Recent finished / failed</summary>
-        <template x-for="j in [...(h.failed_recent || []), ...(h.done_recent || []).slice(0, 4)]" :key="j.name + j.state"><div class="rjob">
+      <details class="hl-recent" x-show="recent(h).length"><summary>Recently finished</summary>
+        <template x-for="j in recent(h)" :key="j.name + j.state"><div class="rj">
           <span class="badge" :class="j.state === 'done' ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-text="j.state === 'done' ? 'done' : j.exit === 'lost' ? 'killed' : 'exit ' + (j.exit || '?')"></span>
-          <b x-text="name(j)"></b>
-          <div class="sub" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished, now) : ''"></div></div></template>
+          <span class="rj-name" x-html="nameHtml(jobName(j))"></span><span class="rj-when" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished) : ''"></span></div></template>
       </details>
     </div></template>
-  </div>
-  <section class="gantt"><h2>All enqueued runs</h2>
-    <p class="muted small">Per host: running job, then queued jobs in order. ETA appears when progress is known; otherwise only the order is shown.</p>
-    <template x-for="l in lanes()" :key="l.k"><div class="lane"><div class="lane-h" x-text="l.name"></div><div class="lane-b">
-      <template x-for="j in l.running" :key="j.name"><div class="blk run"><div class="blk-t"><span class="badge s-running">running</span> <b x-text="name(j)"></b></div>
-        <div class="sub" x-text="'elapsed ' + elapsed(j) + (eta(j) ? ' \u00b7 ' + eta(j) : '')"></div><div class="bar" x-show="pct(j)"><i :style="'width:' + pct(j) + '%'"></i></div></div></template>
-      <template x-for="(j, i) in l.queued" :key="j.name"><span class="chain"><span class="arrow">&rarr;</span><div class="blk q"><div class="blk-t"><span class="badge s-queued" x-text="'#' + (i + 1)"></span> <b x-text="name(j)"></b></div></div></span></template>
-      <span class="muted small" x-show="!l.running.length && !l.queued.length">idle, nothing queued</span>
-    </div></div></template>
-    <div class="lane"><div class="lane-h">Planned<br><span class="muted small">backlog</span></div><div class="lane-b wrap-b">
-      <template x-for="r in planned()" :key="r.id"><div class="blk plan"><span class="badge s-planned">planned</span> <b x-text="brk(r.display_name || r.title)"></b></div></template></div></div>
+  </section>
+  <section class="backlog" x-show="backlog().length">
+    <div class="bl-h"><h2>Backlog</h2><p>Planned work without a fixed GPU. It goes to whichever possible GPU frees up first.</p></div>
+    <div class="bl-grid"><template x-for="c in backlog()" :key="c.key">
+      <details class="qcard" :class="'k-' + c.kind">
+          <summary>
+            <div class="qc-top"><span class="badge" :class="'st-' + c.stage" x-text="c.pos ? c.label + ' #' + c.pos : c.label"></span>
+              <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span></div>
+            <div class="qc-name" x-html="nameHtml(c.name)"></div>
+            <div class="qc-chips" x-show="c.chips.length"><template x-for="t in c.chips" :key="t"><span class="pill" x-text="t"></span></template></div>
+            <template x-if="c.kind === 'running'"><div class="qc-prog">
+              <div class="qc-meta"><span x-show="c.step" x-text="'step ' + num(c.step) + (c.max ? ' / ' + num(c.max) : '')"></span><span x-show="c.hb" :class="hbOld(c) && 'stale'" :title="'W&B heartbeat ' + abs(c.hb)" x-text="'heartbeat ' + rel(c.hb)"></span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div>
+              <div class="bar" x-show="pct(c)"><i :style="'width:' + pct(c) + '%'"></i></div></div></template>
+            <div class="qc-waits" x-show="c.waits"><span>Waits for</span> <span x-text="c.waits"></span></div>
+            <div class="qc-hosts" x-show="c.hosts.length"><span>Possible GPUs</span><template x-for="k in c.hosts" :key="k"><span class="pill host" x-text="hostName(k)"></span></template></div>
+          </summary>
+          <dl class="kv qc-det"><template x-for="d in c.det" :key="d[0]"><div class="kvr" :class="['Unlock event','Next command','Job file','Parent'].includes(d[0]) && 'wide'"><dt x-text="d[0]"></dt><dd :class="['Run id','Job sha','Job file','Next command'].includes(d[0]) && 'mono'" x-text="d[1]"></dd></div></template>
+            <div class="kvr" x-show="c.wandb"><dt>W&amp;B</dt><dd><a :href="c.wandb" target="_blank" rel="noopener">open run</a></dd></div>
+            <div class="kvr" x-show="c.id && runById[c.id]"><dt>Runs table</dt><dd><a :href="'index.html?open=' + encodeURIComponent(c.id)">show row</a></dd></div></dl>
+        </details>
+    </template></div>
   </section>
 </div>
 </body>
