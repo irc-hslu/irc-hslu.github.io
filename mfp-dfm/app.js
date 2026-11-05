@@ -353,10 +353,10 @@ document.addEventListener("alpine:init", () => {
           col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
           col({title: "RMSE", field: "rmse", width: 110, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
-            formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(3)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
+            formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(4)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
           col({title: "MAE", field: "mae", width: 76, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
             // same receipt as RMSE (its DEV/TEST badge applies), so no second badge
-            formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num" title="${esc(c.getData().msrc)} MAE">${c.getValue().toFixed(3)}</span>`)}),
+            formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num" title="${esc(c.getData().msrc)} MAE">${c.getValue().toFixed(4)}</span>`)}),
           col({title: "Steps", field: "steps", width: 100, hozAlign: "right", headerHozAlign: "right", responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
               return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>`; }}),
@@ -396,7 +396,7 @@ document.addEventListener("alpine:init", () => {
     when(r) { return RB.relTime(r.modified_at, this.now); },
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
     metrics(g) { // g = metrics_best | metrics_last -> [[label, value]] with em dash for missing
-      const f = (v, d = 3) => (typeof v === "number" ? v.toFixed(d) : "\u2014");
+      const f = (v, d = 4) => (typeof v === "number" ? v.toFixed(d) : "\u2014");  // 4 decimals: key differences are 1-2 mm
       return g ? [["RMSE", f(g.rmse)], ["MAE", f(g.mae)], ["AbsRel", f(g.absrel)], ["F1", typeof g.f1 === "number" ? g.f1.toFixed(1) : "\u2014"]] : [];
     },
     attempts(r) { return [...(r.attempts || [])].reverse(); },  // latest first
