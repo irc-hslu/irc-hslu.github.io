@@ -3,7 +3,7 @@
 const RB = (() => {
   const HOSTS = {  // the single place for host display names
     local: {name: "IR-Hermes", gpu: "RTX 4090"}, iradonis: {name: "IR-Adonis", gpu: "RTX 4080"},
-    desktop: {name: "charisoudisDesktop", gpu: "RTX 3090"}, ircopernicus: {name: "IR-Copernicus", gpu: "RTX 4090"},
+    desktop: {name: "charisoudisDesktop", gpu: "RTX 3090"},
   };
   const hostName = (k) => (HOSTS[k] ? HOSTS[k].name : k || "-");
   const hostTip = (k) => (HOSTS[k] ? `${HOSTS[k].name} ${HOSTS[k].gpu}` : "");
