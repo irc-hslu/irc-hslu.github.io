@@ -4,8 +4,8 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>MFP GPU queues</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
-<link rel="stylesheet" href="style.css?v=c8331e11e4">
-<script src="app.js?v=65a6aa8212"></script>
+<link rel="stylesheet" href="style.css?v=61dc029bda">
+<script src="app.js?v=3848b0f684"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="queues" x-cloak>
@@ -18,11 +18,14 @@
         <svg class="ic sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
         <svg class="ic moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg><span class="thumb"></span></button></div></header>
   <div class="tabs"><a href="index.html">&larr; Runs</a></div>
-  <section class="lanes" aria-label="GPU lanes">
+  <div class="lanes-bar"><span class="muted small" x-text="hosts().length + ' GPUs'"></span>
+    <div class="lanes-arrows" x-show="!(atStart && atEnd)"><button type="button" class="arw" @click="step(-1)" :disabled="atStart" aria-label="Previous GPU">&lsaquo;</button><button type="button" class="arw" @click="step(1)" :disabled="atEnd" aria-label="Next GPU">&rsaquo;</button></div>
+    <div class="dots" x-show="hosts().length > 1"><template x-for="(h, i) in hosts()" :key="'d' + h.k"><button type="button" :class="i === cur && 'on'" @click="go(i)" :aria-label="'Show ' + h.name" :title="h.name"></button></template></div></div>
+  <section class="lanes" :class="!atEnd && 'more'" x-ref="lanes" tabindex="0" @scroll.debounce.60ms="onScroll()" aria-label="GPU lanes (scroll sideways)">
     <template x-for="h in hosts()" :key="h.k"><div class="hlane" :class="!h.reachable && 'off'">
       <div class="hl-h">
         <div class="hl-name"><span class="dot" :class="!h.reachable && 'off'" :title="h.reachable ? 'online' : 'offline'"></span><b x-text="h.name"></b></div>
-        <div class="hl-gpu"><span x-text="h.gpuName"></span><span class="tag" x-show="h.rented">rented</span></div>
+        <div class="hl-gpu"><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span><span class="tag" x-show="h.rented">rented</span></div>
         <div class="hl-live" x-text="h.reachable ? (h.gpu_status ? 'GPU ' + h.gpu_status : 'no GPU data') : seen(h)"></div>
       </div>
       <div class="hl-cards">

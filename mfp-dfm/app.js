@@ -5,7 +5,8 @@ const RB = (() => {
     local: {name: "IR-Hermes", gpu: "RTX 4090"}, iradonis: {name: "IR-Adonis", gpu: "RTX 4080"},
     desktop: {name: "charisoudisDesktop", gpu: "RTX 3090"},
   };
-  const hostName = (k) => (HOSTS[k] ? HOSTS[k].name : k || "-");
+  const gpuKey = (k) => /^(.+)\.gpu(\d+)$/.exec(k || "");  // one queue per GPU on multi-GPU machines: '<host>.gpu<i>'
+  const hostName = (k) => { const m = gpuKey(k); return m ? `${m[1]} \u00b7 GPU ${m[2]}` : HOSTS[k] ? HOSTS[k].name : k || "-"; };
   const hostTip = (k) => (HOSTS[k] ? `${HOSTS[k].name} ${HOSTS[k].gpu}` : "");
   const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   /** Relative ('3 h ago', '2 d ago') when younger than 6 days, else 'DD Mon' (e.g. '28 Oct'). */
@@ -112,41 +113,95 @@ function base() {
 const STATUS_ORDER = ["running", "queued", "planned", "failed", "succeeded", "cancelled", "stale", "superseded"];
 const TABS = ["PromptDA", "Ours_SV", "Ours_MV", "Other", "Scratch"];
 const rmse = (r) => { const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
+let RUNS_TABLE = null;  // the Tabulator instance (kept out of Alpine's reactive state)
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };
 
 document.addEventListener("alpine:init", () => {
   Alpine.data("runs", () => ({
     ...base(), tab: decodeURIComponent(location.hash.slice(1)) || "PromptDA", q: "", f: {dataset: "", noise: "", status: ""},
-    sort: "modified_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS,
-    cols: [["title", "Run"], ["dataset", "Dataset", "hide-sm"], ["noise", "Noise", "hide-sm"], ["status", "Status"],
-           ["rmse", "RMSE"], ["host", "Host", "hide-sm"], ["modified_at", "Modified"]],
+    sort: "modified_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS, n: 0,
     afterLoad() {
       for (const r of this.D.runs) if (this.open.includes(r.id)) { this.tab = this.tabOf(r); break; }
       Object.assign(this, RB.tabStore.get(this.tab));
       for (const k of ["q", "f", "sort", "dir"]) this.$watch(k, () => RB.tabStore.write(RB.tabStore.put(this.tab, this)));
+      this.$watch("q", () => RUNS_TABLE && RUNS_TABLE.replaceData(this.tabRows()));
+      this.$nextTick(() => this.mkTable());
     },
     tabOf(r) { return r.kind === "scratch" ? "Scratch" : r.tab; },
     count(t) { return this.D ? this.D.runs.filter((r) => this.tabOf(r) === t).length : 0; },
     setTab(t) {
       const store = RB.tabStore.put(this.tab, this); RB.tabStore.write(store);  // save the tab we leave
       this.tab = t; location.hash = t; Object.assign(this, RB.tabStore.get(t, store));  // restore the one we enter
+      if (RUNS_TABLE) { RUNS_TABLE.replaceData(this.tabRows()); this.applySort(); }
     },
     opts(k) { const v = [...new Set(this.D.runs.filter((r) => this.tabOf(r) === this.tab).map((r) => r[k]))].filter((x) => x && x !== "-");
       return k === "status" ? v.sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b)) : v.sort(); },
-    key(r, k) { return k === "rmse" ? rmse(r)[0] : k === "host" ? RB.hostName(hostOf(r)) : k === "status" ? STATUS_ORDER.indexOf(r.status) : r[k]; },
-    setSort(k) { this.dir = this.sort === k ? -this.dir : (["title", "stage", "dataset", "noise", "host", "status"].includes(k) ? 1 : -1); this.sort = k; },
-    get rows() {
-      if (!this.D) return [];
+    /** Rows of the current tab matching the search; the Dataset / Noise / Status filters and sorting live in the table. */
+    tabRows() {
       const words = this.q.toLowerCase().split(/\s+/).filter(Boolean);
-      const rows = this.D.runs.filter((r) => this.tabOf(r) === this.tab &&
-        Object.entries(this.f).every(([k, v]) => !v || r[k] === v) &&
-        words.every((w) => (r._s ??= JSON.stringify(r).toLowerCase()).includes(w)));
-      const d = this.dir, miss = (x) => x == null || x === "" || x === "-";
-      return rows.sort((a, b) => {
-        const x = this.key(a, this.sort), y = this.key(b, this.sort);
-        if (miss(x) !== miss(y)) return miss(x) ? (this.sort === "modified_at" ? -d : 1) : (this.sort === "modified_at" ? d : -1);
-        return (x < y ? -1 : x > y ? 1 : 0) * d || a.id.localeCompare(b.id);
+      return this.D.runs.filter((r) => this.tabOf(r) === this.tab && words.every((w) => (r._s ??= JSON.stringify(r).toLowerCase()).includes(w)))
+        .map((r) => ({id: r.id, title: r.display_name || r.title, dataset: r.dataset, noise: r.noise, status: r.status, rmse: rmse(r)[0], rsrc: rmse(r)[1],
+          host: RB.hostName(hostOf(r)), hostTip: RB.hostTip(hostOf(r)), modified_at: r.modified_at || null, _r: r}));
+    },
+    applySort() { const f = {title: "title", rmse: "rmse", host: "host"}[this.sort] || this.sort; RUNS_TABLE.setSort(f, this.dir > 0 ? "asc" : "desc"); },
+    /** Tabulator table: same columns, names, badges and density as before; narrow screens fold the minor columns under the row. */
+    mkTable() {
+      const self = this, esc = RB.esc, miss = (x) => x == null || x === "" || x === "-";
+      const lastMissing = (a, b, ar, br, c, dir) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : (miss(a) ? 1 : -1) * (dir === "asc" ? 1 : -1)) : a < b ? -1 : a > b ? 1 : 0);
+      const list = (k) => ({headerFilter: "list", headerFilterFunc: "=", headerFilterPlaceholder: "All",
+        headerFilterParams: {valuesLookup: () => [{label: "All", value: ""}, ...self.opts(k).map((v) => ({label: v, value: v}))]}});
+      const col = (o) => ({headerSortStartingDir: "asc", resizable: false, vertAlign: "top", ...o});
+      RUNS_TABLE = new Tabulator(this.$refs.tbl, {
+        data: this.tabRows(), index: "id", layout: "fitColumns", renderVertical: "basic", placeholder: "",
+        responsiveLayout: "collapse", responsiveLayoutCollapseStartOpen: true,
+        responsiveLayoutCollapseFormatter: (items) => {
+          const el = document.createElement("div"); el.className = "rb-collapse";
+          for (const it of items) { const s = document.createElement("span"); s.innerHTML = `<small>${esc(it.title)}</small> `;
+            s.append(typeof it.value === "string" ? Object.assign(document.createElement("span"), {innerHTML: it.value}) : it.value); el.append(s); }
+          return items.length ? el : "";
+        },
+        initialSort: [{column: {title: "title", rmse: "rmse", host: "host"}[this.sort] || this.sort, dir: this.dir > 0 ? "asc" : "desc"}],
+        initialHeaderFilter: Object.entries(this.f).filter(([, v]) => v).map(([field, value]) => ({field, value})),
+        columns: [
+          col({title: "Run", field: "title", minWidth: 230, widthGrow: 3, responsive: 0, sorter: lastMissing,
+            formatter: (c) => { const d = c.getData();
+              return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}"><span class="car">${self.isOpen(d._r) ? "\u25be" : "\u25b8"}</span>${esc(d.title).replace(/_/g, "_<wbr>")}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
+          col({title: "Dataset", field: "dataset", width: 140, responsive: 4, sorter: lastMissing, ...list("dataset")}),
+          col({title: "Noise", field: "noise", width: 118, responsive: 5, sorter: lastMissing, ...list("noise")}),
+          col({title: "Status", field: "status", width: 132, responsive: 1, ...list("status"),
+            sorter: (a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b),
+            formatter: (c) => `<span class="badge s-${esc(c.getValue())}">${esc(c.getValue())}</span>`}),
+          col({title: "RMSE", field: "rmse", width: 112, hozAlign: "right", headerHozAlign: "right", responsive: 2, sorter: lastMissing, headerSortStartingDir: "desc",
+            formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(3)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
+          col({title: "Host", field: "host", width: 190, responsive: 6, sorter: lastMissing,
+            formatter: (c) => `<span title="${esc(c.getData().hostTip)}">${esc(c.getValue())}</span>`}),
+          col({title: "Modified", field: "modified_at", width: 142, responsive: 3, headerSortStartingDir: "desc",
+            sorter: (a, b) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : miss(a) ? -1 : 1) : a < b ? -1 : a > b ? 1 : 0),  // not started = oldest
+            formatter: (c) => `<span class="num" title="${esc(self.abs(c.getValue()))}">${esc(self.when(c.getData()._r) || "not started")}</span>`}),
+        ],
+        rowFormatter: (row) => self.renderDetails(row),
       });
+      RUNS_TABLE.on("dataSorted", (sorters) => { if (sorters[0]) { this.sort = sorters[0].field; this.dir = sorters[0].dir === "asc" ? 1 : -1; } });
+      RUNS_TABLE.on("dataFiltered", (filters, rows) => {
+        this.n = rows.length;
+        const hf = Object.fromEntries(RUNS_TABLE.getHeaderFilters().map((x) => [x.field, x.value]));
+        this.f = {dataset: hf.dataset || "", noise: hf.noise || "", status: hf.status || ""};
+      });
+      RUNS_TABLE.on("dataProcessed", () => (this.n = RUNS_TABLE.getDataCount("active")));
+      RUNS_TABLE.on("rowClick", (e, row) => { if (e.target.closest("a, button, .rb-det")) return; this.flip(row.getData()._r); row.reformat(); });
+      RUNS_TABLE.on("tableBuilt", () => { this.n = RUNS_TABLE.getDataCount("active"); const id = this.open[0]; if (id && RUNS_TABLE.getRow(id)) RUNS_TABLE.scrollToRow(id, "top", false); });
+    },
+    /** Phone filter bar (the filter columns are folded away there): same shared state as the header filters. */
+    setFilter(k, v) { if (RUNS_TABLE) RUNS_TABLE.setHeaderFilterValue(k, v); },
+    /** Attempt details below an open row: the Alpine template #det-tpl, scoped to the run. */
+    renderDetails(row) {
+      const el = row.getElement(), r = row.getData()._r, old = el.querySelector(":scope > .rb-det");
+      if (old) { Alpine.destroyTree(old); old.remove(); }
+      el.classList.toggle("open", this.isOpen(r));
+      if (!this.isOpen(r)) return;
+      const node = document.getElementById("det-tpl").content.firstElementChild.cloneNode(true);
+      Alpine.mutateDom(() => el.appendChild(node));
+      Alpine.addScopeToNode(node, {r}); Alpine.initTree(node);
     },
     isOpen(r) { return this.open.includes(r.id); },
     flip(r) { const i = this.open.indexOf(r.id); i < 0 ? this.open.push(r.id) : this.open.splice(i, 1); },
@@ -169,15 +224,30 @@ document.addEventListener("alpine:init", () => {
     commitUrl: (c) => "https://github.com/irc-hslu/metricsplat/commit/" + c,
   }));
   Alpine.data("queues", () => ({
-    ...base(),
+    ...base(), cur: 0, atStart: true, atEnd: false,
+    /** Lane carousel: CSS scroll-snap does the snapping; these only drive the arrows and dots. */
+    laneEls() { return this.$refs.lanes ? [...this.$refs.lanes.querySelectorAll(".hlane")] : []; },
+    onScroll() {
+      const el = this.$refs.lanes, ls = this.laneEls(); if (!el || !ls.length) return;
+      const x = el.scrollLeft, w = ls.length > 1 ? ls[1].offsetLeft - ls[0].offsetLeft : el.clientWidth;
+      this.cur = Math.min(ls.length - 1, Math.round(x / w));
+      this.atStart = x < 4; this.atEnd = x + el.clientWidth >= el.scrollWidth - 4;
+      // phone: one lane per screen, so the strip takes the height of the lane in view (no gap under a short lane)
+      el.style.height = matchMedia("(max-width: 720px)").matches ? ls[this.cur].offsetHeight + 16 + "px" : "";
+    },
+    go(i) { const el = this.$refs.lanes, ls = this.laneEls(); if (ls[i]) el.scrollTo({left: ls[i].offsetLeft - ls[0].offsetLeft, behavior: "smooth"}); },
+    step(d) { const ls = this.laneEls(), w = ls.length > 1 ? ls[1].offsetLeft - ls[0].offsetLeft : 380; this.$refs.lanes.scrollBy({left: d * w, behavior: "smooth"}); },
     STAGE: {running: "Running", queued: "Queued", reviewed: "Ready", "host-tested": "Tested", built: "Built", planned: "Planned"},
-    afterLoad() { this.runById = Object.fromEntries(this.D.runs.map((r) => [r.id, r])); this.planById = Object.fromEntries((this.D.plan || []).map((p) => [p.id, p])); },
+    afterLoad() {
+      this.runById = Object.fromEntries(this.D.runs.map((r) => [r.id, r])); this.planById = Object.fromEntries((this.D.plan || []).map((p) => [p.id, p]));
+      this.$nextTick(() => this.onScroll()); addEventListener("resize", () => this.onScroll());
+    },
     /** Lanes in a fixed order: own hosts, then rented ones. */
     hosts() {
       if (!this.D) return [];
       const order = ["local", "iradonis", "desktop"], q = this.D.queues || {};
       return Object.keys(q).filter((k) => !q[k].excluded).sort((a, b) => ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99) || a.localeCompare(b))
-        .map((k) => ({k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_")}));
+        .map((k) => ({k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_"), multi: !!/\.gpu\d+$/.exec(k)}));
     },
     gpuOf(k) { const q = (this.D.queues || {})[k] || {}; return (q.gpu_label || (RB.HOSTS[k] || {}).gpu || "").replace(/\s*\(.*\)$/, ""); },
     /** Name with a break opportunity after every underscore only (never ellipsized). */

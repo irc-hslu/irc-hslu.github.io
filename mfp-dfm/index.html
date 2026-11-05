@@ -4,8 +4,10 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>MFP runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
-<link rel="stylesheet" href="style.css?v=c8331e11e4">
-<script src="app.js?v=65a6aa8212"></script>
+<link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
+<link rel="stylesheet" href="style.css?v=61dc029bda">
+<script src="vendor/tabulator-6.6.1.min.js"></script>
+<script src="app.js?v=3848b0f684"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="runs" x-cloak>
@@ -25,22 +27,13 @@
     <template x-for="t in tabs" :key="t"><button :class="tab === t && 'on'" @click="setTab(t)"><span x-text="t"></span><span class="n" x-text="count(t)"></span></button></template>
     <a class="push" href="queues.html">GPU queues &rarr;</a>
   </div>
-  <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span x-text="rows.length"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
-  <div style="overflow-x:auto"><table class="runs"><colgroup><col><col style="width:126px"><col style="width:90px"><col style="width:118px"><col style="width:118px"><col style="width:194px"><col style="width:118px"></colgroup>
-    <thead><tr><template x-for="c in cols" :key="c[0]"><th :class="[c[2], sort === c[0] && 'sorted', c[0] === 'rmse' && 'r']" @click="setSort(c[0])"><span x-text="c[1]"></span><span x-show="sort === c[0]" x-text="dir > 0 ? ' ▲' : ' ▼'"></span></th></template></tr>
-    <tr class="filters"><template x-for="c in cols" :key="'f' + c[0]"><th :class="c[2]" @click.stop>
-      <select x-show="f[c[0]] !== undefined" x-model="f[c[0]]" :aria-label="'Filter ' + c[1]"><option value="">All</option>
-        <template x-for="v in (f[c[0]] !== undefined ? opts(c[0]) : [])" :key="v"><option :value="v" x-text="v"></option></template></select></th></template></tr></thead>
-    <template x-for="r in rows" :key="r.id"><tbody class="run">
-      <tr class="row" @click="flip(r)" :id="'run-' + r.id">
-        <td><div class="title" :title="r.title"><span x-text="isOpen(r) ? '▾ ' : '▸ '"></span><span x-text="r.display_name || r.title"></span></div><div class="sub" :title="r.id" x-text="r.id"></div></td>
-        <td class="hide-sm" x-text="r.dataset"></td><td class="hide-sm" x-text="r.noise"></td>
-        <td><span class="badge" :class="'s-' + r.status" x-text="r.status"></span></td>
-        <td class="num r"><template x-if="rmse(r)[0] != null"><span><span x-text="rmse(r)[0].toFixed(3)"></span><span class="tag" x-text="rmse(r)[1]"></span></span></template><span class="muted" x-show="rmse(r)[0] == null">-</span></td>
-        <td class="hide-sm" :title="tip(r)" x-text="host(r)"></td>
-        <td class="num" :title="abs(r.modified_at)" x-text="when(r) || 'not started'"></td>
-      </tr>
-      <tr class="det" x-show="isOpen(r)" x-cloak><td colspan="7" @click.stop>
+  <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span x-text="n"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
+  <div class="rb-mfilters"><template x-for="k in ['dataset', 'noise', 'status']" :key="'mf' + k">
+    <select :aria-label="'Filter ' + k" :value="f[k]" @change="setFilter(k, $event.target.value)"><option value="" x-text="k[0].toUpperCase() + k.slice(1) + ': all'"></option>
+      <template x-for="v in (D ? opts(k) : [])" :key="k + v"><option :value="v" :selected="f[k] === v" x-text="v"></option></template></select></template></div>
+  <div id="runs-table" class="rb-table" x-ref="tbl"></div>
+  <p class="empty" x-show="!n">No runs match.</p>
+  <template id="det-tpl"><div class="rb-det" @click.stop>
         <div class="sumbox">
           <dl class="kv sum">
             <dt>W&amp;B name</dt><dd x-text="r.title"></dd>
@@ -68,10 +61,7 @@
             <dt x-show="a.failure_reason">Reason</dt><dd x-show="a.failure_reason" x-text="a.failure_reason"></dd>
           </dl></div></template></div>
         <p class="muted" x-show="!r.attempts.length">No attempts yet.</p>
-      </td></tr>
-    </tbody></template>
-  </table></div>
-  <p class="empty" x-show="!rows.length">No runs match.</p>
+  </div></template>
 </div>
 </body>
 </html>
