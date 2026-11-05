@@ -4,8 +4,8 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>MFP GPU queues</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
-<link rel="stylesheet" href="style.css?v=b0ff2636c6">
-<script src="app.js?v=a08f882e71"></script>
+<link rel="stylesheet" href="style.css?v=d467e796da">
+<script src="app.js?v=c8dc2d7845"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="queues" x-cloak>
@@ -53,7 +53,7 @@
       <details class="hl-recent" x-show="recent(h).length" :open="h.gone"><summary>Recently finished</summary>
         <template x-for="j in recent(h)" :key="j.name + j.state"><div class="rj">
           <span class="badge" :class="j.state === 'done' ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-text="j.state === 'done' ? 'done' : j.exit === 'lost' ? 'killed' : 'exit ' + (j.exit || '?')"></span>
-          <span class="rj-name" x-html="nameHtml(jobName(j))"></span><span class="rj-when" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished) : ''"></span></div></template>
+          <span class="rj-name" :class="!jobRun(j).r && 'unmapped'" :title="jobRun(j).r ? j.name : 'job file (not mapped to a run)'" x-html="nameHtml(jobName(j))"></span><span class="rj-when" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished) : ''"></span></div></template>
       </details>
     </div></template>
   </section>

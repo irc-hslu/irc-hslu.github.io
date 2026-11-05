@@ -271,3 +271,4 @@ details.hl-recent>summary{color:var(--muted);font-size:.82rem}
 .st-destroyed{color:var(--muted);background:transparent;border:1px solid var(--line);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;padding:0 6px}
 .dot.grey{background:var(--muted)}
 .hl-gpu{flex-wrap:wrap;column-gap:var(--s2);row-gap:2px}.hl-gpu .tag{white-space:nowrap}
+.rj-name.unmapped{color:var(--muted);font-family:var(--mono);font-size:.76rem}

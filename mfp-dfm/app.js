@@ -269,7 +269,8 @@ document.addEventListener("alpine:init", () => {
     runAttempt(r) { const a = [...((r && r.attempts) || [])].reverse(); return a.find((x) => x.status === "running") || a[0] || {}; },
     /** One card model for queue jobs, lane plan entries and backlog items. */
     card(src, kind, i) {
-      const id = kind === "backlog" ? src.id : kind === "plan" ? src.id : src.run_id, r = id && this.runById[id], p = id && this.planById[id];
+      const jr = kind === "running" || kind === "queued" ? this.jobRun(src).r : null;
+      const id = kind === "backlog" || kind === "plan" ? src.id : jr ? jr.id : src.run_id, r = id && this.runById[id], p = id && this.planById[id];
       const att = this.runAttempt(r), m = att.metrics || {}, fam = r && {PromptDA: "PromptDA", Ours_SV: "SV", Ours_MV: "MV"}[r.tab];
       const stage = kind === "running" ? "running" : kind === "queued" ? "queued" : (src.stage_effective || src.stage || "planned");
       const name = kind === "backlog" ? src.name : (p && p.display_name) || (r && (r.display_name || r.title)) || (src.name || "").replace(/\.job$/, "");
@@ -301,7 +302,16 @@ document.addEventListener("alpine:init", () => {
     rel(iso) { return RB.relTime(iso, this.now); },
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
     recent(h) { return [...(h.failed_recent || []), ...(h.done_recent || [])].sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).slice(0, 6); },
-    jobName(j) { const r = j.run_id && this.runById[j.run_id]; return r ? r.display_name || r.title : (j.name || "").replace(/\.job$/, ""); },
+    /** Run of a queue job: its mapped run, else its run-id hint (exact, then the longest run id the hint starts with,
+     *  e.g. an eval job 'P2-SVp-SPP-ALL3-test96-…' belongs to P2-SVp-SPP). A mapped W&B-only run may since have been folded into its registry run. */
+    jobRun(j) {
+      const h = j.run_id_hint || "", ev = /(^|[_-])eval/i.test(j.name || "");  // an eval job is shown as '<run> · eval'
+      if (j.run_id && this.runById[j.run_id]) return {r: this.runById[j.run_id], eval: ev};
+      if (h && this.runById[h]) return {r: this.runById[h], eval: ev};
+      const id = h && Object.keys(this.runById).filter((k) => h.startsWith(k + "-")).sort((a, b) => b.length - a.length)[0];
+      return id ? {r: this.runById[id], eval: ev || /ALL3|test\d/i.test(h)} : {r: null, eval: false};
+    },
+    jobName(j) { const {r, eval: ev} = this.jobRun(j); return r ? (r.display_name || r.title) + (ev ? " \u00b7 eval" : "") : (j.name || "").replace(/\.job$/, ""); },
     destroyedOn: (iso) => (iso ? new Date(iso).toLocaleString([], {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}) : ""),
     seen(h) { return h.reachable ? "" : "offline · last seen " + RB.relTime(h.checked_at, this.now); },
     hostName: RB.hostName,
