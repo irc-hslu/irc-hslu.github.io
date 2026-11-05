@@ -21,6 +21,9 @@
         <svg class="ic moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg><span class="thumb"></span></button>
     </div>
   </header>
+  <div class="alerts" x-show="D && (D.alerts || []).length"><template x-for="a in (D ? D.alerts : [])" :key="a"><div x-text="a"></div></template></div>
+  <div class="kpis" x-show="D && D.kpis"><span>Idle GPU-h (24 h): <template x-for="(v, k) in (D && D.kpis ? D.kpis.idle_gpu_h_24h : {})" :key="k"><b x-text="RB.hostName(k) + ' ' + v + ' '"></b></template></span>
+    <span>Failed after queueing (24 h): <b x-text="D && D.kpis ? D.kpis.failed_after_queue_24h : ''"></b></span></div>
   <div class="tabs">
     <template x-for="t in tabs" :key="t"><button :class="tab === t && 'on'" @click="setTab(t)"><span x-text="t"></span><span class="n" x-text="count(t)"></span></button></template>
     <a class="push" href="queues.html">GPU queues &rarr;</a>

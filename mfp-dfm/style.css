@@ -191,3 +191,7 @@ dl.kv.sum{margin:0}
 .gantt .bar{max-width:none}
 .gantt .sub{max-width:none;white-space:normal;overflow:visible}.lane-h{width:180px;overflow-wrap:anywhere}
 .gpu.excluded{opacity:.5;filter:grayscale(1);border-style:dotted}.dot.grey{background:var(--muted)}
+.alerts{border:1px solid var(--bad);border-radius:var(--r-sm);padding:var(--s2) var(--s3);margin-bottom:var(--s4);color:var(--bad);font-size:.9rem;font-family:var(--mono)}
+.kpis{display:flex;gap:var(--s5);flex-wrap:wrap;color:var(--muted);font-size:.9rem;margin-bottom:var(--s4)}
+.kpis b{color:var(--ink)}
+.next{margin:var(--s3) 0}.next>div{margin-bottom:var(--s2)}
