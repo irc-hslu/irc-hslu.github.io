@@ -171,7 +171,8 @@ document.addEventListener("alpine:init", () => {
   Alpine.data("queues", () => ({
     ...base(),
     hosts() { return this.D ? Object.entries(this.D.queues || {}).map(([k, q]) => ({k, name: RB.hostName(k), tip: RB.hostTip(k), ...q})) : []; },
-    name(j) { const r = j.run_id && this.D.runs.find((x) => x.id === j.run_id); return r ? (r.display_name || r.title) : (j.desc || "unmapped job").slice(0, 60); },
+    brk: (s) => (s || "").replace(/_/g, "_\u200b"),  // allow a line break after each underscore
+    name(j) { const r = j.run_id && this.D.runs.find((x) => x.id === j.run_id); return this.brk(r ? (r.display_name || r.title) : (j.desc || "unmapped job").slice(0, 60)); },
     stageWord: (s) => ({planned: "Planned", built: "Built", reviewed: "Ready", "host-tested": "Tested", queued: "Queued"}[s] || s),
     waits(p) { const w = p.waits_for || p.unlock_event || ""; return w.length > 60 ? w.slice(0, 57) + "..." : w; },
     rel: (iso, now) => RB.relTime(iso, now),

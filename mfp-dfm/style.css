@@ -196,3 +196,10 @@ dl.kv.sum{margin:0}
 .kpis b{color:var(--ink)}
 .next{margin:var(--s3) 0}.next>div{margin-bottom:var(--s2)}
 .s-stale{color:var(--muted);background:transparent;border:1px solid var(--line)}
+/* full width; host boxes grow with the screen; names wrap inside their box */
+.wrap{max-width:none}
+.cols{grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))}
+.gpu,.gpu-slot,.runjob,.qjob,.qjob>div,.rjob{min-width:0;overflow-wrap:anywhere}
+.qjob b,.rjob b,.rj-title,.blk b{overflow-wrap:anywhere}
+.qjob .waits{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+@media (max-width:860px){.tabs{overflow-x:auto}table.runs colgroup{display:none}table.runs{table-layout:auto}}

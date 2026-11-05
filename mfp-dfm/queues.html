@@ -37,8 +37,8 @@
         <template x-for="j in h.queued" :key="j.name"><div class="qjob"><span class="arrow">&darr;</span>
           <div><b x-text="name(j)"></b></div></div></template>
         <template x-for="p in next(h.k)" :key="p.id"><div class="qjob"><span class="arrow">&darr;</span>
-          <div><b x-text="p.display_name"></b> <span class="badge s-planned" x-text="stageWord(p.stage_effective)"></span> <span class="tag" x-text="p.owner"></span>
-            <div class="sub" x-show="waits(p)" x-text="'Waits for: ' + waits(p)"></div></div></div></template>
+          <div><b x-text="brk(p.display_name)"></b> <span class="badge s-planned" x-text="stageWord(p.stage_effective)"></span> <span class="tag" x-text="p.owner"></span>
+            <div class="sub waits" x-show="waits(p)" :title="p.waits_for || p.unlock_event" x-text="'Waits for: ' + waits(p)"></div></div></div></template>
         <p class="muted small" x-show="!h.queued.length && !next(h.k).length">Nothing queued.</p>
       </div>
       <details class="recent"><summary>Recent finished / failed</summary>
@@ -58,7 +58,7 @@
       <span class="muted small" x-show="!l.running.length && !l.queued.length">idle, nothing queued</span>
     </div></div></template>
     <div class="lane"><div class="lane-h">Planned<br><span class="muted small">backlog</span></div><div class="lane-b wrap-b">
-      <template x-for="r in planned()" :key="r.id"><div class="blk plan"><span class="badge s-planned">planned</span> <b x-text="r.display_name || r.title"></b></div></template></div></div>
+      <template x-for="r in planned()" :key="r.id"><div class="blk plan"><span class="badge s-planned">planned</span> <b x-text="brk(r.display_name || r.title)"></b></div></template></div></div>
   </section>
 </div>
 </body>
