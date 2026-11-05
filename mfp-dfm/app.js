@@ -109,7 +109,7 @@ function base() {
   };
 }
 
-const STATUS_ORDER = ["running", "queued", "planned", "failed", "succeeded", "cancelled", "superseded"];
+const STATUS_ORDER = ["running", "queued", "planned", "failed", "succeeded", "cancelled", "stale", "superseded"];
 const TABS = ["PromptDA", "Ours_SV", "Ours_MV", "Other", "Scratch"];
 const rmse = (r) => { const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };

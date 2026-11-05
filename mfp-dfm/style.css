@@ -195,3 +195,4 @@ dl.kv.sum{margin:0}
 .kpis{display:flex;gap:var(--s5);flex-wrap:wrap;color:var(--muted);font-size:.9rem;margin-bottom:var(--s4)}
 .kpis b{color:var(--ink)}
 .next{margin:var(--s3) 0}.next>div{margin-bottom:var(--s2)}
+.s-stale{color:var(--muted);background:transparent;border:1px solid var(--line)}
