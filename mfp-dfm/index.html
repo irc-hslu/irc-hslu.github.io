@@ -5,10 +5,10 @@
 <title>MFP runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=c48d75dc1a">
+<link rel="stylesheet" href="style.css?v=a50f4e47d6">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=abbf250344"></script>
+<script src="app.js?v=0bfb2946a1"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="runs" x-cloak>
@@ -22,20 +22,38 @@
 <div class="wrap" x-show="D">
   <header class="top">
     <div class="brand"><span class="logo"><span x-html="ic('gauge')"></span>MFP runboard</span>
-      <nav class="nav" aria-label="Pages"><a href="index.html" :class="page === 'runs' && 'on'" :aria-current="page === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs</a><a href="queues.html" :class="page === 'queues' && 'on'" :aria-current="page === 'queues' && 'page'"><span x-html="ic('server')"></span>GPU queues</a><a href="matrix.html" :class="page === 'matrix' && 'on'" :aria-current="page === 'matrix' && 'page'"><span x-html="ic('layout-grid')"></span>Matrix</a></nav></div>
+      <nav class="nav" aria-label="Pages"><a href="index.html" :class="page === 'runs' && 'on'" :aria-current="page === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs</a><a href="queues.html" :class="page === 'queues' && 'on'" :aria-current="page === 'queues' && 'page'"><span x-html="ic('server')"></span>GPU queues</a></nav></div>
     <div class="meta"><div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
       <button type="button" class="rl" @click="reload()" :aria-busy="loading" :disabled="loading" title="Reload data" aria-label="Reload data"><span :class="loading && 'spin'" x-html="ic('refresh-cw')"></span></button>
       <button type="button" class="switch" role="switch" :aria-checked="dark" aria-label="Dark theme" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" @click="toggleTheme()">
         <span class="ic sun" x-html="ic('sun')"></span>
         <span class="ic moon" x-html="ic('moon')"></span><span class="thumb"></span></button></div>
   </header>
-  <div class="tabs">
-    <template x-for="t in tabs" :key="t"><button :class="tab === t && 'on'" @click="setTab(t)"><span x-text="t"></span><span class="n" x-text="count(t)"></span></button></template>
+  <details class="howto" @toggle="$event.target.open && $nextTick(() => drawNames($refs.howsvg))">
+    <summary><span x-html="ic('list')"></span>How to read run names</summary>
+    <div class="howto-body">
+      <svg class="howto-svg" x-ref="howsvg" role="img" aria-label="Run name anatomy: model, size, init, to, dataset, noise, tag"></svg>
+      <dl class="howto-list"><template x-for="g in NAME_PARTS" :key="g.part"><div><dt><code x-text="g.part"></code> <b x-text="g.label"></b></dt><dd x-text="g.help"></dd></div></template></dl>
+      <p class="muted small">Grammar: <code>&lt;model&gt;_&lt;size&gt;_&lt;init&gt;_to_&lt;dataset&gt;_&lt;noise&gt;[_&lt;tag&gt;…]</code>. A name never changes once given; a clash gets <code>_2</code>, <code>_3</code>, … in age order.</p>
+    </div>
+  </details>
+  <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span><b x-text="n"></b> runs</span>
+    <label class="tgl"><input type="checkbox" role="switch" x-model="scratch"> include scratch <span class="muted">(smokes, probes, short or killed runs)</span></label></div>
+  <div class="exh" :class="exh.on && 'on'">
+    <label class="tgl"><input type="checkbox" role="switch" x-model="exh.on"> <b>Exhaustive order</b></label>
+    <div class="exh-keys" role="list" aria-label="Sort keys, first varies slowest">
+      <template x-for="(k, i) in exh.keys" :key="k.k"><div class="kchip" role="listitem" draggable="true" :class="[k.on && 'on', dragK === k.k && 'drag']"
+          @dragstart="dragK = k.k" @dragend="dragK = null" @dragover.prevent @drop.prevent="dropKey(k.k)">
+        <span class="grip" aria-hidden="true">&#8942;&#8942;</span><button type="button" class="kname" @click="k.on = !k.on" :aria-pressed="k.on" :title="k.on ? 'Click to leave this key out' : 'Click to use this key'" x-text="KEY_LABEL[k.k]"></button>
+        <button type="button" class="kmv" @click="moveKey(i, -1)" :disabled="i === 0" :aria-label="'Move ' + KEY_LABEL[k.k] + ' left'">&lsaquo;</button><button type="button" class="kmv" @click="moveKey(i, 1)" :disabled="i === exh.keys.length - 1" :aria-label="'Move ' + KEY_LABEL[k.k] + ' right'">&rsaquo;</button>
+      </div></template>
+    </div>
+    <label class="tgl" :class="!exh.on && 'dis'"><input type="checkbox" role="switch" x-model="exh.all" :disabled="!exh.on"> show all combinations</label>
+    <span class="muted small exh-hint" x-show="exh.on" x-text="exhHint()"></span>
   </div>
-  <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span x-text="n"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
-  <div class="rb-mfilters"><template x-for="k in ['dataset', 'noise', 'status']" :key="'mf' + k">
-    <select :aria-label="'Filter ' + k" :value="f[k]" @change="setFilter(k, $event.target.value)"><option value="" x-text="k[0].toUpperCase() + k.slice(1) + ': all'"></option>
-      <template x-for="v in (D ? opts(k) : [])" :key="k + v"><option :value="v" :selected="f[k] === v" x-text="v"></option></template></select></template></div>
+  <div class="rb-mfilters"><template x-for="k in FILTER_KEYS" :key="'mf' + k">
+    <select :aria-label="'Filter ' + KEY_LABEL[k]" :value="f[k]" @change="setFilter(k, $event.target.value)"><option value="" x-text="KEY_LABEL[k] + ': all'"></option>
+      <template x-for="v in (D ? opts(k) : [])" :key="k + v"><option :value="v" :selected="f[k] === v" x-text="v.replace('_', ' ')"></option></template></select></template></div>
   <div id="runs-table" class="rb-table" x-ref="tbl"></div>
   <p class="empty" x-show="!n">No runs match.</p>
   <template id="det-tpl"><div class="rb-det" @click.stop>

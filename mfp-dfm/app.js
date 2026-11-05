@@ -96,8 +96,29 @@ const RB = (() => {
   /** Icon per run status / queue stage / matrix word. */
   const ICON = {succeeded: "circle-check", running: "activity", queued: "hourglass", planned: "clock", failed: "circle-x", cancelled: "ban",
     smoke: "flask-conical", stale: "clock", superseded: "archive", reviewed: "check", "host-tested": "flask-conical", built: "package",
-    Done: "circle-check", "In progress": "activity", Planned: "clock"};
-  return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme, ic, ICON};
+    "not planned": ""};
+  /** Canonical value order per key (unknown values follow, alphabetically). */
+  const ORDER = {dataset: ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"], noise: ["lidar_low", "lower", "low", "none"],
+    model: ["PromptDA-B", "PromptDA-L", "PromptDA-S", "Ours_SV", "Ours_MV2", "Ours_MV3"],
+    status: ["running", "queued", "planned", "failed", "succeeded", "cancelled", "stale", "superseded", "not planned"]};
+  const initRank = (v) => { if (!v || v === "clean") return "0"; const [f, d, par] = String(v).split("_");
+    return `${"psm".indexOf(f[0]) + 1}${["hs", "spp", "as", "th"].indexOf(d) + 1 || 9}${par ? 1 : 0}${v}`; };
+  const rank = (k, v) => { if (k === "init") return initRank(v); const o = ORDER[k] || [], i = o.indexOf(v);
+    return i >= 0 ? String(i).padStart(3, "0") : "999" + String(v ?? "").toLowerCase(); };
+  /** Every combination of the keys' domains in nested order (first key slowest, last fastest), minus those in `have`. */
+  function combos(keys, domains, have) {
+    let out = [[]];
+    for (const k of keys) out = out.flatMap((c) => domains[k].map((v) => [...c, v]));
+    return out.filter((c) => !have.has(c.join("\u0001")));
+  }
+  /** 'Ours_MV3' -> Ours<sub>MV3</sub> (escaped). */
+  const modelHtml = (v) => { const m = /^Ours_([A-Za-z0-9]+)(.*)$/.exec(v || ""); return `<span class="mdl">${m ? `Ours<sub>${esc(m[1])}</sub>${esc(m[2])}` : esc(v || "\u2014")}</span>`; };
+  /** Same labels as the runs table's Model column: 'MV(3)-B' / 'mv' -> Ours_MV3, 'SV-B' -> Ours_SV, 'promptda' -> PromptDA-B. */
+  const canonModel = (v) => { const x = String(v || ""), m = /^MV\((\d+)\)-([BLS])$/.exec(x), l = x.toLowerCase();
+    if (m) return m[2] === "B" ? `Ours_MV${m[1]}` : `Ours_MV${m[1]}-${m[2]}`;
+    if (/^SV-([BLS])$/.test(x)) return x === "SV-B" ? "Ours_SV" : `Ours_SV-${x.slice(-1)}`;
+    return {promptda: "PromptDA-B", pda: "PromptDA-B", sv: "Ours_SV", mv: "Ours_MV3"}[l] || x; };
+  return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme, ic, ICON, ORDER, rank, combos, modelHtml, canonModel};
 })();
 if (typeof module !== "undefined") module.exports = RB;
 
@@ -134,7 +155,7 @@ function base(page) {
   };
 }
 
-const STATUS_ORDER = ["running", "queued", "planned", "failed", "succeeded", "cancelled", "stale", "superseded"];
+const STATUS_ORDER = RB.ORDER.status;
 const TABS = ["PromptDA", "Ours_SV", "Ours_MV", "Other", "Scratch"];
 const rmse = (r) => { const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
 let RUNS_TABLE = null;  // the Tabulator instance (kept out of Alpine's reactive state)
@@ -143,41 +164,77 @@ const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => 
 document.addEventListener("alpine:init", () => {
   Alpine.data("runs", () => ({
     ...base("runs"),
-    onReload() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.tabRows()); }, tab: decodeURIComponent(location.hash.slice(1)) || "PromptDA", q: "", f: {dataset: "", noise: "", status: ""},
-    sort: "modified_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS, n: 0,
+    onReload() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.rows()); },
+    q: "", f: {model: "", init: "", dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1, scratch: false,
+    open: new URLSearchParams(location.search).getAll("open"), n: 0, dragK: null,
+    FILTER_KEYS: ["model", "init", "dataset", "noise", "status"],
+    KEY_LABEL: {model: "Model", init: "Init", dataset: "Dataset", noise: "Noise", status: "Status"},
+    exh: {on: false, all: false, keys: [{k: "dataset", on: true}, {k: "noise", on: true}, {k: "model", on: true}, {k: "init", on: false}, {k: "status", on: true}]},
+    NAME_PARTS: [
+      {part: "mv3", label: "model", help: "promptda, sv, mv2, mv3 (MV with N views), dformer; misc_* = tools without a model family"},
+      {part: "B", label: "size", help: "ViT encoder: B base, S small, L large"},
+      {part: "svhs", label: "init", help: "what the weights start from: clean, pdahs, svhs, svhspar, mvhs, pdaspp, svspp, svas ... = Init column without '_'"},
+      {part: "to", label: "", help: "separates the start from the training target"},
+      {part: "scannetpp", label: "dataset", help: "training data of this run: hypersim, scannetpp, arkit, thuman"},
+      {part: "lidarlow", label: "noise", help: "prompt noise preset: lidarlow, lower, low, none"},
+      {part: "dpt01", label: "tag", help: "optional variant: dpt01, shuf, null, 24k, offset, fivebin, smoke, eval; _2, _3 for twins"}],
     afterLoad() {
-      for (const r of this.D.runs) if (this.open.includes(r.id)) { this.tab = this.tabOf(r); break; }
-      Object.assign(this, RB.tabStore.get(this.tab));
-      for (const k of ["q", "f", "sort", "dir"]) this.$watch(k, () => RB.tabStore.write(RB.tabStore.put(this.tab, this)));
-      this.$watch("q", () => RUNS_TABLE && RUNS_TABLE.replaceData(this.tabRows()));
+      try { Object.assign(this, JSON.parse(sessionStorage.getItem("rb-runs") || "{}")); } catch (e) {}
+      try { const x = JSON.parse(localStorage.getItem("rb-exh") || "null"); if (x && Array.isArray(x.keys) && x.keys.length === 5) this.exh = x; } catch (e) {}
+      const want = this.open[0] && this.D.runs.find((r) => r.id === this.open[0]);
+      if (want && want.kind === "scratch") this.scratch = true;
+      const save = () => { try { sessionStorage.setItem("rb-runs", JSON.stringify({q: this.q, f: this.f, sort: this.sort, dir: this.dir, scratch: this.scratch})); } catch (e) {} };
+      for (const k of ["q", "f", "sort", "dir", "scratch"]) this.$watch(k, save);
+      this.$watch("q", () => this.refresh()); this.$watch("scratch", () => this.refresh());
+      this.$watch("exh", () => { try { localStorage.setItem("rb-exh", JSON.stringify(this.exh)); } catch (e) {} this.refresh(); this.applySort(); }, {deep: true});
       this.$nextTick(() => this.mkTable());
     },
+    refresh() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.rows()); },
     tabOf(r) { return r.kind === "scratch" ? "Scratch" : r.tab; },
-    count(t) { return this.D ? this.D.runs.filter((r) => this.tabOf(r) === t).length : 0; },
-    setTab(t) {
-      const store = RB.tabStore.put(this.tab, this); RB.tabStore.write(store);  // save the tab we leave
-      this.tab = t; location.hash = t; Object.assign(this, RB.tabStore.get(t, store));  // restore the one we enter
-      if (RUNS_TABLE) { RUNS_TABLE.replaceData(this.tabRows()); this.applySort(); }
+    exhKeys() { return this.exh.keys.filter((k) => k.on).map((k) => k.k); },
+    exhHint() { const ks = this.exhKeys(); return ks.length ? `${ks.map((k) => this.KEY_LABEL[k]).join(" › ")} — the last key changes fastest` : "pick at least one key"; },
+    moveKey(i, d) { const ks = this.exh.keys, j = i + d; if (j < 0 || j >= ks.length) return; [ks[i], ks[j]] = [ks[j], ks[i]]; },
+    dropKey(target) { const ks = this.exh.keys, i = ks.findIndex((k) => k.k === this.dragK), j = ks.findIndex((k) => k.k === target);
+      if (i < 0 || j < 0 || i === j) return; const [x] = ks.splice(i, 1); ks.splice(j, 0, x); this.dragK = null; },
+    base() { const words = this.q.toLowerCase().split(/\s+/).filter(Boolean);
+      return this.D.runs.filter((r) => (this.scratch || r.kind !== "scratch") && words.every((w) => (r._s ??= JSON.stringify(r).toLowerCase()).includes(w))); },
+    opts(k) { const v = [...new Set(this.base().map((r) => (k === "model" ? r.model : r[k])))].filter((x) => x && x !== "-" && x !== "all");
+      if (this.exh.on && this.exh.all && k === "status") v.push("not planned");
+      return v.sort((a, b) => RB.rank(k, a).localeCompare(RB.rank(k, b))); },
+    /** Table rows: real runs, plus (exhaustive + all combinations) a muted 'not planned' row per missing key combination. */
+    rows() {
+      const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: r.model || r.variant, init: r.init || "", dataset: r.dataset,
+        noise: r.noise, status: r.status, rmse: rmse(r)[0], rsrc: rmse(r)[1], host: RB.hostName(hostOf(r)), hostTip: RB.hostTip(hostOf(r)),
+        modified_at: r.modified_at || null, _r: r}));
+      const keys = this.exhKeys().filter((k) => k !== "status");
+      if (!(this.exh.on && this.exh.all && keys.length)) return real;
+      const dflt = {dataset: ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"], noise: ["lidar_low", "lower", "low"], model: ["PromptDA-B", "Ours_SV", "Ours_MV2", "Ours_MV3"], init: []};
+      const dom = Object.fromEntries(keys.map((k) => [k, this.f[k] ? [this.f[k]] :
+        [...new Set([...dflt[k], ...real.map((x) => x[k])])].filter((x) => x && x !== "all" && !(k === "model" && x === "Other")).sort((a, b) => RB.rank(k, a).localeCompare(RB.rank(k, b)))]));
+      const have = new Set(real.map((x) => keys.map((k) => x[k]).join("\u0001")));
+      return real.concat(RB.combos(keys, dom, have).map((c) => ({id: "~" + c.join("|"), title: "", status: "not planned", _virtual: true,
+        model: "", init: "", dataset: "", noise: "", ...Object.fromEntries(keys.map((k, i) => [k, c[i]])), rmse: null, host: "", modified_at: null})));
     },
-    opts(k) { const v = [...new Set(this.D.runs.filter((r) => this.tabOf(r) === this.tab).map((r) => r[k]))].filter((x) => x && x !== "-");
-      return k === "status" ? v.sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b)) : v.sort(); },
-    /** Rows of the current tab matching the search; the Dataset / Noise / Status filters and sorting live in the table. */
-    tabRows() {
-      const words = this.q.toLowerCase().split(/\s+/).filter(Boolean);
-      return this.D.runs.filter((r) => this.tabOf(r) === this.tab && words.every((w) => (r._s ??= JSON.stringify(r).toLowerCase()).includes(w)))
-        .map((r) => ({id: r.id, title: r.display_name || r.title, dataset: r.dataset, noise: r.noise, status: r.status, rmse: rmse(r)[0], rsrc: rmse(r)[1],
-          host: RB.hostName(hostOf(r)), hostTip: RB.hostTip(hostOf(r)), modified_at: r.modified_at || null, _r: r}));
+    applySort() {
+      if (!RUNS_TABLE) return;
+      const ks = this.exhKeys();
+      // Tabulator applies the LAST sorter as the primary one, so the list runs from the fastest key to the slowest
+      if (this.exh.on && ks.length) RUNS_TABLE.setSort([{column: "modified_at", dir: "desc"}, ...[...ks].reverse().map((k) => ({column: k, dir: "asc"}))]);
+      else RUNS_TABLE.setSort(this.sort, this.dir > 0 ? "asc" : "desc");
     },
-    applySort() { const f = {title: "title", rmse: "rmse", host: "host"}[this.sort] || this.sort; RUNS_TABLE.setSort(f, this.dir > 0 ? "asc" : "desc"); },
-    /** Tabulator table: same columns, names, badges and density as before; narrow screens fold the minor columns under the row. */
+    /** One Tabulator table for all runs: 50 rows per page, sticky column titles, filterable Model / Init / Dataset / Noise / Status. */
     mkTable() {
       const self = this, esc = RB.esc, miss = (x) => x == null || x === "" || x === "-";
       const lastMissing = (a, b, ar, br, c, dir) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : (miss(a) ? 1 : -1) * (dir === "asc" ? 1 : -1)) : a < b ? -1 : a > b ? 1 : 0);
-      const list = (k) => ({headerFilter: "list", headerFilterFunc: "=", headerFilterPlaceholder: "All",
-        headerFilterParams: {valuesLookup: () => [{label: "All", value: ""}, ...self.opts(k).map((v) => ({label: v, value: v}))]}});
+      const ranked = (k) => (a, b, ar, br, c, dir) => (miss(a) || miss(b) ? lastMissing(a, b, ar, br, c, dir) : RB.rank(k, a).localeCompare(RB.rank(k, b)));
+      const list = (k, fmt) => ({headerFilter: "list", headerFilterFunc: "=", headerFilterPlaceholder: "All",
+        headerFilterParams: {valuesLookup: () => [{label: "All", value: ""}, ...self.opts(k).map((v) => ({label: v, value: v}))],
+          ...(fmt ? {itemFormatter: (label, value) => (value ? fmt(value) : "All")} : {})}});
       const col = (o) => ({headerSortStartingDir: "asc", resizable: false, vertAlign: "top", ...o});
+      const vMuted = (fn) => (c) => (c.getData()._virtual ? `<span class="muted">${fn(c) || "—"}</span>` : fn(c));
       RUNS_TABLE = new Tabulator(this.$refs.tbl, {
-        data: this.tabRows(), index: "id", layout: "fitColumns", renderVertical: "basic", placeholder: "",
+        data: this.rows(), index: "id", layout: "fitColumns", renderVertical: "basic", placeholder: "",
+        pagination: true, paginationSize: 50, paginationCounter: "rows", paginationButtonCount: 5,
         responsiveLayout: "collapse", responsiveLayoutCollapseStartOpen: true,
         responsiveLayoutCollapseFormatter: (items) => {
           const el = document.createElement("div"); el.className = "rb-collapse";
@@ -188,46 +245,75 @@ document.addEventListener("alpine:init", () => {
         initialSort: [{column: {title: "title", rmse: "rmse", host: "host"}[this.sort] || this.sort, dir: this.dir > 0 ? "asc" : "desc"}],
         initialHeaderFilter: Object.entries(this.f).filter(([, v]) => v).map(([field, value]) => ({field, value})),
         columns: [
-          col({title: "Run", field: "title", minWidth: 230, widthGrow: 3, responsive: 0, sorter: lastMissing,
+          col({title: "Run", field: "title", minWidth: 250, widthGrow: 3, responsive: 0, sorter: lastMissing,
             formatter: (c) => { const d = c.getData();
-              return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}"><span class="car">${self.isOpen(d._r) ? "\u25be" : "\u25b8"}</span>${esc(d.title).replace(/_/g, "_<wbr>")}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
-          col({title: "Dataset", field: "dataset", width: 140, responsive: 4, sorter: lastMissing, ...list("dataset")}),
-          col({title: "Noise", field: "noise", width: 118, responsive: 5, sorter: lastMissing, ...list("noise")}),
-          col({title: "Status", field: "status", width: 150, responsive: 1, ...list("status"),
-            sorter: (a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b),
-            formatter: (c) => `<span class="badge has-i s-${esc(c.getValue())}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
-          col({title: "RMSE", field: "rmse", width: 112, hozAlign: "right", headerHozAlign: "right", responsive: 2, sorter: lastMissing, headerSortStartingDir: "desc",
+              if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">no run</div><div class="rb-id">this combination has no run</div></div>`;
+              return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}"><span class="car">${self.isOpen(d._r) ? "▾" : "▸"}</span>${esc(d.title).replace(/_/g, "_<wbr>")}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
+          col({title: "Model", field: "model", width: 128, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
+          col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (c.getValue() ? `<code class="init">${esc(c.getValue())}</code>` : "")}),
+          col({title: "Dataset", field: "dataset", width: 128, responsive: 6, sorter: ranked("dataset"), ...list("dataset")}),
+          col({title: "Noise", field: "noise", width: 108, responsive: 7, sorter: ranked("noise"), ...list("noise")}),
+          col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
+            formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
+          col({title: "RMSE", field: "rmse", width: 118, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(3)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
-          col({title: "Host", field: "host", width: 190, responsive: 6, sorter: lastMissing,
-            formatter: (c) => `<span title="${esc(c.getData().hostTip)}">${esc(c.getValue())}</span>`}),
-          col({title: "Modified", field: "modified_at", width: 142, responsive: 3, headerSortStartingDir: "desc",
+          col({title: "Host", field: "host", width: 168, responsive: 8, sorter: lastMissing, formatter: vMuted((c) => c.getValue() ? `<span title="${esc(c.getData().hostTip)}">${esc(c.getValue())}</span>` : "")}),
+          col({title: "Modified", field: "modified_at", width: 132, responsive: 4, headerSortStartingDir: "desc",
             sorter: (a, b) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : miss(a) ? -1 : 1) : a < b ? -1 : a > b ? 1 : 0),  // not started = oldest
-            formatter: (c) => `<span class="num" title="${esc(self.abs(c.getValue()))}">${esc(self.when(c.getData()._r) || "not started")}</span>`}),
+            formatter: (c) => (c.getData()._virtual ? "" : `<span class="num" title="${esc(self.abs(c.getValue()))}">${esc(self.when(c.getData()._r) || "not started")}</span>`)}),
         ],
         rowFormatter: (row) => self.renderDetails(row),
       });
-      RUNS_TABLE.on("dataSorted", (sorters) => { if (sorters[0]) { this.sort = sorters[0].field; this.dir = sorters[0].dir === "asc" ? 1 : -1; } });
+      RUNS_TABLE.on("dataSorted", (sorters) => { if (!this.exh.on && sorters[0]) { this.sort = sorters[0].field; this.dir = sorters[0].dir === "asc" ? 1 : -1; } });
       RUNS_TABLE.on("dataFiltered", (filters, rows) => {
-        this.n = rows.length;
+        this.n = rows.filter((r) => !r.getData()._virtual).length;
         const hf = Object.fromEntries(RUNS_TABLE.getHeaderFilters().map((x) => [x.field, x.value]));
-        this.f = {dataset: hf.dataset || "", noise: hf.noise || "", status: hf.status || ""};
+        const nf = Object.fromEntries(this.FILTER_KEYS.map((k) => [k, hf[k] || ""]));
+        if (JSON.stringify(nf) !== JSON.stringify(this.f)) { this.f = nf; if (this.exh.on && this.exh.all) setTimeout(() => this.refresh()); }
       });
-      RUNS_TABLE.on("dataProcessed", () => (this.n = RUNS_TABLE.getDataCount("active")));
-      RUNS_TABLE.on("rowClick", (e, row) => { if (e.target.closest("a, button, .rb-det")) return; this.flip(row.getData()._r); row.reformat(); });
-      RUNS_TABLE.on("tableBuilt", () => { this.n = RUNS_TABLE.getDataCount("active"); const id = this.open[0]; if (id && RUNS_TABLE.getRow(id)) RUNS_TABLE.scrollToRow(id, "top", false); });
+      RUNS_TABLE.on("rowClick", (e, row) => { if (row.getData()._virtual || e.target.closest("a, button, .rb-det")) return; this.flip(row.getData()._r); row.reformat(); });
+      RUNS_TABLE.on("tableBuilt", () => {
+        this.n = RUNS_TABLE.getDataCount("active"); this.applySort();
+        const id = this.open[0]; if (id && RUNS_TABLE.getRow(id)) RUNS_TABLE.setPageToRow(id).then(() => RUNS_TABLE.scrollToRow(id, "top", false)).catch(() => {});
+      });
     },
-    /** Phone filter bar (the filter columns are folded away there): same shared state as the header filters. */
     setFilter(k, v) { if (RUNS_TABLE) RUNS_TABLE.setHeaderFilterValue(k, v); },
     /** Attempt details below an open row: the Alpine template #det-tpl, scoped to the run. */
     renderDetails(row) {
-      const el = row.getElement(), r = row.getData()._r, old = el.querySelector(":scope > .rb-det");
+      const el = row.getElement(), d = row.getData(), old = el.querySelector(":scope > .rb-det");
       if (old) { Alpine.destroyTree(old); old.remove(); }
-      el.classList.toggle("open", this.isOpen(r));
+      el.classList.toggle("virtual", !!d._virtual);
+      if (d._virtual) return;
+      const r = d._r; el.classList.toggle("open", this.isOpen(r));
       if (!this.isOpen(r)) return;
       const node = document.getElementById("det-tpl").content.firstElementChild.cloneNode(true);
       Alpine.mutateDom(() => el.appendChild(node));
       // Tabulator may format a row before attaching it to the page, so anchor the scope on the component root explicitly
       Alpine.addScopeToNode(node, {r}, document.querySelector("[x-data]")); Alpine.initTree(node);
+    },
+    /** Technical drawing of a run name: the name in monospace, a bracket under each segment and a leader line down to its label. */
+    drawNames(svg) {
+      if (!svg) return;
+      const NS = "http://www.w3.org/2000/svg", mk = (t, a, txt) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; return e; };
+      svg.replaceChildren();
+      const parts = this.NAME_PARTS, name = parts.map((p) => p.part).join("_"), x0 = 16, y0 = 34;
+      const t = mk("text", {x: x0, y: y0, class: "hn-name"}, name); svg.append(t);
+      let i = 0; const segs = parts.map((p) => { const s = {p, a: t.getSubStringLength(0, i) + x0}; s.b = s.a + t.getSubStringLength(i, p.part.length); i += p.part.length + 1; return s; });
+      let maxX = t.getComputedTextLength() + x0 * 2, rows = 1;
+      const ends = [-1e9, -1e9, -1e9];
+      for (const s of segs) {
+        if (!s.p.label) continue;
+        const mid = (s.a + s.b) / 2, lbl = mk("text", {x: mid, y: 0, class: "hn-label", "text-anchor": "middle"}, s.p.label);
+        svg.append(lbl); const w = lbl.getComputedTextLength();
+        const row = [0, 1, 2].find((r) => ends[r] < mid - w / 2 - 8) ?? 2; ends[row] = mid + w / 2; rows = Math.max(rows, row + 1);
+        const ly = y0 + 40 + row * 24;
+        lbl.setAttribute("y", ly);
+        svg.append(mk("path", {class: "hn-br", d: `M${s.a + 1} ${y0 + 9} v6 M${s.a + 1} ${y0 + 12} H${s.b - 1} M${s.b - 1} ${y0 + 9} v6`}),
+          mk("path", {class: "hn-lead", d: `M${mid} ${y0 + 12} V${ly - 13}`}), mk("circle", {class: "hn-dot", cx: mid, cy: y0 + 12, r: 2.2}));
+        maxX = Math.max(maxX, mid + w / 2 + x0);
+      }
+      const h = y0 + 40 + (rows - 1) * 24 + 10;
+      svg.setAttribute("viewBox", `0 0 ${Math.ceil(maxX)} ${h}`); svg.style.width = Math.min(860, Math.ceil(maxX * 1.45)) + "px";
     },
     isOpen(r) { return this.open.includes(r.id); },
     flip(r) { const i = this.open.indexOf(r.id); i < 0 ? this.open.push(r.id) : this.open.splice(i, 1); },
@@ -284,7 +370,7 @@ document.addEventListener("alpine:init", () => {
     /** model · dataset · noise, model in the main-table form (PromptDA-B, SV-B, MV(3)-B); noise always shown ('noise ?' when unknown). */
     chips(model, dataset, noise) {
       const ok = (x) => x && !["none", "-", "\u2014", "all", "n.a."].includes(x);
-      const m = ok(model) ? ({promptda: "PromptDA-B", sv: "SV-B", mv: "MV(3)-B"}[String(model).toLowerCase()] || model) : "";
+      const m = ok(model) ? RB.canonModel(model) : "";
       return [m, ok(dataset) ? dataset : "", ok(noise) ? noise : "noise ?"].filter(Boolean);
     },
     runAttempt(r) { const a = [...((r && r.attempts) || [])].reverse(); return a.find((x) => x.status === "running") || a[0] || {}; },
@@ -305,7 +391,7 @@ document.addEventListener("alpine:init", () => {
         ["Last update", RB.relTime((p && p.updated) || att.heartbeat_at || (r && r.modified_at) || src.updated, this.now)]].filter(([, v]) => v);
       return {key: kind + ":" + (id || src.name) + ":" + (i || 0), kind, id, stage, label: this.STAGE[stage] || stage, pos: kind === "queued" ? i + 1 : 0,
         name, unmapped: (kind === "running" || kind === "queued") && !r,
-        chips: this.chips((r && r.variant !== "\u2014" && r.variant) || (kind === "backlog" ? src.model : p && p.model) || fam,
+        chips: this.chips((r && r.model !== "Other" && r.model) || (kind === "backlog" ? src.model : p && p.model) || fam,
           (kind === "backlog" ? src.dataset : p && p.dataset) || (r && r.dataset), (kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise)),
         waits: kind === "plan" ? src.waits_for || src.unlock_event || "" : kind === "backlog" ? src.waits_for : "",
         step: m.step, budget: src.budget || {}, started: src.started,
@@ -338,25 +424,5 @@ document.addEventListener("alpine:init", () => {
     destroyedOn: (iso) => (iso ? new Date(iso).toLocaleString([], {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}) : ""),
     seen(h) { return h.reachable ? "" : "offline · last seen " + RB.relTime(h.checked_at, this.now); },
     hostName: RB.hostName,
-  }));
-  Alpine.data("matrix", () => ({
-    ...base("matrix"),
-    WORDS: ["Done", "In progress", "Planned", "Not planned"], NOISES: ["lidar_low", "lower", "low"],
-    slug: (w) => w.toLowerCase().replace(/\s+/g, "-"),
-    dsName: (d) => ({THuman: "THuman-in-a-Box"}[d] || d),
-    cells() { return (this.D && this.D.matrix) || []; },
-    datasets() { return [...new Set(this.cells().map((c) => c.dataset))]; },
-    total(w) { return this.cells().filter((c) => c.status === w).length; },
-    /** Rows = model x chaining (PromptDA has no chaining), columns = noise; the model name is shown on its first row only. */
-    rows(ds) {
-      const out = [], cs = this.cells().filter((c) => c.dataset === ds);
-      for (const c of cs) {
-        const key = c.model + "|" + c.chain;
-        let row = out.find((r) => r.key === key);
-        if (!row) { row = {key, model: c.model, chain: c.chain, first: !out.some((r) => r.model === c.model), cells: []}; out.push(row); }
-        row.cells.push(c);
-      }
-      return out;
-    },
   }));
 });
