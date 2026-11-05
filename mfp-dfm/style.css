@@ -353,19 +353,8 @@ html{background:var(--bg)}
 .count{flex-wrap:wrap}
 .tgl{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;margin:0;cursor:pointer;white-space:nowrap}
 .tgl input[type=checkbox]{margin:0}.tgl.dis{opacity:.45;cursor:default}
-.exh{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s4);padding:var(--s2) var(--s3);margin-bottom:var(--s3);
   border:1px dashed var(--line);border-radius:var(--r);background:color-mix(in srgb,var(--chip) 35%,transparent);transition:border-color .2s,background .2s}
-.exh.on{border-style:solid;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
-.exh-keys{display:flex;flex-wrap:wrap;gap:6px}
-.kchip{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:999px;background:var(--panel);padding:1px 4px 1px 6px;cursor:grab;
   transition:box-shadow .15s,transform .15s,border-color .15s;user-select:none}
-.kchip:hover{box-shadow:0 2px 8px #0002;transform:translateY(-1px)}.kchip.drag{opacity:.5}
-.kchip.on{border-color:var(--accent)}.kchip .grip{color:var(--muted);font-size:.7rem;letter-spacing:-2px;margin-right:2px}
-.kchip .kname{all:unset;cursor:pointer;font-size:.84rem;padding:1px 4px;color:var(--muted);text-decoration:line-through}
-.kchip.on .kname{color:var(--ink);font-weight:600;text-decoration:none}
-.kchip .kmv{all:unset;cursor:pointer;width:18px;text-align:center;color:var(--muted);font-size:1rem;line-height:1}.kchip .kmv:disabled{opacity:.25;cursor:default}
-.kchip .kname:focus-visible,.kchip .kmv:focus-visible{outline:2px solid var(--accent);border-radius:4px}
-.exh-hint{flex-basis:100%}
 code.init{font-size:.78rem;background:var(--chip);color:var(--ink);padding:1px 6px;border-radius:4px}
 .rb-table sub{font-size:.7em;vertical-align:-.25em;line-height:0}
 .rb-table .tabulator-row.virtual{cursor:default;opacity:.62}.rb-table .tabulator-row.virtual:hover{background:var(--panel)}
@@ -378,10 +367,6 @@ code.init{font-size:.78rem;background:var(--chip);color:var(--ink);padding:1px 6
 .rb-table.tabulator .tabulator-footer .tabulator-page-counter{color:var(--muted);font-size:.84rem}
 .rb-table.tabulator .tabulator-tableholder{border-radius:0}
 /* how to read run names */
-details.howto{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:0;margin:0 0 var(--s4)}
-details.howto>summary{padding:var(--s2) var(--s4);cursor:pointer;font-weight:600;display:flex;align-items:center;gap:8px;color:var(--ink)}
-details.howto[open]>summary{border-bottom:1px solid var(--line)}
-.howto-body{padding:var(--s3) var(--s4) var(--s4);overflow-x:auto}
 .howto-svg{display:block;max-width:100%;height:auto}
 .hn-name{font-family:var(--mono);font-size:24px;font-weight:600;fill:var(--ink)}
 .hn-label{font-size:11.5px;font-weight:600;fill:var(--accent);text-transform:uppercase;letter-spacing:.06em}
@@ -397,3 +382,32 @@ details.howto[open]>summary{border-bottom:1px solid var(--line)}
   .rb-table.tabulator .tabulator-footer .tabulator-page{padding:2px 7px;margin:0 1px}}
 .howto code{overflow-wrap:anywhere}
 .pill sub,.qcard sub{font-size:.72em;vertical-align:-.2em;line-height:0}
+/* 11 columns: tighter cell padding and title tracking so every title and host name fits at 1440 */
+.rb-table .tabulator-row .tabulator-cell{padding-left:8px;padding-right:8px}
+.rb-table .tabulator-header .tabulator-col .tabulator-col-content{padding-left:8px;padding-right:6px}
+.rb-table .tabulator-col-title{font-size:.72rem;letter-spacing:.03em}
+.rb-table .tabulator-header .tabulator-col.tabulator-sortable .tabulator-col-title{padding-right:16px}
+/* ==== single page: nav counts, page swap, info chip, frosted modal, old-data banner ==== */
+.nav .nc{font-weight:400;color:var(--muted);font-size:.85em}.nav a.on .nc{color:var(--muted)}
+a.logo{color:var(--ink);text-decoration:none}
+.page{animation:rb-fade-in .25s ease both}
+::view-transition-old(root){animation:rb-fade-out .14s ease both}::view-transition-new(root){animation:rb-fade-in .22s ease both}
+.info-chip{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:.86rem;padding:3px 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);transition:border-color .15s,box-shadow .15s}
+.info-chip:hover{border-color:var(--accent);box-shadow:0 2px 8px #0002}.info-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.info-chip svg.i{color:var(--accent)}
+.modal-back{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:var(--s4);background:color-mix(in srgb,var(--bg) 45%,transparent);
+  -webkit-backdrop-filter:blur(8px) saturate(1.2);backdrop-filter:blur(8px) saturate(1.2)}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 60px #0004;width:min(900px,100%);max-height:calc(100vh - 2*var(--s4));overflow:auto;padding:var(--s4) var(--s5) var(--s5);animation:rb-rise .2s ease both}
+.modal>header{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)}
+.modal>header h2{margin:0;font-size:1.15rem}
+.modal-x{all:unset;cursor:pointer;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;font-size:1.4rem;line-height:1;color:var(--muted);border:1px solid transparent}
+.modal-x:hover{border-color:var(--line);color:var(--ink)}.modal-x:focus-visible{outline:2px solid var(--accent)}
+html.modal-open{overflow:hidden}
+.schema-warn{border:1px solid var(--wait);background:var(--wait-bg);color:var(--wait);border-radius:var(--r-sm);padding:var(--s2) var(--s3);font-size:.88rem}
+.vnote{margin:0 0 var(--s2);font-size:.88rem}
+@media (max-width:720px){.count .tgl .muted{display:none}.modal{padding:var(--s3)}.modal .howto-svg{display:none}}
+/* header cells: titles on top (one or two lines), filters aligned at the bottom */
+.rb-table .tabulator-header .tabulator-col .tabulator-col-content{display:flex;flex-direction:column;height:100%;box-sizing:border-box}
+.rb-table .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title-holder{flex:1 0 auto}
+.rb-table .tabulator-header .tabulator-col .tabulator-header-filter{margin-top:auto}
+.rb-table .tabulator-col-title{white-space:normal;line-height:1.25}

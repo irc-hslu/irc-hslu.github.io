@@ -117,8 +117,11 @@ const RB = (() => {
   const canonModel = (v) => { const x = String(v || ""), m = /^MV\((\d+)\)-([BLS])$/.exec(x), l = x.toLowerCase();
     if (m) return m[2] === "B" ? `Ours_MV${m[1]}` : `Ours_MV${m[1]}-${m[2]}`;
     if (/^SV-([BLS])$/.test(x)) return x === "SV-B" ? "Ours_SV" : `Ours_SV-${x.slice(-1)}`;
+    if (/^MV-([BLS])$/.test(x)) return x === "MV-B" ? "Ours_MV3" : `Ours_MV3-${x.slice(-1)}`;  // MV without a view count = 3 views
     return {promptda: "PromptDA-B", pda: "PromptDA-B", sv: "Ours_SV", mv: "Ours_MV3"}[l] || x; };
-  return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme, ic, ICON, ORDER, rank, combos, modelHtml, canonModel};
+  /** 54300 -> '54.3K', 200000 -> '200K', 1300000 -> '1.3M'. */
+  const kfmt = (n) => (n == null ? "\u2014" : n < 1000 ? String(n) : n < 1e6 ? +(n / 1e3).toFixed(n < 1e4 ? 1 : 0) + "K" : +(n / 1e6).toFixed(1) + "M");
+  return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme, ic, ICON, ORDER, rank, combos, modelHtml, canonModel, kfmt};
 })();
 if (typeof module !== "undefined") module.exports = RB;
 
@@ -158,162 +161,229 @@ function base(page) {
 const STATUS_ORDER = RB.ORDER.status;
 const TABS = ["PromptDA", "Ours_SV", "Ours_MV", "Other", "Scratch"];
 const rmse = (r) => { const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
-let RUNS_TABLE = null;  // the Tabulator instance (kept out of Alpine's reactive state)
+let RUNS_TABLE = null, RUNS_EL = null;  // the Tabulator instance (kept out of Alpine's reactive state)
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };
 
 document.addEventListener("alpine:init", () => {
+  /** Root component: data (decrypted once), password gate, header, hash routes #/runs and #/queues, run-names modal. */
+  Alpine.data("app", () => {
+    const b = base("app");
+    return {
+      ...b, route: "runs", params: new URLSearchParams(), scratch: false, nameModal: false, _lastFocus: null,
+      NAME_PARTS: [
+        {part: "mv3", label: "model", help: "promptda, sv, mv2, mv3 (MV with N views), dformer; misc_* = tools without a model family"},
+        {part: "B", label: "size", help: "ViT encoder: B base, S small, L large"},
+        {part: "svhs", label: "init", help: "what the weights start from: clean, pdahs, svhs, svhspar, mvhs, pdaspp, svspp, svas ... = Init column without '_'"},
+        {part: "to", label: "", help: "separates the start from the training target"},
+        {part: "scannetpp", label: "dataset", help: "training data of this run: hypersim, scannetpp, arkit, thuman"},
+        {part: "lidarlow", label: "noise", help: "prompt noise preset: lidarlow, lower, low, none"},
+        {part: "dpt01", label: "tag", help: "optional variant: dpt01, shuf, null, 24k, offset, fivebin, smoke, eval; _2, _3 for twins"}],
+      async init() {
+        const q = new URLSearchParams(location.search);  // old links: index.html?open=<id> / queues.html -> hash routes
+        if (q.has("open") && !location.hash) history.replaceState(null, "", location.pathname + "#/runs?" + new URLSearchParams(q.getAll("open").map((o) => ["open", o])));
+        try { this.scratch = JSON.parse(sessionStorage.getItem("rb-scratch") || "false"); } catch (e) {}
+        this.$watch("scratch", (v) => { try { sessionStorage.setItem("rb-scratch", JSON.stringify(v)); } catch (e) {} });
+        this.parseRoute();
+        addEventListener("hashchange", () => this.navigate());
+        await b.init.call(this);
+        dispatchEvent(new CustomEvent("rb-data"));
+      },
+      parseRoute() {
+        const h = location.hash.replace(/^#\/?/, ""), [path, qs] = h.split("?");
+        this.route = path === "queues" ? "queues" : "runs"; this.params = new URLSearchParams(qs || "");
+        document.title = this.route === "queues" ? "MFP runboard · GPU queues" : "MFP runboard · Runs";
+      },
+      /** Route change with a View Transition (CSS fade fallback; none with prefers-reduced-motion); back/forward use the same path. */
+      navigate() {
+        const from = this.route, swap = () => { this.parseRoute(); return this.$nextTick(); }, done = () => dispatchEvent(new CustomEvent("rb-route", {detail: {from, to: this.route}}));
+        const calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const next = (location.hash.replace(/^#\/?/, "").split("?")[0] === "queues") ? "queues" : "runs";
+        if (document.startViewTransition && !calm && next !== from) document.startViewTransition(swap).finished.then(done, done);
+        else swap().then(done);
+      },
+      onReload() { dispatchEvent(new CustomEvent("rb-reload")); },
+      runCount() { return this.D ? this.D.runs.filter((r) => this.scratch || r.kind !== "scratch").length : 0; },
+      activeQueues() { return this.D ? Object.values(this.D.queues || {}).filter((q) => q.status !== "destroyed" && !q.excluded && (q.running || []).length).length : 0; },
+      oldData() { return !!this.D && (this.D.schema || 0) < 3; },
+      openNames(e) {
+        this._lastFocus = (e && e.currentTarget) || document.activeElement; this.nameModal = true; document.documentElement.classList.add("modal-open");
+        this.$nextTick(() => { this.drawNames(this.$refs.howsvg); this.$refs.dlgClose.focus(); });
+      },
+      closeNames() { this.nameModal = false; document.documentElement.classList.remove("modal-open"); if (this._lastFocus) this._lastFocus.focus(); },
+      trapTab(e) {
+        const f = [...this.$refs.dlg.querySelectorAll("button, [href], input, select, [tabindex]:not([tabindex='-1'])")].filter((x) => !x.disabled);
+        if (!f.length) return; const first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      },
+      /** Technical drawing of a run name: the name in monospace, a bracket under each segment and a leader line down to its label. */
+      drawNames(svg) {
+        if (!svg || getComputedStyle(svg).display === "none") return;  // phones show the stacked list instead
+        const NS = "http://www.w3.org/2000/svg", mk = (t, a, txt) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; return e; };
+        svg.replaceChildren();
+        const parts = this.NAME_PARTS, name = parts.map((p) => p.part).join("_"), x0 = 16, y0 = 34;
+        const t = mk("text", {x: x0, y: y0, class: "hn-name"}, name); svg.append(t);
+        let i = 0; const segs = parts.map((p) => { const s = {p, a: t.getSubStringLength(0, i) + x0}; s.b = s.a + t.getSubStringLength(i, p.part.length); i += p.part.length + 1; return s; });
+        let maxX = t.getComputedTextLength() + x0 * 2, rows = 1; const ends = [-1e9, -1e9, -1e9];
+        for (const s of segs) {
+          if (!s.p.label) continue;
+          const mid = (s.a + s.b) / 2, lbl = mk("text", {x: mid, y: 0, class: "hn-label", "text-anchor": "middle"}, s.p.label);
+          svg.append(lbl); const w = lbl.getComputedTextLength();
+          const row = [0, 1, 2].find((r) => ends[r] < mid - w / 2 - 8) ?? 2; ends[row] = mid + w / 2; rows = Math.max(rows, row + 1);
+          const ly = y0 + 40 + row * 24; lbl.setAttribute("y", ly);
+          svg.append(mk("path", {class: "hn-br", d: `M${s.a + 1} ${y0 + 9} v6 M${s.a + 1} ${y0 + 12} H${s.b - 1} M${s.b - 1} ${y0 + 9} v6`}),
+            mk("path", {class: "hn-lead", d: `M${mid} ${y0 + 12} V${ly - 13}`}), mk("circle", {class: "hn-dot", cx: mid, cy: y0 + 12, r: 2.2}));
+          maxX = Math.max(maxX, mid + w / 2 + x0);
+        }
+        svg.setAttribute("viewBox", `0 0 ${Math.ceil(maxX)} ${y0 + 40 + (rows - 1) * 24 + 10}`); svg.style.width = Math.min(820, Math.ceil(maxX * 1.4)) + "px";
+      },
+    };
+  });
+  /** Started once the root has the data; reacts to reloads and to route changes (the table re-measures when it becomes visible). */
+  const whenData = (c, start) => { if (c.D) start(); else addEventListener("rb-data", start, {once: true}); };
   Alpine.data("runs", () => ({
-    ...base("runs"),
-    onReload() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.rows()); },
-    q: "", f: {model: "", init: "", dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1, scratch: false,
-    open: new URLSearchParams(location.search).getAll("open"), n: 0, dragK: null,
-    FILTER_KEYS: ["model", "init", "dataset", "noise", "status"],
-    KEY_LABEL: {model: "Model", init: "Init", dataset: "Dataset", noise: "Noise", status: "Status"},
-    exh: {on: false, all: false, keys: [{k: "dataset", on: true}, {k: "noise", on: true}, {k: "model", on: true}, {k: "init", on: false}, {k: "status", on: true}]},
-    NAME_PARTS: [
-      {part: "mv3", label: "model", help: "promptda, sv, mv2, mv3 (MV with N views), dformer; misc_* = tools without a model family"},
-      {part: "B", label: "size", help: "ViT encoder: B base, S small, L large"},
-      {part: "svhs", label: "init", help: "what the weights start from: clean, pdahs, svhs, svhspar, mvhs, pdaspp, svspp, svas ... = Init column without '_'"},
-      {part: "to", label: "", help: "separates the start from the training target"},
-      {part: "scannetpp", label: "dataset", help: "training data of this run: hypersim, scannetpp, arkit, thuman"},
-      {part: "lidarlow", label: "noise", help: "prompt noise preset: lidarlow, lower, low, none"},
-      {part: "dpt01", label: "tag", help: "optional variant: dpt01, shuf, null, 24k, offset, fivebin, smoke, eval; _2, _3 for twins"}],
-    afterLoad() {
+    f: {model: "", init: "", pretrain_ds: "", dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1, all: false, n: 0, built: false, open: [],
+    FILTER_KEYS: ["model", "init", "pretrain_ds", "dataset", "noise", "status"],
+    KEY_LABEL: {model: "Model", init: "Init", pretrain_ds: "Pretrain dataset", dataset: "SFT dataset", noise: "Noise", status: "Status"},
+    SHORT_LABEL: {model: "Model", init: "Init", pretrain_ds: "Pretrain", dataset: "SFT", noise: "Noise", status: "Status"},
+    INIT_FAM: {pda: "PromptDA", sv: "SV", mv: "MV"}, INIT_DS: {hs: "Hypersim P1", spp: "ScanNet++ SFT", as: "ARKitScenes SFT", th: "THuman SFT"},
+    init() {
+      RUNS_EL = this.$el; this.open = this.openIds();
+      whenData(this, () => this.start());
+      addEventListener("rb-reload", () => this.refresh());
+      addEventListener("rb-route", () => { if (this.route !== "runs") return; if (!this.built) this.start(); else { RUNS_TABLE.redraw(true); this.openFromRoute(); } });
+    },
+    start() {
+      if (this.built || this.route !== "runs") return;
       try { Object.assign(this, JSON.parse(sessionStorage.getItem("rb-runs") || "{}")); } catch (e) {}
-      try { const x = JSON.parse(localStorage.getItem("rb-exh") || "null"); if (x && Array.isArray(x.keys) && x.keys.length === 5) this.exh = x; } catch (e) {}
-      const want = this.open[0] && this.D.runs.find((r) => r.id === this.open[0]);
+      try { this.all = JSON.parse(localStorage.getItem("rb-all") || "false"); } catch (e) {}
+      const want = this.openIds()[0] && this.D.runs.find((r) => r.id === this.openIds()[0]);
       if (want && want.kind === "scratch") this.scratch = true;
-      const save = () => { try { sessionStorage.setItem("rb-runs", JSON.stringify({q: this.q, f: this.f, sort: this.sort, dir: this.dir, scratch: this.scratch})); } catch (e) {} };
-      for (const k of ["q", "f", "sort", "dir", "scratch"]) this.$watch(k, save);
-      this.$watch("q", () => this.refresh()); this.$watch("scratch", () => this.refresh());
-      this.$watch("exh", () => { try { localStorage.setItem("rb-exh", JSON.stringify(this.exh)); } catch (e) {} this.refresh(); this.applySort(); }, {deep: true});
-      this.$nextTick(() => this.mkTable());
+      const save = () => { try { sessionStorage.setItem("rb-runs", JSON.stringify({f: this.f, sort: this.sort, dir: this.dir})); } catch (e) {} };
+      for (const k of ["f", "sort", "dir"]) this.$watch(k, save);
+      this.$watch("scratch", () => this.refresh());
+      this.$watch("all", (v) => { try { localStorage.setItem("rb-all", JSON.stringify(v)); } catch (e) {} this.refresh(); });
+      this.built = true; this.$nextTick(() => this.mkTable());
+    },
+    openIds() { return this.params.getAll("open"); },
+    openFromRoute() {
+      const id = this.openIds()[0]; if (!id || !RUNS_TABLE || !RUNS_TABLE.getRow(id)) return;
+      const r = RUNS_TABLE.getRow(id); if (!this.isOpen(r.getData()._r)) { this.flip(r.getData()._r); r.reformat(); }
+      RUNS_TABLE.setPageToRow(id).then(() => RUNS_TABLE.scrollToRow(id, "top", false)).catch(() => {});
     },
     refresh() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.rows()); },
-    tabOf(r) { return r.kind === "scratch" ? "Scratch" : r.tab; },
-    exhKeys() { return this.exh.keys.filter((k) => k.on).map((k) => k.k); },
-    exhHint() { const ks = this.exhKeys(); return ks.length ? `${ks.map((k) => this.KEY_LABEL[k]).join(" › ")} — the last key changes fastest` : "pick at least one key"; },
-    moveKey(i, d) { const ks = this.exh.keys, j = i + d; if (j < 0 || j >= ks.length) return; [ks[i], ks[j]] = [ks[j], ks[i]]; },
-    dropKey(target) { const ks = this.exh.keys, i = ks.findIndex((k) => k.k === this.dragK), j = ks.findIndex((k) => k.k === target);
-      if (i < 0 || j < 0 || i === j) return; const [x] = ks.splice(i, 1); ks.splice(j, 0, x); this.dragK = null; },
-    base() { const words = this.q.toLowerCase().split(/\s+/).filter(Boolean);
-      return this.D.runs.filter((r) => (this.scratch || r.kind !== "scratch") && words.every((w) => (r._s ??= JSON.stringify(r).toLowerCase()).includes(w))); },
-    opts(k) { const v = [...new Set(this.base().map((r) => (k === "model" ? r.model : r[k])))].filter((x) => x && x !== "-" && x !== "all");
-      if (this.exh.on && this.exh.all && k === "status") v.push("not planned");
-      return v.sort((a, b) => RB.rank(k, a).localeCompare(RB.rank(k, b))); },
-    /** Table rows: real runs, plus (exhaustive + all combinations) a muted 'not planned' row per missing key combination. */
-    rows() {
-      const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: r.model || r.variant, init: r.init || "", dataset: r.dataset,
-        noise: r.noise, status: r.status, rmse: rmse(r)[0], rsrc: rmse(r)[1], host: RB.hostName(hostOf(r)), hostTip: RB.hostTip(hostOf(r)),
+    base() { return this.D.runs.filter((r) => this.scratch || r.kind !== "scratch"); },
+    canon(r) { return r.model || RB.canonModel(r.variant) || "Other"; },
+    opts(k) { const v = [...new Set(this.rows(true).map((r) => r[k]))].filter((x) => x && x !== "-" && x !== "all");
+      return v.sort((a, b) => RB.rank(k === "pretrain_ds" ? "dataset" : k, a).localeCompare(RB.rank(k === "pretrain_ds" ? "dataset" : k, b))); },
+    initHelp(t) { if (!t || t === "clean") return "no pretrained parent (MetricDA / DFormer weights only)"; const [f, d, par] = t.split("_");
+      return `${this.INIT_FAM[f] || f} weights from ${this.INIT_DS[d] || d}${par ? ", parallel lineage" : ""}`; },
+    candidates(model) { const pl = this.D.placement || {}; return (/MV/.test(model) ? pl.mv : pl.other) || []; },
+    /** Name of a combination that never ran, by the run-name grammar (README 'Run names'). */
+    comboName(c) { const mt = {"PromptDA-B": "promptda_B", "PromptDA-L": "promptda_L", Ours_SV: "sv_B"}[c.model] || (/^Ours_MV(\d+)$/.exec(c.model) ? `mv${RegExp.$1}_B` : "x_B");
+      const dt = {Hypersim: "hypersim", "ScanNet++": "scannetpp", ARKitScenes: "arkit", THuman: "thuman"}[c.dataset] || "x";
+      return [mt, c.init.replace(/_/g, ""), "to", dt, c.noise.replace(/_/g, "")].join("_"); },
+    /** 'Show all combinations': Model x Init x SFT dataset x Noise over sensible values present in the data (Pretrain follows Init),
+     *  narrowed by the filters; each missing combination becomes a 'not planned' row named by the grammar. */
+    combos(real) {
+      const CANON = ["PromptDA-B", "Ours_SV", "Ours_MV2", "Ours_MV3"], fam = (m) => (m.startsWith("PromptDA") ? "pda" : m === "Ours_SV" ? "sv" : "mv");
+      const pick = (k, xs) => (this.f[k] ? xs.filter((x) => x === this.f[k]) : xs);
+      const uniq = (k) => [...new Set(real.map((r) => r[k]))].filter(Boolean);
+      const models = pick("model", CANON.filter((m) => uniq("model").includes(m))), inits = pick("init", uniq("init").filter((i) => i !== "—"));
+      const sfts = pick("dataset", ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"].filter((d) => uniq("dataset").includes(d)));
+      const noiseBy = (d) => pick("noise", [...new Set(real.filter((r) => r.dataset === d).map((r) => r.noise))].filter((x) => x && x !== "none")
+        .sort((a, b) => RB.rank("noise", a).localeCompare(RB.rank("noise", b))));
+      const ok = (m, i, d) => {
+        if (i === "clean") return d === "Hypersim";  // only P1 roots start clean
+        const [f, ds] = i.split("_"), mf = fam(m);
+        if (!(f === "pda" ? mf !== "mv" : f === "sv" ? mf !== "pda" : mf === "mv")) return false;  // MV <- SV/MV, SV <- PromptDA/SV, PromptDA <- PromptDA
+        if (ds !== "hs") return d === {spp: "ScanNet++", as: "ARKitScenes", th: "THuman"}[ds];  // continuing from an SFT stays on its dataset
+        return d !== "Hypersim" || f !== mf;  // a Hypersim P1 run starts from another family (nested chain), not from itself
+      };
+      const have = new Set(real.map((r) => [r.model, r.init, r.dataset, r.noise].join("|"))), out = [];
+      for (const m of models) for (const i of inits) for (const d of sfts) for (const nz of noiseBy(d)) {
+        if (!ok(m, i, d) || have.has([m, i, d, nz].join("|"))) continue;
+        const pre = i === "clean" ? "—" : "Hypersim";
+        if (this.f.pretrain_ds && this.f.pretrain_ds !== pre) continue;
+        const v = {model: m, init: i, dataset: d, noise: nz, pretrain_ds: pre};
+        out.push({...v, id: "~" + [m, i, d, nz].join("|"), title: this.comboName(v), status: "not planned", _virtual: true, rmse: null, steps: null, samples: null, modified_at: null});
+      }
+      return out;
+    },
+    rows(realOnly) {
+      const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: this.canon(r), init: r.init || "—",
+        pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: r.dataset, noise: r.noise, status: r.status,
+        rmse: rmse(r)[0], rsrc: rmse(r)[1], steps: (r.steps || {}).done ?? null, cap: (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
         modified_at: r.modified_at || null, _r: r}));
-      const keys = this.exhKeys().filter((k) => k !== "status");
-      if (!(this.exh.on && this.exh.all && keys.length)) return real;
-      const dflt = {dataset: ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"], noise: ["lidar_low", "lower", "low"], model: ["PromptDA-B", "Ours_SV", "Ours_MV2", "Ours_MV3"], init: []};
-      const dom = Object.fromEntries(keys.map((k) => [k, this.f[k] ? [this.f[k]] :
-        [...new Set([...dflt[k], ...real.map((x) => x[k])])].filter((x) => x && x !== "all" && !(k === "model" && x === "Other")).sort((a, b) => RB.rank(k, a).localeCompare(RB.rank(k, b)))]));
-      const have = new Set(real.map((x) => keys.map((k) => x[k]).join("\u0001")));
-      return real.concat(RB.combos(keys, dom, have).map((c) => ({id: "~" + c.join("|"), title: "", status: "not planned", _virtual: true,
-        model: "", init: "", dataset: "", noise: "", ...Object.fromEntries(keys.map((k, i) => [k, c[i]])), rmse: null, host: "", modified_at: null})));
+      return realOnly || !this.all ? real : real.concat(this.combos(real));
     },
-    applySort() {
-      if (!RUNS_TABLE) return;
-      const ks = this.exhKeys();
-      // Tabulator applies the LAST sorter as the primary one, so the list runs from the fastest key to the slowest
-      if (this.exh.on && ks.length) RUNS_TABLE.setSort([{column: "modified_at", dir: "desc"}, ...[...ks].reverse().map((k) => ({column: k, dir: "asc"}))]);
-      else RUNS_TABLE.setSort(this.sort, this.dir > 0 ? "asc" : "desc");
-    },
-    /** One Tabulator table for all runs: 50 rows per page, sticky column titles, filterable Model / Init / Dataset / Noise / Status. */
+    /** One Tabulator table for all runs: 50 rows per page, sticky column titles, every dimension filterable. */
     mkTable() {
-      const self = this, esc = RB.esc, miss = (x) => x == null || x === "" || x === "-";
+      const self = this, esc = RB.esc, miss = (x) => x == null || x === "" || x === "-" || x === "—";
       const lastMissing = (a, b, ar, br, c, dir) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : (miss(a) ? 1 : -1) * (dir === "asc" ? 1 : -1)) : a < b ? -1 : a > b ? 1 : 0);
       const ranked = (k) => (a, b, ar, br, c, dir) => (miss(a) || miss(b) ? lastMissing(a, b, ar, br, c, dir) : RB.rank(k, a).localeCompare(RB.rank(k, b)));
       const list = (k, fmt) => ({headerFilter: "list", headerFilterFunc: "=", headerFilterPlaceholder: "All",
         headerFilterParams: {valuesLookup: () => [{label: "All", value: ""}, ...self.opts(k).map((v) => ({label: v, value: v}))],
           ...(fmt ? {itemFormatter: (label, value) => (value ? fmt(value) : "All")} : {})}});
       const col = (o) => ({headerSortStartingDir: "asc", resizable: false, vertAlign: "top", ...o});
-      const vMuted = (fn) => (c) => (c.getData()._virtual ? `<span class="muted">${fn(c) || "—"}</span>` : fn(c));
+      const two = (a, b) => () => `${a}<br>${b}`;
       RUNS_TABLE = new Tabulator(this.$refs.tbl, {
         data: this.rows(), index: "id", layout: "fitColumns", renderVertical: "basic", placeholder: "",
         pagination: true, paginationSize: 50, paginationCounter: "rows", paginationButtonCount: 5,
         responsiveLayout: "collapse", responsiveLayoutCollapseStartOpen: true,
         responsiveLayoutCollapseFormatter: (items) => {
           const el = document.createElement("div"); el.className = "rb-collapse";
-          for (const it of items) { const s = document.createElement("span"); s.innerHTML = `<small>${esc(it.title)}</small> `;
+          for (const it of items) { const s = document.createElement("span"); s.innerHTML = `<small>${esc(String(it.title).replace(/<br>/g, " "))}</small> `;
             s.append(typeof it.value === "string" ? Object.assign(document.createElement("span"), {innerHTML: it.value}) : it.value); el.append(s); }
           return items.length ? el : "";
         },
-        initialSort: [{column: {title: "title", rmse: "rmse", host: "host"}[this.sort] || this.sort, dir: this.dir > 0 ? "asc" : "desc"}],
+        initialSort: [{column: this.sort, dir: this.dir > 0 ? "asc" : "desc"}],
         initialHeaderFilter: Object.entries(this.f).filter(([, v]) => v).map(([field, value]) => ({field, value})),
         columns: [
-          col({title: "Run", field: "title", minWidth: 250, widthGrow: 3, responsive: 0, sorter: lastMissing,
-            formatter: (c) => { const d = c.getData();
-              if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">no run</div><div class="rb-id">this combination has no run</div></div>`;
-              return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}"><span class="car">${self.isOpen(d._r) ? "▾" : "▸"}</span>${esc(d.title).replace(/_/g, "_<wbr>")}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
-          col({title: "Model", field: "model", width: 128, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
-          col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (c.getValue() ? `<code class="init">${esc(c.getValue())}</code>` : "")}),
-          col({title: "Dataset", field: "dataset", width: 128, responsive: 6, sorter: ranked("dataset"), ...list("dataset")}),
-          col({title: "Noise", field: "noise", width: 108, responsive: 7, sorter: ranked("noise"), ...list("noise")}),
+          col({title: "Run", field: "title", minWidth: 200, widthGrow: 3, responsive: 0, sorter: lastMissing,
+            formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
+              if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
+              return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
+          col({title: "Model", field: "model", width: 112, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
+          col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (miss(c.getValue()) ? `<span class="muted">—</span>` : `<code class="init">${esc(c.getValue())}</code>`)}),
+          col({title: "Pretrain Dataset", titleFormatter: two("Pretrain", "Dataset"), field: "pretrain_ds", width: 114, responsive: 7, sorter: ranked("dataset"), ...list("pretrain_ds")}),
+          col({title: "SFT Dataset", titleFormatter: two("SFT", "Dataset"), field: "dataset", width: 116, responsive: 6, sorter: ranked("dataset"), ...list("dataset")}),
+          col({title: "Noise", field: "noise", width: 100, responsive: 8, sorter: ranked("noise"), ...list("noise")}),
           col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
-          col({title: "RMSE", field: "rmse", width: 118, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
+          col({title: "RMSE", field: "rmse", width: 104, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(3)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
-          col({title: "Host", field: "host", width: 168, responsive: 8, sorter: lastMissing, formatter: vMuted((c) => c.getValue() ? `<span title="${esc(c.getData().hostTip)}">${esc(c.getValue())}</span>` : "")}),
-          col({title: "Modified", field: "modified_at", width: 132, responsive: 4, headerSortStartingDir: "desc",
+          col({title: "Steps", field: "steps", width: 104, hozAlign: "right", headerHozAlign: "right", responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
+            formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
+              return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>`; }}),
+          col({title: "Samples", field: "samples", width: 106, hozAlign: "right", headerHozAlign: "right", responsive: 10, sorter: lastMissing, headerSortStartingDir: "desc",
+            formatter: (c) => (c.getData()._virtual ? "" : c.getValue() == null ? `<span class="muted">—</span>` : `<span class="num" title="${c.getValue().toLocaleString("en-US")} images">${RB.kfmt(c.getValue())}</span>`)}),
+          col({title: "Modified", field: "modified_at", width: 120, responsive: 4, headerSortStartingDir: "desc",
             sorter: (a, b) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : miss(a) ? -1 : 1) : a < b ? -1 : a > b ? 1 : 0),  // not started = oldest
             formatter: (c) => (c.getData()._virtual ? "" : `<span class="num" title="${esc(self.abs(c.getValue()))}">${esc(self.when(c.getData()._r) || "not started")}</span>`)}),
         ],
         rowFormatter: (row) => self.renderDetails(row),
       });
-      RUNS_TABLE.on("dataSorted", (sorters) => { if (!this.exh.on && sorters[0]) { this.sort = sorters[0].field; this.dir = sorters[0].dir === "asc" ? 1 : -1; } });
+      RUNS_TABLE.on("dataSorted", (sorters) => { if (sorters[0]) { this.sort = sorters[0].field; this.dir = sorters[0].dir === "asc" ? 1 : -1; } });
       RUNS_TABLE.on("dataFiltered", (filters, rows) => {
         this.n = rows.filter((r) => !r.getData()._virtual).length;
         const hf = Object.fromEntries(RUNS_TABLE.getHeaderFilters().map((x) => [x.field, x.value]));
         const nf = Object.fromEntries(this.FILTER_KEYS.map((k) => [k, hf[k] || ""]));
-        if (JSON.stringify(nf) !== JSON.stringify(this.f)) { this.f = nf; if (this.exh.on && this.exh.all) setTimeout(() => this.refresh()); }
+        if (JSON.stringify(nf) !== JSON.stringify(this.f)) { this.f = nf; if (this.all) setTimeout(() => this.refresh()); }
       });
-      RUNS_TABLE.on("rowClick", (e, row) => { if (row.getData()._virtual || e.target.closest("a, button, .rb-det")) return; this.flip(row.getData()._r); row.reformat(); });
-      RUNS_TABLE.on("tableBuilt", () => {
-        this.n = RUNS_TABLE.getDataCount("active"); this.applySort();
-        const id = this.open[0]; if (id && RUNS_TABLE.getRow(id)) RUNS_TABLE.setPageToRow(id).then(() => RUNS_TABLE.scrollToRow(id, "top", false)).catch(() => {});
-      });
+      RUNS_TABLE.on("rowClick", (e, row) => { if (e.target.closest("a, button, .rb-det")) return; const d = row.getData(); this.flip(d._r || d); row.reformat(); });
+      RUNS_TABLE.on("tableBuilt", () => { this.n = RUNS_TABLE.getDataCount("active"); this.openFromRoute(); });
     },
     setFilter(k, v) { if (RUNS_TABLE) RUNS_TABLE.setHeaderFilterValue(k, v); },
-    /** Attempt details below an open row: the Alpine template #det-tpl, scoped to the run. */
+    /** Details below an open row: #det-tpl for a run, #vdet-tpl for a combination that never ran. */
     renderDetails(row) {
       const el = row.getElement(), d = row.getData(), old = el.querySelector(":scope > .rb-det");
       if (old) { Alpine.destroyTree(old); old.remove(); }
-      el.classList.toggle("virtual", !!d._virtual);
-      if (d._virtual) return;
-      const r = d._r; el.classList.toggle("open", this.isOpen(r));
-      if (!this.isOpen(r)) return;
-      const node = document.getElementById("det-tpl").content.firstElementChild.cloneNode(true);
+      const key = d._r || d; el.classList.toggle("virtual", !!d._virtual); el.classList.toggle("open", this.isOpen(key));
+      if (!this.isOpen(key)) return;
+      const node = document.getElementById(d._virtual ? "vdet-tpl" : "det-tpl").content.firstElementChild.cloneNode(true);
       Alpine.mutateDom(() => el.appendChild(node));
-      // Tabulator may format a row before attaching it to the page, so anchor the scope on the component root explicitly
-      Alpine.addScopeToNode(node, {r}, document.querySelector("[x-data]")); Alpine.initTree(node);
-    },
-    /** Technical drawing of a run name: the name in monospace, a bracket under each segment and a leader line down to its label. */
-    drawNames(svg) {
-      if (!svg) return;
-      const NS = "http://www.w3.org/2000/svg", mk = (t, a, txt) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; return e; };
-      svg.replaceChildren();
-      const parts = this.NAME_PARTS, name = parts.map((p) => p.part).join("_"), x0 = 16, y0 = 34;
-      const t = mk("text", {x: x0, y: y0, class: "hn-name"}, name); svg.append(t);
-      let i = 0; const segs = parts.map((p) => { const s = {p, a: t.getSubStringLength(0, i) + x0}; s.b = s.a + t.getSubStringLength(i, p.part.length); i += p.part.length + 1; return s; });
-      let maxX = t.getComputedTextLength() + x0 * 2, rows = 1;
-      const ends = [-1e9, -1e9, -1e9];
-      for (const s of segs) {
-        if (!s.p.label) continue;
-        const mid = (s.a + s.b) / 2, lbl = mk("text", {x: mid, y: 0, class: "hn-label", "text-anchor": "middle"}, s.p.label);
-        svg.append(lbl); const w = lbl.getComputedTextLength();
-        const row = [0, 1, 2].find((r) => ends[r] < mid - w / 2 - 8) ?? 2; ends[row] = mid + w / 2; rows = Math.max(rows, row + 1);
-        const ly = y0 + 40 + row * 24;
-        lbl.setAttribute("y", ly);
-        svg.append(mk("path", {class: "hn-br", d: `M${s.a + 1} ${y0 + 9} v6 M${s.a + 1} ${y0 + 12} H${s.b - 1} M${s.b - 1} ${y0 + 9} v6`}),
-          mk("path", {class: "hn-lead", d: `M${mid} ${y0 + 12} V${ly - 13}`}), mk("circle", {class: "hn-dot", cx: mid, cy: y0 + 12, r: 2.2}));
-        maxX = Math.max(maxX, mid + w / 2 + x0);
-      }
-      const h = y0 + 40 + (rows - 1) * 24 + 10;
-      svg.setAttribute("viewBox", `0 0 ${Math.ceil(maxX)} ${h}`); svg.style.width = Math.min(860, Math.ceil(maxX * 1.45)) + "px";
+      // Tabulator may format a row before attaching it to the page, so anchor the scope on the runs section explicitly
+      Alpine.addScopeToNode(node, d._virtual ? {v: d} : {r: d._r}, RUNS_EL); Alpine.initTree(node);
     },
     isOpen(r) { return this.open.includes(r.id); },
     flip(r) { const i = this.open.indexOf(r.id); i < 0 ? this.open.push(r.id) : this.open.splice(i, 1); },
@@ -332,15 +402,25 @@ document.addEventListener("alpine:init", () => {
       const m = Math.round((new Date(a.ended_at) - new Date(a.started_at)) / 60000);
       return m >= 60 ? (m / 60).toFixed(1) + " h" : m + " min";
     },
+    stepsText(r) { const t = r.steps || {}; if (t.done == null) return "\u2014";
+      return t.done.toLocaleString("en-US") + (t.cap ? " of " + t.cap.toLocaleString("en-US") : "") + (t.best != null ? ` \u00b7 best dev RMSE at step ${t.best.toLocaleString("en-US")}` : ""); },
+    samplesText(r) { const t = r.steps || {}; if (t.samples == null) return "\u2014";
+      return `${RB.kfmt(t.samples)} images (${RB.kfmt(t.done)} steps \u00d7 batch ${t.batch}${t.views > 1 ? ` \u00d7 ${t.views} views` : ""})`; },
     sha: (c) => (c ? c.slice(0, 7) : ""),
     commitUrl: (c) => "https://github.com/irc-hslu/metricsplat/commit/" + c,
   }));
   Alpine.data("queues", () => ({
-    ...base("queues"), cur: 0, atStart: true, atEnd: false,
+    cur: 0, atStart: true, atEnd: false, runById: {}, planById: {},
+    init() {
+      whenData(this, () => this.onReload());
+      addEventListener("rb-reload", () => this.onReload());
+      addEventListener("rb-route", () => this.route === "queues" && this.$nextTick(() => this.onScroll()));
+      addEventListener("resize", () => this.onScroll());
+    },
     /** Lane carousel: CSS scroll-snap does the snapping; these only drive the arrows and dots. */
     laneEls() { return this.$refs.lanes ? [...this.$refs.lanes.querySelectorAll(".hlane")] : []; },
     onScroll() {
-      const el = this.$refs.lanes, ls = this.laneEls(); if (!el || !ls.length) return;
+      const el = this.$refs.lanes, ls = this.laneEls(); if (!el || !ls.length || !el.offsetParent) return;  // hidden route: measured on rb-route
       const x = el.scrollLeft, w = ls.length > 1 ? ls[1].offsetLeft - ls[0].offsetLeft : el.clientWidth;
       this.cur = Math.min(ls.length - 1, Math.round(x / w));
       this.atStart = x < 4; this.atEnd = x + el.clientWidth >= el.scrollWidth - 4;
@@ -350,7 +430,6 @@ document.addEventListener("alpine:init", () => {
     go(i) { const el = this.$refs.lanes, ls = this.laneEls(); if (ls[i]) el.scrollTo({left: ls[i].offsetLeft - ls[0].offsetLeft, behavior: "smooth"}); },
     step(d) { const ls = this.laneEls(), w = ls.length > 1 ? ls[1].offsetLeft - ls[0].offsetLeft : 380; this.$refs.lanes.scrollBy({left: d * w, behavior: "smooth"}); },
     STAGE: {running: "Running", queued: "Queued", reviewed: "Ready", "host-tested": "Tested", built: "Built", planned: "Planned"},
-    afterLoad() { this.onReload(); addEventListener("resize", () => this.onScroll()); },
     onReload() {
       this.runById = Object.fromEntries(this.D.runs.map((r) => [r.id, r])); this.planById = Object.fromEntries((this.D.plan || []).map((p) => [p.id, p]));
       this.$nextTick(() => this.onScroll());
