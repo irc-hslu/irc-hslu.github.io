@@ -4,8 +4,8 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>MFP GPU queues</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
-<link rel="stylesheet" href="style.css?v=61dc029bda">
-<script src="app.js?v=3848b0f684"></script>
+<link rel="stylesheet" href="style.css?v=b0ff2636c6">
+<script src="app.js?v=a08f882e71"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="queues" x-cloak>
@@ -22,11 +22,12 @@
     <div class="lanes-arrows" x-show="!(atStart && atEnd)"><button type="button" class="arw" @click="step(-1)" :disabled="atStart" aria-label="Previous GPU">&lsaquo;</button><button type="button" class="arw" @click="step(1)" :disabled="atEnd" aria-label="Next GPU">&rsaquo;</button></div>
     <div class="dots" x-show="hosts().length > 1"><template x-for="(h, i) in hosts()" :key="'d' + h.k"><button type="button" :class="i === cur && 'on'" @click="go(i)" :aria-label="'Show ' + h.name" :title="h.name"></button></template></div></div>
   <section class="lanes" :class="!atEnd && 'more'" x-ref="lanes" tabindex="0" @scroll.debounce.60ms="onScroll()" aria-label="GPU lanes (scroll sideways)">
-    <template x-for="h in hosts()" :key="h.k"><div class="hlane" :class="!h.reachable && 'off'">
+    <template x-for="h in hosts()" :key="h.k"><div class="hlane" :class="h.gone ? 'gone' : !h.reachable && 'off'">
       <div class="hl-h">
-        <div class="hl-name"><span class="dot" :class="!h.reachable && 'off'" :title="h.reachable ? 'online' : 'offline'"></span><b x-text="h.name"></b></div>
-        <div class="hl-gpu"><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span><span class="tag" x-show="h.rented">rented</span></div>
-        <div class="hl-live" x-text="h.reachable ? (h.gpu_status ? 'GPU ' + h.gpu_status : 'no GPU data') : seen(h)"></div>
+        <div class="hl-name"><span class="dot" :class="h.gone ? 'grey' : !h.reachable && 'off'" :title="h.gone ? 'destroyed' : h.reachable ? 'online' : 'offline'"></span><b x-text="h.name"></b>
+          <span class="badge st-destroyed" x-show="h.gone" :title="h.destroyed_at" x-text="'destroyed ' + destroyedOn(h.destroyed_at)"></span></div>
+        <div class="hl-gpu"><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span><span class="tag" x-show="h.rented" x-text="h.location ? 'rented \u00b7 ' + h.location : 'rented'"></span></div>
+        <div class="hl-live" x-text="h.gone ? 'machine destroyed \u00b7 not polled' : h.reachable ? (h.gpu_status ? 'GPU ' + h.gpu_status : 'no GPU data') : seen(h)"></div>
       </div>
       <div class="hl-cards">
         <template x-for="c in lane(h)" :key="c.key">
@@ -47,9 +48,9 @@
             <div class="kvr" x-show="c.id && runById[c.id]"><dt>Runs table</dt><dd><a :href="'index.html?open=' + encodeURIComponent(c.id)">show row</a></dd></div></dl>
         </details>
         </template>
-        <p class="hl-empty" x-show="!lane(h).length">Idle, nothing queued or planned.</p>
+        <p class="hl-empty" x-show="!lane(h).length && !(h.gone && recent(h).length)" x-text="h.gone ? 'No finished jobs on this machine.' : 'Idle, nothing queued or planned.'"></p>
       </div>
-      <details class="hl-recent" x-show="recent(h).length"><summary>Recently finished</summary>
+      <details class="hl-recent" x-show="recent(h).length" :open="h.gone"><summary>Recently finished</summary>
         <template x-for="j in recent(h)" :key="j.name + j.state"><div class="rj">
           <span class="badge" :class="j.state === 'done' ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-text="j.state === 'done' ? 'done' : j.exit === 'lost' ? 'killed' : 'exit ' + (j.exit || '?')"></span>
           <span class="rj-name" x-html="nameHtml(jobName(j))"></span><span class="rj-when" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished) : ''"></span></div></template>

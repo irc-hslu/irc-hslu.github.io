@@ -246,8 +246,10 @@ document.addEventListener("alpine:init", () => {
     hosts() {
       if (!this.D) return [];
       const order = ["local", "iradonis", "desktop"], q = this.D.queues || {};
-      return Object.keys(q).filter((k) => !q[k].excluded).sort((a, b) => ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99) || a.localeCompare(b))
-        .map((k) => ({k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_"), multi: !!/\.gpu\d+$/.exec(k)}));
+      const gone = (k) => (q[k].status === "destroyed" ? 1 : 0);  // destroyed rented machines last, newest destruction first
+      return Object.keys(q).filter((k) => !q[k].excluded).sort((a, b) => gone(a) - gone(b) ||
+          (gone(a) ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) || a.localeCompare(b))
+        .map((k) => ({k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_"), multi: !!/\.gpu\d+$/.exec(k), gone: q[k].status === "destroyed"}));
     },
     gpuOf(k) { const q = (this.D.queues || {})[k] || {}; return (q.gpu_label || (RB.HOSTS[k] || {}).gpu || "").replace(/\s*\(.*\)$/, ""); },
     /** Name with a break opportunity after every underscore only (never ellipsized). */
@@ -288,6 +290,7 @@ document.addEventListener("alpine:init", () => {
         wandb: att.wandb_url || "", hosts: kind === "backlog" ? src.candidate_hosts || [] : [], det};
     },
     lane(h) {
+      if (h.gone) return [];  // a destroyed machine has no queue or plan, only its finished jobs
       return [...(h.running || []).map((j, i) => this.card(j, "running", i)), ...(h.queued || []).map((j, i) => this.card(j, "queued", i)),
         ...(this.D.plan || []).filter((p) => p.host_key === h.k && p.run_status === "planned" && p.stage_effective !== "queued").map((p, i) => this.card(p, "plan", i))];
     },
@@ -299,6 +302,7 @@ document.addEventListener("alpine:init", () => {
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
     recent(h) { return [...(h.failed_recent || []), ...(h.done_recent || [])].sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).slice(0, 6); },
     jobName(j) { const r = j.run_id && this.runById[j.run_id]; return r ? r.display_name || r.title : (j.name || "").replace(/\.job$/, ""); },
+    destroyedOn: (iso) => (iso ? new Date(iso).toLocaleString([], {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}) : ""),
     seen(h) { return h.reachable ? "" : "offline · last seen " + RB.relTime(h.checked_at, this.now); },
     hostName: RB.hostName,
   }));
