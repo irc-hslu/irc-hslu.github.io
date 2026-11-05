@@ -4,20 +4,29 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>MFP GPU queues</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
-<link rel="stylesheet" href="style.css?v=d467e796da">
-<script src="app.js?v=c8dc2d7845"></script>
+<link rel="stylesheet" href="style.css?v=c48d75dc1a">
+<script src="vendor/lucide-1.59.0-icons.js"></script>
+<script src="app.js?v=abbf250344"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="queues" x-cloak>
 <div id="gate" x-show="gate" x-cloak><form @submit.prevent="ok()"><h2>MFP runboard</h2><p class="muted">Enter the password to decrypt the data.</p>
   <input type="password" x-model="pw" placeholder="Password" autocomplete="current-password"><small x-text="err" class="stale"></small><button>Unlock</button></form></div>
+<div class="wrap skel" x-show="!D && !gate" role="status" aria-label="Loading data">
+  <div class="sk sk-top"></div><div class="sk sk-bar"></div>
+  <div class="sk-row"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div>
+  <div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line short"></div>
+</div>
 <div class="wrap qpage" x-show="D">
-  <header class="top"><h1>GPU queues</h1>
+  <header class="top">
+    <div class="brand"><span class="logo"><span x-html="ic('gauge')"></span>MFP runboard</span>
+      <nav class="nav" aria-label="Pages"><a href="index.html" :class="page === 'runs' && 'on'" :aria-current="page === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs</a><a href="queues.html" :class="page === 'queues' && 'on'" :aria-current="page === 'queues' && 'page'"><span x-html="ic('server')"></span>GPU queues</a><a href="matrix.html" :class="page === 'matrix' && 'on'" :aria-current="page === 'matrix' && 'page'"><span x-html="ic('layout-grid')"></span>Matrix</a></nav></div>
     <div class="meta"><div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
+      <button type="button" class="rl" @click="reload()" :aria-busy="loading" :disabled="loading" title="Reload data" aria-label="Reload data"><span :class="loading && 'spin'" x-html="ic('refresh-cw')"></span></button>
       <button type="button" class="switch" role="switch" :aria-checked="dark" aria-label="Dark theme" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" @click="toggleTheme()">
-        <svg class="ic sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
-        <svg class="ic moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg><span class="thumb"></span></button></div></header>
-  <div class="tabs"><a href="index.html">&larr; Runs</a></div>
+        <span class="ic sun" x-html="ic('sun')"></span>
+        <span class="ic moon" x-html="ic('moon')"></span><span class="thumb"></span></button></div>
+  </header>
   <div class="lanes-bar"><span class="muted small" x-text="hosts().length + ' GPUs'"></span>
     <div class="lanes-arrows" x-show="!(atStart && atEnd)"><button type="button" class="arw" @click="step(-1)" :disabled="atStart" aria-label="Previous GPU">&lsaquo;</button><button type="button" class="arw" @click="step(1)" :disabled="atEnd" aria-label="Next GPU">&rsaquo;</button></div>
     <div class="dots" x-show="hosts().length > 1"><template x-for="(h, i) in hosts()" :key="'d' + h.k"><button type="button" :class="i === cur && 'on'" @click="go(i)" :aria-label="'Show ' + h.name" :title="h.name"></button></template></div></div>
@@ -26,33 +35,37 @@
       <div class="hl-h">
         <div class="hl-name"><span class="dot" :class="h.gone ? 'grey' : !h.reachable && 'off'" :title="h.gone ? 'destroyed' : h.reachable ? 'online' : 'offline'"></span><b x-text="h.name"></b>
           <span class="badge st-destroyed" x-show="h.gone" :title="h.destroyed_at" x-text="'destroyed ' + destroyedOn(h.destroyed_at)"></span></div>
-        <div class="hl-gpu"><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span><span class="tag" x-show="h.rented" x-text="h.location ? 'rented \u00b7 ' + h.location : 'rented'"></span></div>
+        <div class="hl-gpu"><span class="hl-ic" x-html="ic(h.rented ? 'cloud' : 'cpu')"></span><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span><span class="tag" x-show="h.rented" x-text="h.location ? 'rented \u00b7 ' + h.location : 'rented'"></span></div>
         <div class="hl-live" x-text="h.gone ? 'machine destroyed \u00b7 not polled' : h.reachable ? (h.gpu_status ? 'GPU ' + h.gpu_status : 'no GPU data') : seen(h)"></div>
       </div>
       <div class="hl-cards">
         <template x-for="c in lane(h)" :key="c.key">
           <details class="qcard" :class="'k-' + c.kind">
           <summary>
-            <div class="qc-top"><span class="badge" :class="'st-' + c.stage" x-text="c.pos ? c.label + ' #' + c.pos : c.label"></span>
+            <div class="qc-top"><span class="badge has-i" :class="'st-' + c.stage" x-html="badgeHtml(c.stage, c.pos ? c.label + ' #' + c.pos : c.label)"></span>
               <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span></div>
             <div class="qc-name" x-html="nameHtml(c.name)"></div>
-            <div class="qc-chips" x-show="c.chips.length"><template x-for="t in c.chips" :key="t"><span class="pill" x-text="t"></span></template></div>
+            <div class="qc-chips" x-show="c.chips.length"><template x-for="(t, ti) in c.chips" :key="t"><span class="pill" x-html="ic(['', 'database', 'audio-waveform'][ti] || '') + RB.esc(t)"></span></template></div>
             <template x-if="c.kind === 'running'"><div class="qc-prog">
-              <div class="qc-stats"><div x-show="c.step"><small>step</small><b x-text="num(c.step) + (c.max ? ' / ' + num(c.max) : '')"></b></div><div x-show="c.hb" :title="'W&B heartbeat ' + abs(c.hb) + '; age measured at the build (W&B fetch ' + abs(D.wandb_at || D.last_updated) + ')'"><small>heartbeat</small><b :class="hbOld(c) && 'stale'" x-text="c.hb ? hbAge(c) + ' at build' : ''"></b></div><div x-show="c.started" :title="abs(c.started)"><small>started</small><b x-text="rel(c.started)"></b></div></div>
-              <div class="bar" x-show="pct(c)"><i :style="'width:' + pct(c) + '%'"></i></div></div></template>
+              <template x-if="c.budget.eval"><div class="qc-meta"><span class="badge st-eval">eval</span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div></template>
+              <template x-if="!c.budget.eval"><div>
+                <div class="pbar" x-show="c.budget.steps" role="progressbar" :aria-valuenow="pct(c)" aria-valuemin="0" aria-valuemax="100"><i :style="'width:' + pct(c) + '%'"></i>
+                  <b class="pbar-mark" x-show="c.budget.earliest" :style="'left:' + (100 * c.budget.earliest / c.budget.steps) + '%'" :title="'earliest stop ' + kfmt(c.budget.earliest || 0)"></b></div>
+                <div class="qc-meta"><b x-text="progressText(c)"></b><span x-show="c.budget.earliest" x-text="'earliest stop ' + kfmt(c.budget.earliest || 0)"></span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div>
+              </div></template></div></template>
             <div class="qc-waits" x-show="c.waits"><span>Waits for</span> <span x-text="c.waits"></span></div>
             <div class="qc-hosts" x-show="c.hosts.length"><span>Possible GPUs</span><template x-for="k in c.hosts" :key="k"><span class="pill host" x-text="hostName(k)"></span></template></div>
           </summary>
           <dl class="kv qc-det"><template x-for="d in c.det" :key="d[0]"><div class="kvr" :class="['Unlock event','Next command','Job file','Parent'].includes(d[0]) && 'wide'"><dt x-text="d[0]"></dt><dd :class="['Run id','Job sha','Job file','Next command'].includes(d[0]) && 'mono'" x-text="d[1]"></dd></div></template>
-            <div class="kvr" x-show="c.wandb"><dt>W&amp;B</dt><dd><a :href="c.wandb" target="_blank" rel="noopener">open run</a></dd></div>
-            <div class="kvr" x-show="c.id && runById[c.id]"><dt>Runs table</dt><dd><a :href="'index.html?open=' + encodeURIComponent(c.id)">show row</a></dd></div></dl>
+            <div class="kvr" x-show="c.wandb"><dt>W&amp;B</dt><dd><a class="lnk" :href="c.wandb" target="_blank" rel="noopener"><span x-html="ic('chart-line')"></span>open run<span x-html="ic('external-link', 'sm')"></span></a></dd></div>
+            <div class="kvr" x-show="c.id && runById[c.id]"><dt>Runs table</dt><dd><a class="lnk" :href="'index.html?open=' + encodeURIComponent(c.id)"><span x-html="ic('list')"></span>show row</a></dd></div></dl>
         </details>
         </template>
         <p class="hl-empty" x-show="!lane(h).length && !(h.gone && recent(h).length)" x-text="h.gone ? 'No finished jobs on this machine.' : 'Idle, nothing queued or planned.'"></p>
       </div>
       <details class="hl-recent" x-show="recent(h).length" :open="h.gone"><summary>Recently finished</summary>
         <template x-for="j in recent(h)" :key="j.name + j.state"><div class="rj">
-          <span class="badge" :class="j.state === 'done' ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-text="j.state === 'done' ? 'done' : j.exit === 'lost' ? 'killed' : 'exit ' + (j.exit || '?')"></span>
+          <span class="badge has-i" :class="j.state === 'done' ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-html="badgeHtml(j.state === 'done' ? 'succeeded' : j.exit === 'lost' ? 'cancelled' : 'failed', j.state === 'done' ? 'done' : j.exit === 'lost' ? 'killed' : 'exit ' + (j.exit || '?'))"></span>
           <span class="rj-name" :class="!jobRun(j).r && 'unmapped'" :title="jobRun(j).r ? j.name : 'job file (not mapped to a run)'" x-html="nameHtml(jobName(j))"></span><span class="rj-when" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished) : ''"></span></div></template>
       </details>
     </div></template>
@@ -62,19 +75,23 @@
     <div class="bl-grid"><template x-for="c in backlog()" :key="c.key">
       <details class="qcard" :class="'k-' + c.kind">
           <summary>
-            <div class="qc-top"><span class="badge" :class="'st-' + c.stage" x-text="c.pos ? c.label + ' #' + c.pos : c.label"></span>
+            <div class="qc-top"><span class="badge has-i" :class="'st-' + c.stage" x-html="badgeHtml(c.stage, c.pos ? c.label + ' #' + c.pos : c.label)"></span>
               <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span></div>
             <div class="qc-name" x-html="nameHtml(c.name)"></div>
-            <div class="qc-chips" x-show="c.chips.length"><template x-for="t in c.chips" :key="t"><span class="pill" x-text="t"></span></template></div>
+            <div class="qc-chips" x-show="c.chips.length"><template x-for="(t, ti) in c.chips" :key="t"><span class="pill" x-html="ic(['', 'database', 'audio-waveform'][ti] || '') + RB.esc(t)"></span></template></div>
             <template x-if="c.kind === 'running'"><div class="qc-prog">
-              <div class="qc-meta"><span x-show="c.step" x-text="'step ' + num(c.step) + (c.max ? ' / ' + num(c.max) : '')"></span><span x-show="c.hb" :class="hbOld(c) && 'stale'" :title="'W&B heartbeat ' + abs(c.hb)" x-text="'heartbeat ' + rel(c.hb)"></span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div>
-              <div class="bar" x-show="pct(c)"><i :style="'width:' + pct(c) + '%'"></i></div></div></template>
+              <template x-if="c.budget.eval"><div class="qc-meta"><span class="badge st-eval">eval</span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div></template>
+              <template x-if="!c.budget.eval"><div>
+                <div class="pbar" x-show="c.budget.steps" role="progressbar" :aria-valuenow="pct(c)" aria-valuemin="0" aria-valuemax="100"><i :style="'width:' + pct(c) + '%'"></i>
+                  <b class="pbar-mark" x-show="c.budget.earliest" :style="'left:' + (100 * c.budget.earliest / c.budget.steps) + '%'" :title="'earliest stop ' + kfmt(c.budget.earliest || 0)"></b></div>
+                <div class="qc-meta"><b x-text="progressText(c)"></b><span x-show="c.budget.earliest" x-text="'earliest stop ' + kfmt(c.budget.earliest || 0)"></span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div>
+              </div></template></div></template>
             <div class="qc-waits" x-show="c.waits"><span>Waits for</span> <span x-text="c.waits"></span></div>
             <div class="qc-hosts" x-show="c.hosts.length"><span>Possible GPUs</span><template x-for="k in c.hosts" :key="k"><span class="pill host" x-text="hostName(k)"></span></template></div>
           </summary>
           <dl class="kv qc-det"><template x-for="d in c.det" :key="d[0]"><div class="kvr" :class="['Unlock event','Next command','Job file','Parent'].includes(d[0]) && 'wide'"><dt x-text="d[0]"></dt><dd :class="['Run id','Job sha','Job file','Next command'].includes(d[0]) && 'mono'" x-text="d[1]"></dd></div></template>
-            <div class="kvr" x-show="c.wandb"><dt>W&amp;B</dt><dd><a :href="c.wandb" target="_blank" rel="noopener">open run</a></dd></div>
-            <div class="kvr" x-show="c.id && runById[c.id]"><dt>Runs table</dt><dd><a :href="'index.html?open=' + encodeURIComponent(c.id)">show row</a></dd></div></dl>
+            <div class="kvr" x-show="c.wandb"><dt>W&amp;B</dt><dd><a class="lnk" :href="c.wandb" target="_blank" rel="noopener"><span x-html="ic('chart-line')"></span>open run<span x-html="ic('external-link', 'sm')"></span></a></dd></div>
+            <div class="kvr" x-show="c.id && runById[c.id]"><dt>Runs table</dt><dd><a class="lnk" :href="'index.html?open=' + encodeURIComponent(c.id)"><span x-html="ic('list')"></span>show row</a></dd></div></dl>
         </details>
     </template></div>
   </section>

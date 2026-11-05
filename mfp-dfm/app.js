@@ -48,7 +48,7 @@ const RB = (() => {
   }
   async function load(askPassword) {
     if (window.RUNBOARD_DATA) return window.RUNBOARD_DATA;
-    if (new URLSearchParams(location.search).has("local")) return (await fetch("../../specs/runboard/runs.json")).json();
+    if (new URLSearchParams(location.search).has("local")) return (await fetch("../../specs/runboard/runs.json", {cache: "no-store"})).json();
     const blob = await (await fetch("./runs.enc.json", {cache: "no-store"})).json();
     const ok = async (pw) => { const d = await decrypt(blob, pw); try { sessionStorage.setItem("runboard_pw", pw); } catch (e) {} return d; };
     let saved = null; try { saved = sessionStorage.getItem("runboard_pw"); } catch (e) {}
@@ -88,18 +88,42 @@ const RB = (() => {
       return store;
     },
   };
-  return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme};
+  /** Inline Lucide icon (vendor/lucide-*-icons.js); '' if the icon set is missing. */
+  const ic = (name, cls = "") => {
+    const L = (typeof window !== "undefined" && window.LUCIDE) || {};
+    return L[name] ? `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${L[name]}</svg>` : "";
+  };
+  /** Icon per run status / queue stage / matrix word. */
+  const ICON = {succeeded: "circle-check", running: "activity", queued: "hourglass", planned: "clock", failed: "circle-x", cancelled: "ban",
+    smoke: "flask-conical", stale: "clock", superseded: "archive", reviewed: "check", "host-tested": "flask-conical", built: "package",
+    Done: "circle-check", "In progress": "activity", Planned: "clock"};
+  return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme, ic, ICON};
 })();
 if (typeof module !== "undefined") module.exports = RB;
 
 /* Common page state: data, password gate, header. */
-function base() {
+function base(page) {
   return {
-    D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB,
+    page, D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB, loading: false,
+    ic: RB.ic, badgeHtml: (st, label) => RB.ic(RB.ICON[st] || "") + RB.esc(label ?? st),
+    /** Keep --hdr-h = height of the sticky top bar, so sticky table headers sit right below it. */
+    watchHeader() {
+      const h = document.querySelector(".wrap:not(.skel) header.top"); if (!h || typeof ResizeObserver === "undefined") return;
+      new ResizeObserver(() => document.documentElement.style.setProperty("--hdr-h", h.offsetHeight + "px")).observe(h);
+    },
+    /** Header reload: fetch and decrypt the data again (saved password), with a visible spinner for at least ~0.5 s. */
+    async reload() {
+      if (this.loading) return;
+      this.loading = true; const t0 = Date.now();
+      try { this.D = await RB.load(() => Promise.reject(new Error("locked"))); this.now = Date.now(); if (this.onReload) this.onReload(); }
+      catch (e) { /* keep the data we have */ }
+      finally { setTimeout(() => (this.loading = false), Math.max(0, 500 - (Date.now() - t0))); }
+    },
     async init() {
       this.D = await RB.load((ok) => new Promise((res) => { this.gate = true; this.ok = async () => {
         try { const d = await ok(this.pw); this.gate = false; res(d); } catch (e) { this.err = "Wrong password."; } }; }));
       setInterval(() => (this.now = Date.now()), 30000);
+      this.$nextTick(() => this.watchHeader());
       if (this.afterLoad) this.afterLoad();
     },
     toggleTheme() { this.dark = RB.theme.toggle(); },
@@ -118,7 +142,8 @@ const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => 
 
 document.addEventListener("alpine:init", () => {
   Alpine.data("runs", () => ({
-    ...base(), tab: decodeURIComponent(location.hash.slice(1)) || "PromptDA", q: "", f: {dataset: "", noise: "", status: ""},
+    ...base("runs"),
+    onReload() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.tabRows()); }, tab: decodeURIComponent(location.hash.slice(1)) || "PromptDA", q: "", f: {dataset: "", noise: "", status: ""},
     sort: "modified_at", dir: -1, open: new URLSearchParams(location.search).getAll("open"), tabs: TABS, n: 0,
     afterLoad() {
       for (const r of this.D.runs) if (this.open.includes(r.id)) { this.tab = this.tabOf(r); break; }
@@ -168,9 +193,9 @@ document.addEventListener("alpine:init", () => {
               return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}"><span class="car">${self.isOpen(d._r) ? "\u25be" : "\u25b8"}</span>${esc(d.title).replace(/_/g, "_<wbr>")}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
           col({title: "Dataset", field: "dataset", width: 140, responsive: 4, sorter: lastMissing, ...list("dataset")}),
           col({title: "Noise", field: "noise", width: 118, responsive: 5, sorter: lastMissing, ...list("noise")}),
-          col({title: "Status", field: "status", width: 132, responsive: 1, ...list("status"),
+          col({title: "Status", field: "status", width: 150, responsive: 1, ...list("status"),
             sorter: (a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b),
-            formatter: (c) => `<span class="badge s-${esc(c.getValue())}">${esc(c.getValue())}</span>`}),
+            formatter: (c) => `<span class="badge has-i s-${esc(c.getValue())}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
           col({title: "RMSE", field: "rmse", width: 112, hozAlign: "right", headerHozAlign: "right", responsive: 2, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(3)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
           col({title: "Host", field: "host", width: 190, responsive: 6, sorter: lastMissing,
@@ -201,7 +226,8 @@ document.addEventListener("alpine:init", () => {
       if (!this.isOpen(r)) return;
       const node = document.getElementById("det-tpl").content.firstElementChild.cloneNode(true);
       Alpine.mutateDom(() => el.appendChild(node));
-      Alpine.addScopeToNode(node, {r}); Alpine.initTree(node);
+      // Tabulator may format a row before attaching it to the page, so anchor the scope on the component root explicitly
+      Alpine.addScopeToNode(node, {r}, document.querySelector("[x-data]")); Alpine.initTree(node);
     },
     isOpen(r) { return this.open.includes(r.id); },
     flip(r) { const i = this.open.indexOf(r.id); i < 0 ? this.open.push(r.id) : this.open.splice(i, 1); },
@@ -224,7 +250,7 @@ document.addEventListener("alpine:init", () => {
     commitUrl: (c) => "https://github.com/irc-hslu/metricsplat/commit/" + c,
   }));
   Alpine.data("queues", () => ({
-    ...base(), cur: 0, atStart: true, atEnd: false,
+    ...base("queues"), cur: 0, atStart: true, atEnd: false,
     /** Lane carousel: CSS scroll-snap does the snapping; these only drive the arrows and dots. */
     laneEls() { return this.$refs.lanes ? [...this.$refs.lanes.querySelectorAll(".hlane")] : []; },
     onScroll() {
@@ -238,9 +264,10 @@ document.addEventListener("alpine:init", () => {
     go(i) { const el = this.$refs.lanes, ls = this.laneEls(); if (ls[i]) el.scrollTo({left: ls[i].offsetLeft - ls[0].offsetLeft, behavior: "smooth"}); },
     step(d) { const ls = this.laneEls(), w = ls.length > 1 ? ls[1].offsetLeft - ls[0].offsetLeft : 380; this.$refs.lanes.scrollBy({left: d * w, behavior: "smooth"}); },
     STAGE: {running: "Running", queued: "Queued", reviewed: "Ready", "host-tested": "Tested", built: "Built", planned: "Planned"},
-    afterLoad() {
+    afterLoad() { this.onReload(); addEventListener("resize", () => this.onScroll()); },
+    onReload() {
       this.runById = Object.fromEntries(this.D.runs.map((r) => [r.id, r])); this.planById = Object.fromEntries((this.D.plan || []).map((p) => [p.id, p]));
-      this.$nextTick(() => this.onScroll()); addEventListener("resize", () => this.onScroll());
+      this.$nextTick(() => this.onScroll());
     },
     /** Lanes in a fixed order: own hosts, then rented ones. */
     hosts() {
@@ -259,12 +286,6 @@ document.addEventListener("alpine:init", () => {
       const ok = (x) => x && !["none", "-", "\u2014", "all", "n.a."].includes(x);
       const m = ok(model) ? ({promptda: "PromptDA-B", sv: "SV-B", mv: "MV(3)-B"}[String(model).toLowerCase()] || model) : "";
       return [m, ok(dataset) ? dataset : "", ok(noise) ? noise : "noise ?"].filter(Boolean);
-    },
-    /** W&B heartbeat age at the build's W&B fetch (the data snapshot), not at view time. */
-    built() { return new Date(this.D.wandb_at || this.D.last_updated); },
-    hbAge(c) {
-      const s = Math.max(0, (this.built() - new Date(c.hb)) / 1000);
-      return s < 90 ? Math.round(s) + " s" : s < 5400 ? Math.round(s / 60) + " min" : (s / 3600).toFixed(1) + " h";
     },
     runAttempt(r) { const a = [...((r && r.attempts) || [])].reverse(); return a.find((x) => x.status === "running") || a[0] || {}; },
     /** One card model for queue jobs, lane plan entries and backlog items. */
@@ -287,7 +308,7 @@ document.addEventListener("alpine:init", () => {
         chips: this.chips((r && r.variant !== "\u2014" && r.variant) || (kind === "backlog" ? src.model : p && p.model) || fam,
           (kind === "backlog" ? src.dataset : p && p.dataset) || (r && r.dataset), (kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise)),
         waits: kind === "plan" ? src.waits_for || src.unlock_event || "" : kind === "backlog" ? src.waits_for : "",
-        step: m.step, max: m.max_steps, hb: kind === "running" ? att.heartbeat_at : "", started: src.started, progress: src.progress,
+        step: m.step, budget: src.budget || {}, started: src.started,
         wandb: att.wandb_url || "", hosts: kind === "backlog" ? src.candidate_hosts || [] : [], det};
     },
     lane(h) {
@@ -297,8 +318,10 @@ document.addEventListener("alpine:init", () => {
     },
     backlog() { return this.D ? (this.D.backlog || []).map((b, i) => this.card(b, "backlog", i)) : []; },
     num: (n) => (n == null ? "" : Number(n).toLocaleString("en-US")),
-    hbOld(c) { return c.hb && this.built() - new Date(c.hb) > 30 * 60e3; },
-    pct(c) { if (c.step && c.max) return Math.min(100, Math.round(100 * c.step / c.max)); return parseInt((c.progress || "").match(/\((\d+)%/)?.[1] || 0); },
+    /** Completion against the run's step budget (recipe cap, e.g. 200K for P2 SFT): '45,400 / 200,000 steps (23 %)'. */
+    pct(c) { return c.step && c.budget.steps ? Math.min(100, Math.round(100 * c.step / c.budget.steps)) : 0; },
+    progressText(c) { return c.budget.steps ? `${c.step ? this.num(c.step) : "\u2014"} / ${this.num(c.budget.steps)} steps` + (c.step ? ` (${this.pct(c)} %)` : "") : c.step ? `step ${this.num(c.step)}` : ""; },
+    kfmt: (n) => (n % 1000 ? n.toLocaleString("en-US") : n / 1000 + "K"),
     rel(iso) { return RB.relTime(iso, this.now); },
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
     recent(h) { return [...(h.failed_recent || []), ...(h.done_recent || [])].sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).slice(0, 6); },
@@ -315,5 +338,25 @@ document.addEventListener("alpine:init", () => {
     destroyedOn: (iso) => (iso ? new Date(iso).toLocaleString([], {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}) : ""),
     seen(h) { return h.reachable ? "" : "offline · last seen " + RB.relTime(h.checked_at, this.now); },
     hostName: RB.hostName,
+  }));
+  Alpine.data("matrix", () => ({
+    ...base("matrix"),
+    WORDS: ["Done", "In progress", "Planned", "Not planned"], NOISES: ["lidar_low", "lower", "low"],
+    slug: (w) => w.toLowerCase().replace(/\s+/g, "-"),
+    dsName: (d) => ({THuman: "THuman-in-a-Box"}[d] || d),
+    cells() { return (this.D && this.D.matrix) || []; },
+    datasets() { return [...new Set(this.cells().map((c) => c.dataset))]; },
+    total(w) { return this.cells().filter((c) => c.status === w).length; },
+    /** Rows = model x chaining (PromptDA has no chaining), columns = noise; the model name is shown on its first row only. */
+    rows(ds) {
+      const out = [], cs = this.cells().filter((c) => c.dataset === ds);
+      for (const c of cs) {
+        const key = c.model + "|" + c.chain;
+        let row = out.find((r) => r.key === key);
+        if (!row) { row = {key, model: c.model, chain: c.chain, first: !out.some((r) => r.model === c.model), cells: []}; out.push(row); }
+        row.cells.push(c);
+      }
+      return out;
+    },
   }));
 });

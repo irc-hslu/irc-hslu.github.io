@@ -5,27 +5,32 @@
 <title>MFP runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=d467e796da">
+<link rel="stylesheet" href="style.css?v=c48d75dc1a">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
-<script src="app.js?v=c8dc2d7845"></script>
+<script src="vendor/lucide-1.59.0-icons.js"></script>
+<script src="app.js?v=abbf250344"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="runs" x-cloak>
 <div id="gate" x-show="gate" x-cloak><form @submit.prevent="ok()"><h2>MFP runboard</h2><p class="muted">Enter the password to decrypt the data.</p>
   <input type="password" x-model="pw" placeholder="Password" autocomplete="current-password"><small x-text="err" class="stale"></small><button>Unlock</button></form></div>
+<div class="wrap skel" x-show="!D && !gate" role="status" aria-label="Loading data">
+  <div class="sk sk-top"></div><div class="sk sk-bar"></div>
+  <div class="sk-row"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div>
+  <div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line short"></div>
+</div>
 <div class="wrap" x-show="D">
   <header class="top">
-    <h1>MFP runboard</h1>
-    <div class="meta">
-      <div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
+    <div class="brand"><span class="logo"><span x-html="ic('gauge')"></span>MFP runboard</span>
+      <nav class="nav" aria-label="Pages"><a href="index.html" :class="page === 'runs' && 'on'" :aria-current="page === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs</a><a href="queues.html" :class="page === 'queues' && 'on'" :aria-current="page === 'queues' && 'page'"><span x-html="ic('server')"></span>GPU queues</a><a href="matrix.html" :class="page === 'matrix' && 'on'" :aria-current="page === 'matrix' && 'page'"><span x-html="ic('layout-grid')"></span>Matrix</a></nav></div>
+    <div class="meta"><div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
+      <button type="button" class="rl" @click="reload()" :aria-busy="loading" :disabled="loading" title="Reload data" aria-label="Reload data"><span :class="loading && 'spin'" x-html="ic('refresh-cw')"></span></button>
       <button type="button" class="switch" role="switch" :aria-checked="dark" aria-label="Dark theme" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" @click="toggleTheme()">
-        <svg class="ic sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
-        <svg class="ic moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg><span class="thumb"></span></button>
-    </div>
+        <span class="ic sun" x-html="ic('sun')"></span>
+        <span class="ic moon" x-html="ic('moon')"></span><span class="thumb"></span></button></div>
   </header>
   <div class="tabs">
     <template x-for="t in tabs" :key="t"><button :class="tab === t && 'on'" @click="setTab(t)"><span x-text="t"></span><span class="n" x-text="count(t)"></span></button></template>
-    <a class="push" href="queues.html">GPU queues &rarr;</a>
   </div>
   <div class="count"><input type="search" class="small" x-model="q" placeholder="Search"><span x-text="n"></span> runs<span x-show="tab === 'Scratch'"> &middot; smokes, probes, short or killed runs</span></div>
   <div class="rb-mfilters"><template x-for="k in ['dataset', 'noise', 'status']" :key="'mf' + k">
@@ -51,13 +56,13 @@
         </div>
         <div class="atts">
         <template x-for="a in attempts(r)" :key="a.n"><div class="att">
-          <div class="att-h"><span class="muted">Attempt <span x-text="a.n"></span></span><span class="badge" :class="'s-' + a.status" x-text="a.status"></span></div>
+          <div class="att-h"><span class="muted">Attempt <span x-text="a.n"></span></span><span class="badge has-i" :class="'s-' + a.status" x-html="badgeHtml(a.status)"></span></div>
           <dl class="kv">
-            <dt>W&amp;B</dt><dd><a x-show="a.wandb_url" :href="a.wandb_url" target="_blank" rel="noopener" x-text="a.wandb_id"></a><span x-show="!a.wandb_url" x-text="a.wandb_id || '\u2014'"></span></dd>
+            <dt>W&amp;B</dt><dd><a class="lnk" x-show="a.wandb_url" :href="a.wandb_url" target="_blank" rel="noopener"><span x-html="ic('chart-line')"></span><span x-text="a.wandb_id"></span></a><span x-show="!a.wandb_url" x-text="a.wandb_id || '\u2014'"></span></dd>
             <dt>Started</dt><dd :title="abs(a.started_at)" x-text="a.started_at ? RB.relTime(a.started_at, now) : 'not started'"></dd>
             <dt>Duration</dt><dd x-text="dur(a)"></dd>
-            <dt>Host</dt><dd :title="RB.hostTip(a.host)" x-text="a.host ? RB.hostName(a.host) : '\u2014'"></dd>
-            <dt>Commit</dt><dd><a x-show="a.code_commit" :href="commitUrl(a.code_commit)" target="_blank" rel="noopener" class="mono" x-text="sha(a.code_commit)"></a><span x-show="!a.code_commit">&mdash;</span></dd>
+            <dt>Host</dt><dd :title="RB.hostTip(a.host)"><span class="lnk" x-show="a.host"><span x-html="ic('server')"></span><span x-text="RB.hostName(a.host)"></span></span><span x-show="!a.host">&mdash;</span></dd>
+            <dt>Commit</dt><dd><a x-show="a.code_commit" :href="commitUrl(a.code_commit)" target="_blank" rel="noopener" class="mono lnk"><span x-html="ic('git-commit-horizontal')"></span><span x-text="sha(a.code_commit)"></span></a><span x-show="!a.code_commit">&mdash;</span></dd>
             <dt x-show="a.failure_reason">Reason</dt><dd x-show="a.failure_reason" x-text="a.failure_reason"></dd>
           </dl></div></template></div>
         <p class="muted" x-show="!r.attempts.length">No attempts yet.</p>

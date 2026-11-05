@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>MFP SFT matrix</title>
+<link rel="stylesheet" href="vendor/pico.min.css">
+<link rel="stylesheet" href="style.css?v=c48d75dc1a">
+<script src="vendor/lucide-1.59.0-icons.js"></script>
+<script src="app.js?v=abbf250344"></script>
+<script defer src="vendor/alpine.min.js"></script>
+</head>
+<body x-data="matrix" x-cloak>
+<div id="gate" x-show="gate" x-cloak><form @submit.prevent="ok()"><h2>MFP runboard</h2><p class="muted">Enter the password to decrypt the data.</p>
+  <input type="password" x-model="pw" placeholder="Password" autocomplete="current-password"><small x-text="err" class="stale"></small><button>Unlock</button></form></div>
+<div class="wrap skel" x-show="!D && !gate" role="status" aria-label="Loading data">
+  <div class="sk sk-top"></div><div class="sk sk-bar"></div>
+  <div class="sk-row"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div>
+  <div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line short"></div>
+</div>
+<div class="wrap mpage" x-show="D">
+  <header class="top">
+    <div class="brand"><span class="logo"><span x-html="ic('gauge')"></span>MFP runboard</span>
+      <nav class="nav" aria-label="Pages"><a href="index.html" :class="page === 'runs' && 'on'" :aria-current="page === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs</a><a href="queues.html" :class="page === 'queues' && 'on'" :aria-current="page === 'queues' && 'page'"><span x-html="ic('server')"></span>GPU queues</a><a href="matrix.html" :class="page === 'matrix' && 'on'" :aria-current="page === 'matrix' && 'page'"><span x-html="ic('layout-grid')"></span>Matrix</a></nav></div>
+    <div class="meta"><div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
+      <button type="button" class="rl" @click="reload()" :aria-busy="loading" :disabled="loading" title="Reload data" aria-label="Reload data"><span :class="loading && 'spin'" x-html="ic('refresh-cw')"></span></button>
+      <button type="button" class="switch" role="switch" :aria-checked="dark" aria-label="Dark theme" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" @click="toggleTheme()">
+        <span class="ic sun" x-html="ic('sun')"></span>
+        <span class="ic moon" x-html="ic('moon')"></span><span class="thumb"></span></button></div>
+  </header>
+  <p class="mx-intro">P2 fine-tuning of the Hypersim-pretrained ViT-Base models: every dataset &times; noise &times; model. <b>Chained</b> = nested lineage (SV from the PromptDA chain, MV from SV); <b>not chained</b> = parallel P1 initialisation.</p>
+  <div class="mx-legend"><template x-for="w in WORDS" :key="w"><span class="mx-st" :class="'mx-' + slug(w)"><span x-html="badgeHtml(w)"></span><b x-text="total(w)"></b></span></template></div>
+  <p class="muted" x-show="D && !(D.matrix || []).length">The matrix appears after the next data refresh.</p>
+  <div class="mx-grid">
+    <template x-for="ds in datasets()" :key="ds"><section class="mx-card">
+      <h2><span x-html="ic('database')"></span><span x-text="dsName(ds)"></span></h2>
+      <div class="mx-scroll"><table class="mx"><thead><tr><th>Model</th><th class="mx-chain">Chaining</th><template x-for="nz in NOISES" :key="nz"><th x-text="nz"></th></template></tr></thead>
+        <tbody><template x-for="row in rows(ds)" :key="row.key"><tr :class="row.first && 'grp'">
+          <td class="mx-model"><span x-text="row.first ? row.model : ''"></span><small class="mx-chain-m" x-show="row.chain" x-text="row.chain"></small></td><td class="mx-chain" x-text="row.chain || '\u2014'"></td>
+          <template x-for="c in row.cells" :key="c.noise"><td>
+            <template x-if="c.id && (c.status === 'Done' || c.status === 'In progress')"><a class="mx-st" :class="'mx-' + slug(c.status)" :href="'index.html?open=' + encodeURIComponent(c.id)" :title="c.name + ' (' + c.id + ')' + (c.more ? ' + ' + c.more + ' more: ' + c.ids.join(', ') : '')" x-html="badgeHtml(c.status)"></a></template>
+            <template x-if="!(c.id && (c.status === 'Done' || c.status === 'In progress'))"><span class="mx-st" :class="'mx-' + slug(c.status)" :title="c.ids.length ? c.ids.join(', ') : ''" x-html="badgeHtml(c.status)"></span></template>
+            <span class="mx-more" x-show="c.more" x-text="'+' + c.more"></span></td></template>
+        </tr></template></tbody></table></div>
+    </section></template>
+  </div>
+</div>
+</body>
+</html>
