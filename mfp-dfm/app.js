@@ -160,6 +160,8 @@ function base(page) {
 
 const STATUS_ORDER = RB.ORDER.status;
 const TABS = ["PromptDA", "Ours_SV", "Ours_MV", "Other", "Scratch"];
+/** [MAE, 'test'|'dev']: test l1 when the run has a test RMSE (same receipt), else the best dev MAE. */
+const mae = (r) => { const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_mae ?? null, "test"] : [(r.metrics_best || {}).mae ?? null, "dev"]; };
 const rmse = (r) => { const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
 let RUNS_TABLE = null, RUNS_EL = null;  // the Tabulator instance (kept out of Alpine's reactive state)
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };
@@ -312,7 +314,7 @@ document.addEventListener("alpine:init", () => {
     rows(realOnly) {
       const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: this.canon(r), init: r.init || "—",
         pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: r.dataset, noise: r.noise, status: r.status,
-        rmse: rmse(r)[0], rsrc: rmse(r)[1], steps: (r.steps || {}).done ?? null, cap: (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
+        rmse: rmse(r)[0], rsrc: rmse(r)[1], mae: mae(r)[0], msrc: mae(r)[1], steps: (r.steps || {}).done ?? null, cap: (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
         modified_at: r.modified_at || null, _r: r}));
       return realOnly || !this.all ? real : real.concat(this.combos(real));
     },
@@ -339,25 +341,28 @@ document.addEventListener("alpine:init", () => {
         initialSort: [{column: this.sort, dir: this.dir > 0 ? "asc" : "desc"}],
         initialHeaderFilter: Object.entries(this.f).filter(([, v]) => v).map(([field, value]) => ({field, value})),
         columns: [
-          col({title: "Run", field: "title", minWidth: 200, widthGrow: 3, responsive: 0, sorter: lastMissing,
+          col({title: "Run", field: "title", minWidth: 180, widthGrow: 3, responsive: 0, sorter: lastMissing,
             formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
               if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
               return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
-          col({title: "Model", field: "model", width: 112, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
+          col({title: "Model", field: "model", width: 120, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
           col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (miss(c.getValue()) ? `<span class="muted">—</span>` : `<code class="init">${esc(c.getValue())}</code>`)}),
-          col({title: "Pretrain Dataset", titleFormatter: two("Pretrain", "Dataset"), field: "pretrain_ds", width: 114, responsive: 7, sorter: ranked("dataset"), ...list("pretrain_ds")}),
+          col({title: "Pretrain Dataset", titleFormatter: two("Pretrain", "Dataset"), field: "pretrain_ds", width: 108, responsive: 7, sorter: ranked("dataset"), ...list("pretrain_ds")}),
           col({title: "SFT Dataset", titleFormatter: two("SFT", "Dataset"), field: "dataset", width: 116, responsive: 6, sorter: ranked("dataset"), ...list("dataset")}),
-          col({title: "Noise", field: "noise", width: 100, responsive: 8, sorter: ranked("noise"), ...list("noise")}),
+          col({title: "Noise", field: "noise", width: 96, responsive: 8, sorter: ranked("noise"), ...list("noise")}),
           col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
-          col({title: "RMSE", field: "rmse", width: 104, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
+          col({title: "RMSE", field: "rmse", width: 110, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(3)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
-          col({title: "Steps", field: "steps", width: 104, hozAlign: "right", headerHozAlign: "right", responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
+          col({title: "MAE", field: "mae", width: 76, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
+            // same receipt as RMSE (its DEV/TEST badge applies), so no second badge
+            formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num" title="${esc(c.getData().msrc)} MAE">${c.getValue().toFixed(3)}</span>`)}),
+          col({title: "Steps", field: "steps", width: 100, hozAlign: "right", headerHozAlign: "right", responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
               return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>`; }}),
-          col({title: "Samples", field: "samples", width: 106, hozAlign: "right", headerHozAlign: "right", responsive: 10, sorter: lastMissing, headerSortStartingDir: "desc",
+          col({title: "Samples", field: "samples", width: 100, hozAlign: "right", headerHozAlign: "right", responsive: 10, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getData()._virtual ? "" : c.getValue() == null ? `<span class="muted">—</span>` : `<span class="num" title="${c.getValue().toLocaleString("en-US")} images">${RB.kfmt(c.getValue())}</span>`)}),
-          col({title: "Modified", field: "modified_at", width: 120, responsive: 4, headerSortStartingDir: "desc",
+          col({title: "Modified", field: "modified_at", width: 112, responsive: 4, headerSortStartingDir: "desc",
             sorter: (a, b) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : miss(a) ? -1 : 1) : a < b ? -1 : a > b ? 1 : 0),  // not started = oldest
             formatter: (c) => (c.getData()._virtual ? "" : `<span class="num" title="${esc(self.abs(c.getValue()))}">${esc(self.when(c.getData()._r) || "not started")}</span>`)}),
         ],
@@ -387,7 +392,7 @@ document.addEventListener("alpine:init", () => {
     },
     isOpen(r) { return this.open.includes(r.id); },
     flip(r) { const i = this.open.indexOf(r.id); i < 0 ? this.open.push(r.id) : this.open.splice(i, 1); },
-    rmse, hostOf, host: (r) => RB.hostName(hostOf(r)), tip: (r) => RB.hostTip(hostOf(r)),
+    rmse, mae, hostOf, host: (r) => RB.hostName(hostOf(r)), tip: (r) => RB.hostTip(hostOf(r)),
     when(r) { return RB.relTime(r.modified_at, this.now); },
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
     metrics(g) { // g = metrics_best | metrics_last -> [[label, value]] with em dash for missing
@@ -403,7 +408,7 @@ document.addEventListener("alpine:init", () => {
       return m >= 60 ? (m / 60).toFixed(1) + " h" : m + " min";
     },
     stepsText(r) { const t = r.steps || {}; if (t.done == null) return "\u2014";
-      return t.done.toLocaleString("en-US") + (t.cap ? " of " + t.cap.toLocaleString("en-US") : "") + (t.best != null ? ` \u00b7 best dev RMSE at step ${t.best.toLocaleString("en-US")}` : ""); },
+      return t.done.toLocaleString("en-US") + (t.cap ? " of " + t.cap.toLocaleString("en-US") : "") + (t.best != null ? ` \u00b7 best dev RMSE at step ${t.best.toLocaleString("en-US")}` : "") + (t.stop ? ` \u00b7 stopped: ${t.stop}` : ""); },
     samplesText(r) { const t = r.steps || {}; if (t.samples == null) return "\u2014";
       return `${RB.kfmt(t.samples)} images (${RB.kfmt(t.done)} steps \u00d7 batch ${t.batch}${t.views > 1 ? ` \u00d7 ${t.views} views` : ""})`; },
     sha: (c) => (c ? c.slice(0, 7) : ""),
