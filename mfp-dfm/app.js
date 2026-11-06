@@ -123,12 +123,16 @@ const RB = (() => {
   const kfmt = (n) => (n == null ? "\u2014" : n < 1000 ? String(n) : n < 1e6 ? +(n / 1e3).toFixed(n < 1e4 ? 1 : 0) + "K" : +(n / 1e6).toFixed(1) + "M");
   return {tabStore, HOSTS, hostName, hostTip, relTime, clock, kv, esc, decrypt, load, theme, ic, ICON, ORDER, rank, combos, modelHtml, canonModel, kfmt};
 })();
+/** Toast text after a refresh: [message, kind]; same build timestamp = nothing new. */
+/** Available GPU lanes of a runs.json: not destroyed, not excluded, reachable now. */
+RB.availableGpus = (D) => (D ? Object.values(D.queues || {}).filter((q) => q.status !== "destroyed" && !q.excluded && q.reachable).length : 0);
+RB.refreshMsg = (before, after) => (before && after && before === after ? ["Already up to date", "same"] : ["Updated just now", "ok"]);
 if (typeof module !== "undefined") module.exports = RB;
 
 /* Common page state: data, password gate, header. */
 function base(page) {
   return {
-    page, D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB, loading: false,
+    page, D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB, loading: false, toast: {msg: "", kind: "", n: 0},
     ic: RB.ic, badgeHtml: (st, label) => RB.ic(RB.ICON[st] || "") + RB.esc(label ?? st),
     /** Keep --hdr-h = height of the sticky top bar, so sticky table headers sit right below it. */
     watchHeader() {
@@ -138,10 +142,18 @@ function base(page) {
     /** Header reload: fetch and decrypt the data again (saved password), with a visible spinner for at least ~0.5 s. */
     async reload() {
       if (this.loading) return;
-      this.loading = true; const t0 = Date.now();
-      try { this.D = await RB.load(() => Promise.reject(new Error("locked"))); this.now = Date.now(); if (this.onReload) this.onReload(); }
-      catch (e) { /* keep the data we have */ }
-      finally { setTimeout(() => (this.loading = false), Math.max(0, 500 - (Date.now() - t0))); }
+      this.loading = true; const t0 = Date.now(), before = this.D && this.D.last_updated;
+      let msg = ["Refresh failed", "err"];
+      try {
+        this.D = await RB.load(() => Promise.reject(new Error("locked"))); this.now = Date.now(); if (this.onReload) this.onReload();
+        msg = RB.refreshMsg(before, this.D && this.D.last_updated);
+      } catch (e) { /* keep the data we have */ }
+      finally { setTimeout(() => { this.loading = false; this.notify(...msg); }, Math.max(0, 500 - (Date.now() - t0))); }
+    },
+    /** Bottom-right toast in a persistent role=status region; auto-dismisses after ~3 s (a newer toast restarts the timer). */
+    notify(msg, kind) {
+      const n = this.toast.n + 1; this.toast = {msg, kind, n};
+      setTimeout(() => { if (this.toast.n === n) this.toast = {msg: "", kind, n}; }, 3000);
     },
     async init() {
       this.D = await RB.load((ok) => new Promise((res) => { this.gate = true; this.ok = async () => {
@@ -209,6 +221,8 @@ document.addEventListener("alpine:init", () => {
       onReload() { dispatchEvent(new CustomEvent("rb-reload")); },
       runCount() { return this.D ? this.D.runs.filter((r) => this.scratch || r.kind !== "scratch").length : 0; },
       activeQueues() { return this.D ? Object.values(this.D.queues || {}).filter((q) => q.status !== "destroyed" && !q.excluded && (q.running || []).length).length : 0; },
+      /** GPUs we can schedule on: reachable, non-destroyed, non-excluded lanes (own hosts + live rented GPUs). */
+      availGpus() { return RB.availableGpus(this.D); },
       oldData() { return !!this.D && (this.D.schema || 0) < 4; },
       openNames(e) {
         this._lastFocus = (e && e.currentTarget) || document.activeElement; this.nameModal = true; document.documentElement.classList.add("modal-open");

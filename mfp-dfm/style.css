@@ -458,3 +458,37 @@ body{font-family:var(--pico-font-family);font-feature-settings:"cv11","ss03";let
 .rb-table.tabulator .tabulator-tableholder{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important}
 .att dl.kv dd{white-space:normal;overflow-wrap:anywhere;min-width:0}
 .smk-toggle{all:unset;cursor:pointer;margin-top:var(--s2);font-size:.85em;color:var(--pico-muted-color)}.smk-toggle:hover{color:var(--pico-primary)}.smk-toggle:focus-visible{outline:2px solid var(--pico-primary);outline-offset:2px}
+/* ---- shared type scale (px: Pico scales rem with the viewport; the runs table and the queues page use the same steps) ---- */
+:root{--fs-cell:13.75px;--fs-small:12.5px;--fs-label:11.5px;--fs-tag:10.2px;--fs-host:16px;--fs-gpu:15.2px;--fs-h2:17px}
+.rb-table.tabulator{font-size:var(--fs-cell)}
+.rb-table .tabulator-col-title{font-size:var(--fs-label)}
+.rb-table .rb-id{font-size:var(--fs-small)}
+.rb-table .tag{font-size:var(--fs-tag)}
+.hl-name{font-size:var(--fs-host);font-weight:600}
+.hl-gpu,.hlane.gone .hl-gpu{font-size:var(--fs-gpu);font-weight:500}
+.hl-gpu .tag{font-size:var(--fs-tag)}
+.hl-live,.lanes-bar .small{font-size:var(--fs-small)}
+details.qcard{font-size:var(--fs-cell)}
+.qc-name,details.qcard.k-running .qc-name{font-size:var(--fs-cell);font-weight:600;line-height:1.35}
+.qc-top .badge{font-size:var(--fs-tag)}
+.pill{font-size:var(--fs-small)}
+.qc-waits{font-size:var(--fs-cell)}
+.qc-hosts>span:first-child,.qc-waits>span:first-child,dl.qc-det dt{font-size:var(--fs-label)}
+.qc-meta{font-size:var(--fs-small)}
+.qc-meta b{font-size:var(--fs-cell)}
+dl.kv.qc-det{font-size:var(--fs-cell)}.qc-det .mono{font-size:var(--fs-small)}
+details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
+.bl-h h2{font-size:var(--fs-h2)}.bl-h p{font-size:var(--fs-cell)}
+/* ---- refresh button: fixed 22px box, icon spins in place (no Pico aria-busy spinner, no reflow) ---- */
+.rl-mini{flex:none;width:22px;height:22px;overflow:hidden;position:relative}
+.rl-mini::before,.rl-mini::after{content:none!important;display:none!important}
+.rl-mini .rl-ic{display:grid;place-items:center;width:13px;height:13px;transform-origin:50% 50%}
+.rl-mini.busy{color:var(--accent);transform:none}
+.rl-mini.busy .rl-ic{animation:rb-spin .9s cubic-bezier(.45,.05,.55,.95) infinite}
+@media (prefers-reduced-motion:reduce){.rl-mini.busy .rl-ic{opacity:.4}.rl-mini:hover:not(:disabled){transform:none}}  /* no motion: a dimmed, static icon while busy */
+/* ---- toast (bottom-right, role=status region stays in the DOM) ---- */
+.toast-wrap{position:fixed;right:16px;bottom:16px;z-index:60;pointer-events:none;max-width:calc(100vw - 32px)}
+.toast{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:var(--panel);color:var(--ink);border:1px solid var(--line);
+  box-shadow:0 8px 24px rgb(0 0 0/.14),0 2px 6px rgb(0 0 0/.08);font-size:var(--fs-cell);font-weight:500;pointer-events:auto}
+.toast svg.i{width:16px;height:16px;flex:none}
+.toast.t-ok svg.i{color:var(--ok,#1a7f37)}.toast.t-same svg.i{color:var(--accent)}.toast.t-err{border-color:var(--bad,#c62828)}.toast.t-err svg.i{color:var(--bad,#c62828)}
