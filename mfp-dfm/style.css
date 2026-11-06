@@ -502,3 +502,5 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
 .hl-name .tag{margin:0;font-weight:500;letter-spacing:.05em}
 .hlane.g-mid .hl-name,.hlane.g-last .hl-name{visibility:hidden}  /* machine name once (first card); row kept for alignment */
 @media (max-width:720px){.lanes>.hlane.g-first,.lanes>.hlane.g-mid{margin-right:0}.hlane.g{border:1px solid var(--line);border-radius:var(--r)}.hlane.g-mid .hl-name,.hlane.g-last .hl-name{visibility:visible}}  /* phone: one lane per screen */
+.hl-cloud{display:inline-grid;place-items:center;color:var(--muted)}.hl-cloud svg.i{width:14px;height:14px}
+.lanes-bar{justify-content:flex-end}  /* GPU count lives in the nav; only the scroll arrows remain */

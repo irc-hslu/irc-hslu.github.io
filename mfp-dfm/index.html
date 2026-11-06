@@ -5,10 +5,10 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=14a196aeae">
+<link rel="stylesheet" href="style.css?v=041275df66">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=e29e702e61"></script>
+<script src="app.js?v=6a1113dcee"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -89,15 +89,15 @@
     </dl></div></template>
   </section>
   <section class="page qpage" x-data="queues" x-show="route === 'queues'" aria-label="GPU queues">
-  <div class="lanes-bar"><span class="muted small" x-text="RB.availableGpus(D) + ' GPUs' + (hosts().filter((h) => h.gone).length ? ' \u00b7 ' + hosts().filter((h) => h.gone).length + ' destroyed' : '')"></span>
+  <div class="lanes-bar">
     <div class="lanes-arrows" x-show="!(atStart && atEnd)"><button type="button" class="arw" @click="step(-1)" :disabled="atStart" aria-label="Previous GPU">&lsaquo;</button><button type="button" class="arw" @click="step(1)" :disabled="atEnd" aria-label="Next GPU">&rsaquo;</button></div>
     <div class="dots" x-show="hosts().length > 1"><template x-for="(h, i) in hosts()" :key="'d' + h.k"><button type="button" :class="i === cur && 'on'" @click="go(i)" :aria-label="'Show ' + h.name" :title="h.name"></button></template></div></div>
   <section class="lanes" :class="!atEnd && 'more'" x-ref="lanes" tabindex="0" @scroll.debounce.60ms="onScroll()" aria-label="GPU lanes (scroll sideways)">
     <template x-for="h in hosts()" :key="h.k"><div class="hlane" :class="[h.gone ? 'gone' : (h.reachable ? '' : 'off'), h.grp ? 'g g-' + h.grp : '']">
       <div class="hl-h">
-        <div class="hl-name"><span class="dot" :class="h.gone ? 'grey' : !h.reachable && 'off'" :title="h.gone ? 'destroyed' : h.reachable ? 'online' : 'offline'"></span><b x-text="h.grp ? h.machine : h.name"></b><span class="tag" x-show="h.rented" x-text="h.location ? 'rented \u00b7 ' + h.location : 'rented'"></span>
+        <div class="hl-name"><span class="dot" :class="h.gone ? 'grey' : !h.reachable && 'off'" :title="h.gone ? 'destroyed' : h.reachable ? 'online' : 'offline'"></span><b x-text="h.grp ? h.machine : h.name"></b><span class="hl-cloud" x-show="h.rented" :title="h.location ? 'rented (' + h.location + ')' : 'rented'" :aria-label="'rented'" x-html="ic('cloud')"></span>
           <span class="badge st-destroyed" x-show="h.gone" :title="h.destroyed_at" x-text="'destroyed ' + destroyedOn(h.destroyed_at)"></span></div>
-        <div class="hl-gpu"><span class="hl-ic" x-html="ic(h.rented ? 'cloud' : 'cpu')"></span><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span></div>
+        <div class="hl-gpu"><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span></div>
         <div class="hl-live" x-text="h.gone ? 'machine destroyed \u00b7 not polled' : h.reachable ? RB.liveLine(h.gpu_status, h.gpuName) : seen(h)"></div>
       </div>
       <div class="hl-cards">
@@ -164,7 +164,6 @@
     <header><h2 id="names-title">How to read run names</h2><button type="button" class="modal-x" x-ref="dlgClose" @click="closeNames()" aria-label="Close">&times;</button></header>
     <svg class="howto-svg" x-ref="howsvg" role="img" aria-label="Run name anatomy: model, size, init, to, dataset, noise, tag"></svg>
     <dl class="howto-list"><template x-for="g in NAME_PARTS" :key="g.part"><div><dt><code x-text="g.part"></code> <b x-text="g.label"></b></dt><dd x-text="g.help"></dd></div></template></dl>
-    <p class="muted small">Grammar: <code>&lt;model&gt;_&lt;size&gt;_&lt;init&gt;_to_&lt;dataset&gt;_&lt;noise&gt;[_&lt;tag&gt;…]</code>. A name never changes once given; a clash gets <code>_2</code>, <code>_3</code>, … in age order.</p>
   </div>
 </div>
 <div class="toast-wrap" role="status" aria-live="polite" aria-atomic="true"><div class="toast" :class="'t-' + toast.kind" x-show="toast.msg" x-transition.opacity.duration.200ms>
