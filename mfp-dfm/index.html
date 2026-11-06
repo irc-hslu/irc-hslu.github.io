@@ -5,10 +5,10 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=041275df66">
+<link rel="stylesheet" href="style.css?v=cf074aca0e">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=6a1113dcee"></script>
+<script src="app.js?v=8d02380869"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -34,7 +34,8 @@
   <section class="page" x-data="runs" x-show="route === 'runs'" aria-label="Runs">
   <div class="count">
     <label class="tgl" title="Show the paper grid: full SFT runs plus a row for every combination that never ran"><input type="checkbox" role="switch" x-model="all"> all combinations</label>
-    <label class="tgl" title="Include smokes, probes and short or killed runs"><input type="checkbox" role="switch" x-model="scratch"> scratch</label></div>
+    <label class="tgl" title="Include smokes, probes and short or killed runs"><input type="checkbox" role="switch" x-model="scratch"> scratch</label>
+    <label class="tgl" title="Only runs whose results are cited in the paper (evidence receipts on the paper's dist branch)"><input type="checkbox" role="switch" x-model="paper"> paper</label></div>
   <div class="rb-mfilters"><template x-for="k in FILTER_KEYS" :key="'mf' + k">
     <select :aria-label="'Filter ' + KEY_LABEL[k]" :value="f[k]" @change="setFilter(k, $event.target.value)"><option value="" x-text="SHORT_LABEL[k] + ': all'"></option>
       <template x-for="v in (D ? opts(k) : [])" :key="k + v"><option :value="v" :selected="f[k] === v" x-text="v.replace('_', ' ')"></option></template></select></template></div>
@@ -70,6 +71,7 @@
             <dt>Commit</dt><dd><a x-show="a.code_commit" :href="commitUrl(a.code_commit)" target="_blank" rel="noopener" class="mono lnk"><span x-html="ic('git-commit-horizontal')"></span><span x-text="sha(a.code_commit)"></span></a><span x-show="!a.code_commit">&mdash;</span></dd>
             <dt x-show="(a.metrics || {}).dev_best_rmse != null">Dev best</dt><dd x-show="(a.metrics || {}).dev_best_rmse != null" class="num" x-text="'RMSE ' + ((a.metrics || {}).dev_best_rmse || 0).toFixed(4) + ((a.val_best || {}).mae != null ? ' · MAE ' + a.val_best.mae.toFixed(4) : '')"></dd>
             <dt x-show="a.test">Test</dt><dd x-show="a.test" class="num" x-text="a.test ? 'RMSE ' + a.test.rmse.toFixed(4) + (a.test.mae != null ? ' · MAE ' + a.test.mae.toFixed(4) : '') + ' · test96' + (a.test.update ? ' @' + RB.kfmt(a.test.update) : '') : ''" :title="a.test ? 'ALL3 test96 of the checkpoint at update ' + a.test.update + ': ' + a.test.path : ''"></dd>
+            <dt x-show="(a.paper_cells || []).length">Paper</dt><dd x-show="(a.paper_cells || []).length"><template x-for="(c, ci) in (a.paper_cells || [])" :key="ci"><div class="paper-cell" :title="RB.paperTip(c)"><span class="tag" :class="c.cited !== false && 'paper'" x-text="c.cited !== false ? 'paper' : 'receipt only'"></span> <span class="num" :class="c.cited !== false && 'cited'" x-text="c.metric.toUpperCase() + ' ' + (+c.value).toFixed(4)"></span> <span class="muted" x-text="c.row"></span></div></template></dd>
             <dt x-show="a.failure_reason">Reason</dt><dd x-show="a.failure_reason" x-text="a.failure_reason"></dd>
           </dl></div></template></div>
         <button type="button" class="smk-toggle" x-show="smokes(r)" @click.stop="flipSmokes(r)" :aria-expanded="smk.includes(r.id)"

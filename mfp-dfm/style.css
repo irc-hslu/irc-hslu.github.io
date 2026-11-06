@@ -504,3 +504,7 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
 @media (max-width:720px){.lanes>.hlane.g-first,.lanes>.hlane.g-mid{margin-right:0}.hlane.g{border:1px solid var(--line);border-radius:var(--r)}.hlane.g-mid .hl-name,.hlane.g-last .hl-name{visibility:visible}}  /* phone: one lane per screen */
 .hl-cloud{display:inline-grid;place-items:center;color:var(--muted)}.hl-cloud svg.i{width:14px;height:14px}
 .lanes-bar{justify-content:flex-end}  /* GPU count lives in the nav; only the scroll arrows remain */
+/* ---- paper citations (evidence receipts) ---- */
+.tag.paper{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);font-weight:600;cursor:help}
+.num.cited{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:4px;padding:0 3px;outline:1px solid color-mix(in srgb,var(--accent) 35%,transparent);cursor:help}
+.paper-cell{display:flex;flex-wrap:wrap;gap:4px;align-items:baseline;line-height:1.5}

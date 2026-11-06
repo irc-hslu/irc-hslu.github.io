@@ -149,6 +149,12 @@ RB.liveLine = (status, gpu) => {
   const cap = RB.vramGb(gpu);
   return `Util: ${Math.round(+m[2] / 1024)}${cap ? "/" + cap : ""} GB @ ${m[1]}%`;
 };
+/** Paper cells of a run (all attempts): [{table, row, metric, value, update, receipt, selection_basis}]. */
+RB.paperCells = (r) => (r && r.attempts || []).flatMap((a) => a.paper_cells || []);
+/** Tooltip for one paper cell: table, row, value and selection basis. */
+RB.paperTip = (c) => `Paper: ${c.table} \u00b7 ${c.row} \u00b7 ${c.metric.toUpperCase()} ${(+c.value).toFixed(4)} \u00b7 ${c.selection_basis} (${c.receipt})`;
+/** The cited cell for a shown metric value (same number to 1e-9), else null. */
+RB.citedCell = (r, metric, v) => (v == null ? null : RB.paperCells(r).find((c) => c.cited !== false && c.metric === metric && Math.abs(c.value - v) < 1e-9) || null);
 if (typeof module !== "undefined") module.exports = RB;
 
 /* Common page state: data, password gate, header. */
@@ -282,7 +288,7 @@ document.addEventListener("alpine:init", () => {
   /** Started once the root has the data; reacts to reloads and to route changes (the table re-measures when it becomes visible). */
   const whenData = (c, start) => { if (c.D) start(); else addEventListener("rb-data", start, {once: true}); };
   Alpine.data("runs", () => ({
-    f: {model: "", init: "", pretrain_ds: "", dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1, all: false, n: 0, built: false, open: [],
+    f: {model: "", init: "", pretrain_ds: "", dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1, all: false, paper: false, n: 0, built: false, open: [],
     FILTER_KEYS: ["model", "init", "pretrain_ds", "dataset", "noise", "status"],
     KEY_LABEL: {model: "Model", init: "Init", pretrain_ds: "Pretrain dataset", dataset: "SFT dataset", noise: "Noise", status: "Status"},
     SHORT_LABEL: {model: "Model", init: "Init", pretrain_ds: "Pretrain", dataset: "SFT", noise: "Noise", status: "Status"},
@@ -297,12 +303,14 @@ document.addEventListener("alpine:init", () => {
       if (this.built || this.route !== "runs") return;
       try { Object.assign(this, JSON.parse(sessionStorage.getItem("rb-runs") || "{}")); } catch (e) {}
       try { this.all = JSON.parse(localStorage.getItem("rb-all") || "false"); } catch (e) {}
+      try { this.paper = JSON.parse(localStorage.getItem("rb-paper") || "false"); } catch (e) {}
       const want = this.openIds()[0] && this.D.runs.find((r) => r.id === this.openIds()[0]);
       if (want && want.kind === "scratch") this.scratch = true;
       const save = () => { try { sessionStorage.setItem("rb-runs", JSON.stringify({f: this.f, sort: this.sort, dir: this.dir})); } catch (e) {} };
       for (const k of ["f", "sort", "dir"]) this.$watch(k, save);
       this.$watch("scratch", () => this.refresh());
       this.$watch("all", (v) => { try { localStorage.setItem("rb-all", JSON.stringify(v)); } catch (e) {} this.refresh(); });
+      this.$watch("paper", (v) => { try { localStorage.setItem("rb-paper", JSON.stringify(v)); } catch (e) {} this.refresh(); });
       this.built = true; this.$nextTick(() => this.mkTable());
     },
     openIds() { return this.params.getAll("open"); },
@@ -312,7 +320,7 @@ document.addEventListener("alpine:init", () => {
       RUNS_TABLE.setPageToRow(id).then(() => RUNS_TABLE.scrollToRow(id, "top", false)).catch(() => {});
     },
     refresh() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.rows()); },
-    base() { return this.D.runs.filter((r) => this.scratch || r.kind !== "scratch"); },
+    base() { return this.D.runs.filter((r) => this.paper ? r.paper : (this.scratch || r.kind !== "scratch")); },  // 'paper': only runs cited in the paper
     canon(r) { return r.model || RB.canonModel(r.variant) || "Other"; },
     opts(k) { const v = [...new Set(this.rows(true).map((r) => r[k]))].filter((x) => x && x !== "-" && x !== "all");
       return v.sort((a, b) => RB.rank(k === "pretrain_ds" ? "dataset" : k, a).localeCompare(RB.rank(k === "pretrain_ds" ? "dataset" : k, b))); },
@@ -383,7 +391,8 @@ document.addEventListener("alpine:init", () => {
               w.append(bt); return w; },
             formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
               if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
-              return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
+              const pc = RB.paperCells(d._r).filter((x) => x.cited !== false), pb = pc.length ? ` <span class="tag paper" title="${esc(pc.map(RB.paperTip).join("\n"))}">paper</span>` : "";
+              return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}${pb}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
           col({title: "Model", field: "model", width: 120, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
           col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (miss(c.getValue()) ? `<span class="muted">—</span>` : `<code class="init">${esc(c.getValue())}</code>`)}),
           col({title: "Pretrain Dataset", titleFormatter: two("Pretrain", "Dataset"), field: "pretrain_ds", width: 108, responsive: 7, sorter: ranked("dataset"), ...list("pretrain_ds")}),
@@ -392,10 +401,12 @@ document.addEventListener("alpine:init", () => {
           col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
           col({title: "RMSE", field: "rmse", width: 114, responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
-            formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(4)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
+            formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "rmse", c.getValue());
+              return `<span class="num${pc ? " cited" : ""}"${pc ? ` title="${esc(RB.paperTip(pc))}"` : ""}>${c.getValue().toFixed(4)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`; }}),
           col({title: "MAE", field: "mae", width: 76, responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
             // same receipt as RMSE (its DEV/TEST badge applies), so no second badge
-            formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num" title="${esc(c.getData().msrc)} MAE">${c.getValue().toFixed(4)}</span>`)}),
+            formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "mae", c.getValue());
+              return `<span class="num${pc ? " cited" : ""}" title="${esc(pc ? RB.paperTip(pc) : c.getData().msrc + " MAE")}">${c.getValue().toFixed(4)}</span>`; }}),
           col({title: "Steps", field: "steps", width: 100, responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
               return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>`; }}),
