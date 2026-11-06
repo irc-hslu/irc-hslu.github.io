@@ -140,6 +140,15 @@ RB.laneGroups = (keys) => {
   });
   return out;
 };
+/** GPU memory capacity in GB: an explicit 'NN GB' in the GPU label (e.g. vastai_3 RTX 4080 SUPER 32 GB), else by model. */
+RB.vramGb = (gpu) => { const m = /(\d+)\s*GB\b/.exec(gpu || ""); if (m) return +m[1];
+  return /4090|3090/.test(gpu || "") ? 24 : /4080/.test(gpu || "") ? 16 : null; };
+/** nvidia-smi '92 %, 13029 MiB' -> 'Util 92 % · Mem 13 / 32 GB' (memory rounded to whole GB). */
+RB.liveLine = (status, gpu) => {
+  const m = /^\s*(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec(status || ""); if (!m) return status ? "GPU " + status : "no GPU data";
+  const cap = RB.vramGb(gpu);
+  return `Util ${m[1]} % \u00b7 Mem ${Math.round(+m[2] / 1024)}${cap ? " / " + cap : ""} GB`;
+};
 if (typeof module !== "undefined") module.exports = RB;
 
 /* Common page state: data, password gate, header. */

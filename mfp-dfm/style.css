@@ -497,6 +497,8 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
 .hlane.g-first{border-top-right-radius:0;border-bottom-right-radius:0;border-right:0}
 .hlane.g-mid{border-radius:0;border-right:0}
 .hlane.g-last{border-top-left-radius:0;border-bottom-left-radius:0}
-.hlane.g-mid,.hlane.g-last{border-left:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.hlane.g-mid,.hlane.g-last{border-left:1px dashed var(--line)}
+.hlane.g-first,.hlane.g-mid{padding-right:calc(var(--s3) + 8px)}.hlane.g-mid,.hlane.g-last{padding-left:calc(var(--s3) + 8px)}
+.hl-name .tag{margin:0;font-weight:500;letter-spacing:.05em}
 .hlane.g-mid .hl-name,.hlane.g-last .hl-name{visibility:hidden}  /* machine name once (first card); row kept for alignment */
 @media (max-width:720px){.lanes>.hlane.g-first,.lanes>.hlane.g-mid{margin-right:0}.hlane.g{border:1px solid var(--line);border-radius:var(--r)}.hlane.g-mid .hl-name,.hlane.g-last .hl-name{visibility:visible}}  /* phone: one lane per screen */
