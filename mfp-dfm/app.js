@@ -127,6 +127,19 @@ const RB = (() => {
 /** Available GPU lanes of a runs.json: not destroyed, not excluded, reachable now. */
 RB.availableGpus = (D) => (D ? Object.values(D.queues || {}).filter((q) => q.status !== "destroyed" && !q.excluded && q.reachable).length : 0);
 RB.refreshMsg = (before, after) => (before && after && before === after ? ["Already up to date", "same"] : ["Updated just now", "ok"]);
+/** Lanes of one multi-GPU machine (keys host.gpuN, adjacent in display order) -> {key: {pos: first|mid|last, machine, n}};
+ *  single-GPU hosts get no entry. */
+RB.laneGroups = (keys) => {
+  const m = (k) => k.replace(/\.gpu\d+$/, ""), out = {};
+  keys.forEach((k, i) => {
+    if (!/\.gpu\d+$/.test(k)) return;
+    const same = keys.filter((x) => /\.gpu\d+$/.test(x) && m(x) === m(k));
+    if (same.length < 2) return;
+    const prev = i > 0 && m(keys[i - 1]) === m(k) && /\.gpu\d+$/.test(keys[i - 1]), next = i < keys.length - 1 && m(keys[i + 1]) === m(k) && /\.gpu\d+$/.test(keys[i + 1]);
+    out[k] = {pos: !prev ? "first" : next ? "mid" : "last", machine: m(k), n: same.length};
+  });
+  return out;
+};
 if (typeof module !== "undefined") module.exports = RB;
 
 /* Common page state: data, password gate, header. */
@@ -464,9 +477,12 @@ document.addEventListener("alpine:init", () => {
       if (!this.D) return [];
       const order = ["local", "iradonis", "desktop"], q = this.D.queues || {};
       const gone = (k) => (q[k].status === "destroyed" ? 1 : 0);  // destroyed rented machines last, newest destruction first
-      return Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden).sort((a, b) => gone(a) - gone(b) ||
-          (gone(a) ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) || a.localeCompare(b))
-        .map((k) => ({k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_"), multi: !!/\.gpu\d+$/.exec(k), gone: q[k].status === "destroyed"}));
+      const keys = Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden).sort((a, b) => gone(a) - gone(b) ||
+          (gone(a) ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) || a.localeCompare(b));
+      const G = RB.laneGroups(keys);  // lanes of one multi-GPU machine are drawn as a group
+      return keys.map((k) => { const g = G[k];
+          return {k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_"), multi: !!/\.gpu\d+$/.exec(k), gone: q[k].status === "destroyed",
+            grp: g ? g.pos : "", grpLabel: g && g.pos === "first" ? `${g.machine} \u00b7 1 machine \u00b7 ${g.n} GPUs` : ""}; });
     },
     gpuOf(k) { const q = (this.D.queues || {})[k] || {}; return (q.gpu_label || (RB.HOSTS[k] || {}).gpu || "").replace(/\s*\(.*\)$/, ""); },
     /** Name with a break opportunity after every underscore only (never ellipsized). */

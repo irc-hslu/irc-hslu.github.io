@@ -5,10 +5,10 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=40d753fe98">
+<link rel="stylesheet" href="style.css?v=ebaa3d67f7">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=45d77dbae7"></script>
+<script src="app.js?v=c6c3e5c1ff"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -89,11 +89,11 @@
     </dl></div></template>
   </section>
   <section class="page qpage" x-data="queues" x-show="route === 'queues'" aria-label="GPU queues">
-  <div class="lanes-bar"><span class="muted small" x-text="hosts().length + ' GPUs'"></span>
+  <div class="lanes-bar"><span class="muted small" x-text="RB.availableGpus(D) + ' GPUs' + (hosts().filter((h) => h.gone).length ? ' \u00b7 ' + hosts().filter((h) => h.gone).length + ' destroyed' : '')"></span>
     <div class="lanes-arrows" x-show="!(atStart && atEnd)"><button type="button" class="arw" @click="step(-1)" :disabled="atStart" aria-label="Previous GPU">&lsaquo;</button><button type="button" class="arw" @click="step(1)" :disabled="atEnd" aria-label="Next GPU">&rsaquo;</button></div>
     <div class="dots" x-show="hosts().length > 1"><template x-for="(h, i) in hosts()" :key="'d' + h.k"><button type="button" :class="i === cur && 'on'" @click="go(i)" :aria-label="'Show ' + h.name" :title="h.name"></button></template></div></div>
   <section class="lanes" :class="!atEnd && 'more'" x-ref="lanes" tabindex="0" @scroll.debounce.60ms="onScroll()" aria-label="GPU lanes (scroll sideways)">
-    <template x-for="h in hosts()" :key="h.k"><div class="hlane" :class="h.gone ? 'gone' : !h.reachable && 'off'">
+    <template x-for="h in hosts()" :key="h.k"><div class="hlane" :class="[h.gone ? 'gone' : (h.reachable ? '' : 'off'), h.grp ? 'g g-' + h.grp : '']" :data-machine="h.grpLabel || null">
       <div class="hl-h">
         <div class="hl-name"><span class="dot" :class="h.gone ? 'grey' : !h.reachable && 'off'" :title="h.gone ? 'destroyed' : h.reachable ? 'online' : 'offline'"></span><b x-text="h.name"></b>
           <span class="badge st-destroyed" x-show="h.gone" :title="h.destroyed_at" x-text="'destroyed ' + destroyedOn(h.destroyed_at)"></span></div>
