@@ -94,7 +94,7 @@ const RB = (() => {
     return L[name] ? `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${L[name]}</svg>` : "";
   };
   /** Icon per run status / queue stage / matrix word. */
-  const ICON = {succeeded: "circle-check", running: "activity", queued: "hourglass", planned: "clock", failed: "circle-x", cancelled: "ban",
+  const ICON = {succeeded: "circle-check", running: "activity", queued: "hourglass", paused: "hourglass", planned: "clock", failed: "circle-x", cancelled: "ban",
     smoke: "flask-conical", stale: "clock", superseded: "archive", reviewed: "check", "host-tested": "flask-conical", built: "package",
     "not planned": ""};
   /** Canonical value order per key (unknown values follow, alphabetically). */
@@ -487,7 +487,7 @@ document.addEventListener("alpine:init", () => {
     },
     go(i) { const el = this.$refs.lanes, ls = this.laneEls(); if (ls[i]) el.scrollTo({left: ls[i].offsetLeft - ls[0].offsetLeft, behavior: "smooth"}); },
     step(d) { const ls = this.laneEls(), w = ls.length > 1 ? ls[1].offsetLeft - ls[0].offsetLeft : 380; this.$refs.lanes.scrollBy({left: d * w, behavior: "smooth"}); },
-    STAGE: {running: "Running", queued: "Queued", reviewed: "Ready", "host-tested": "Tested", built: "Built", planned: "Planned"},
+    STAGE: {running: "Running", queued: "Queued", paused: "Paused", reviewed: "Ready", "host-tested": "Tested", built: "Built", planned: "Planned"},
     onReload() {
       this.runById = Object.fromEntries(this.D.runs.map((r) => [r.id, r])); this.planById = Object.fromEntries((this.D.plan || []).map((p) => [p.id, p]));
       this.$nextTick(() => this.onScroll());
@@ -516,10 +516,10 @@ document.addEventListener("alpine:init", () => {
     runAttempt(r) { const a = [...((r && r.attempts) || [])].reverse(); return a.find((x) => x.status === "running") || a[0] || {}; },
     /** One card model for queue jobs, lane plan entries and backlog items. */
     card(src, kind, i) {
-      const jr = kind === "running" || kind === "queued" ? this.jobRun(src).r : null;
+      const jr = kind === "running" || kind === "queued" || kind === "paused" ? this.jobRun(src).r : null;
       const id = kind === "backlog" || kind === "plan" ? src.id : jr ? jr.id : src.run_id, r = id && this.runById[id], p = id && this.planById[id];
       const att = this.runAttempt(r), m = att.metrics || {}, fam = r && {PromptDA: "PromptDA", Ours_SV: "SV", Ours_MV: "MV"}[r.tab];
-      const stage = kind === "running" ? "running" : kind === "queued" ? "queued" : (src.stage_effective || src.stage || "planned");
+      const stage = kind === "running" || kind === "queued" || kind === "paused" ? kind : (src.stage_effective || src.stage || "planned");
       const name = kind === "backlog" ? src.name : (p && p.display_name) || (r && (r.display_name || r.title)) || (src.name || "").replace(/\.job$/, "");
       const si = ["planned", "built", "reviewed", "host-tested", "queued"].indexOf(p ? p.stage_effective : "");
       const det = [["Run id", id || "not mapped to a run"], ["Parent", (p && p.parent) || (r && r.parent_id) || src.parent],
@@ -534,7 +534,8 @@ document.addEventListener("alpine:init", () => {
         chips: this.chips((r && r.model !== "Other" && r.model) || (kind === "backlog" ? src.model : p && p.model) || fam,
           (kind === "backlog" ? src.dataset : p && p.dataset) || (r && r.dataset), (kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise)),
         waits: kind === "plan" ? src.waits_for || src.unlock_event || "" : kind === "backlog" ? src.waits_for : "",
-        step: m.step, budget: src.budget || {}, started: src.started,
+        step: kind === "paused" ? src.progress_step : m.step, budget: kind === "paused" ? {steps: src.progress_total} : src.budget || {}, started: src.started,
+        best: src.best_dev || "", backup: (src.backup || "").replace(/\/+$/, "").split("/").slice(-2).join("/"), backupFull: src.backup || "",
         wandb: att.wandb_url || "", hosts: kind === "backlog" ? src.candidate_hosts || [] : [], det};
     },
     lane(h) {
@@ -542,7 +543,9 @@ document.addEventListener("alpine:init", () => {
       return [...(h.running || []).map((j, i) => this.card(j, "running", i)), ...(h.queued || []).map((j, i) => this.card(j, "queued", i)),
         ...(this.D.plan || []).filter((p) => p.host_key === h.k && p.run_status === "planned" && p.stage_effective !== "queued").map((p, i) => this.card(p, "plan", i))];
     },
-    backlog() { return this.D ? (this.D.backlog || []).map((b, i) => this.card(b, "backlog", i)) : []; },
+    /** Paused jobs of every host (interrupted runs that resume from last.ckpt), then the planned backlog. */
+    paused() { return this.D ? Object.entries(this.D.queues || {}).flatMap(([k, q]) => (q.paused || []).map((j) => ({...j, host: k}))).map((j, i) => this.card(j, "paused", i)) : []; },
+    backlog() { return this.D ? [...this.paused(), ...(this.D.backlog || []).map((b, i) => this.card(b, "backlog", i))] : []; },
     num: (n) => (n == null ? "" : Number(n).toLocaleString("en-US")),
     /** Completion against the run's step budget (recipe cap, e.g. 200K for P2 SFT): '45,400 / 200,000 steps (23 %)'. */
     pct(c) { return c.step && c.budget.steps ? Math.min(100, Math.round(100 * c.step / c.budget.steps)) : 0; },

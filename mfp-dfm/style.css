@@ -206,7 +206,7 @@ dl.kv.qc-det{margin:0;padding:var(--s2) var(--s3) var(--s3);display:grid;grid-te
 .qc-det .kvr{min-width:0}.qc-det .kvr.wide{grid-column:1/-1}
 dl.qc-det dt{color:var(--muted);font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;margin:0}dl.qc-det dd{margin:0;overflow-wrap:anywhere;line-height:1.35}
 .qc-det .mono{font-size:.76rem}
-.st-running{color:var(--run);background:var(--run-bg)}.st-queued{color:var(--wait);background:var(--wait-bg)}
+.st-running{color:var(--run);background:var(--run-bg)}.st-queued,.st-paused{color:var(--wait);background:var(--wait-bg)}
 .st-reviewed{color:var(--ready);background:var(--ready-bg)}.st-host-tested{color:var(--tested);background:var(--tested-bg)}
 .st-built{color:var(--built);background:var(--built-bg)}.st-planned{color:var(--plan);background:var(--plan-bg)}
 .st-unmapped{color:var(--bad);background:transparent;border:1px solid var(--bad)}

@@ -5,10 +5,10 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=cf074aca0e">
+<link rel="stylesheet" href="style.css?v=1851fa2468">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=8d02380869"></script>
+<script src="app.js?v=23ade5ef11"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -135,7 +135,7 @@
     </div></template>
   </section>
   <section class="backlog" x-show="backlog().length">
-    <div class="bl-h"><h2>Backlog</h2><p>Planned work without a fixed GPU. It goes to whichever possible GPU frees up first.</p></div>
+    <div class="bl-h"><h2>Backlog</h2><p>Paused runs waiting to resume, and planned work without a fixed GPU. It goes to whichever possible GPU frees up first.</p></div>
     <div class="bl-grid"><template x-for="c in backlog()" :key="c.key">
       <details class="qcard" :class="'k-' + c.kind">
           <summary>
@@ -143,12 +143,13 @@
               <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span></div>
             <div class="qc-name" x-html="nameHtml(c.name)"></div>
             <div class="qc-chips" x-show="c.chips.length"><template x-for="(t, ti) in c.chips" :key="ti"><span class="pill" x-html="ic(['', 'database', 'audio-waveform'][ti] || '') + (ti === 0 ? RB.modelHtml(t) : RB.esc(t))"></span></template></div>
-            <template x-if="c.kind === 'running'"><div class="qc-prog">
+            <template x-if="c.kind === 'running' || c.kind === 'paused'"><div class="qc-prog">
               <template x-if="c.budget.eval"><div class="qc-meta"><span class="badge st-eval">eval</span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div></template>
               <template x-if="!c.budget.eval"><div>
                 <div class="pbar" x-show="c.budget.steps" role="progressbar" :aria-valuenow="pct(c)" aria-valuemin="0" aria-valuemax="100"><i :style="'width:' + pct(c) + '%'"></i>
                   <b class="pbar-mark" x-show="c.budget.earliest" :style="'left:' + (100 * c.budget.earliest / c.budget.steps) + '%'" :title="'earliest stop ' + kfmt(c.budget.earliest || 0)"></b></div>
-                <div class="qc-meta"><b x-text="progressText(c)"></b><span x-show="c.budget.earliest" x-text="'earliest stop ' + kfmt(c.budget.earliest || 0)"></span><span x-show="c.budget.no_early_stop" title="bindings.runtime.full200k: runs the full budget; the best dev checkpoint is kept">no early stop &middot; best kept</span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div>
+                <div class="qc-meta"><b x-text="progressText(c)"></b><span x-show="c.budget.earliest" x-text="'earliest stop ' + kfmt(c.budget.earliest || 0)"></span><span x-show="c.budget.no_early_stop" title="bindings.runtime.full200k: runs the full budget; the best dev checkpoint is kept">no early stop &middot; best kept</span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span><span x-show="c.best" x-text="'best dev ' + c.best"></span></div>
+                <div class="qc-meta" x-show="c.kind === 'paused'"><span>resume from last.ckpt</span><span x-show="c.backup" :title="c.backupFull" x-text="'backup \u2026/' + c.backup"></span></div>
               </div></template></div></template>
             <div class="qc-waits" x-show="c.waits"><span>Waits for</span> <span x-text="c.waits"></span></div>
             <div class="qc-hosts" x-show="c.hosts.length"><span>Possible GPUs</span><template x-for="k in c.hosts" :key="k"><span class="pill host" x-text="hostName(k)"></span></template></div>
