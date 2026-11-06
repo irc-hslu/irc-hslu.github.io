@@ -482,7 +482,7 @@ document.addEventListener("alpine:init", () => {
       const G = RB.laneGroups(keys);  // lanes of one multi-GPU machine are drawn as a group
       return keys.map((k) => { const g = G[k];
           return {k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_"), multi: !!/\.gpu\d+$/.exec(k), gone: q[k].status === "destroyed",
-            grp: g ? g.pos : "", grpLabel: g && g.pos === "first" ? `${g.machine} \u00b7 1 machine \u00b7 ${g.n} GPUs` : ""}; });
+            grp: g ? g.pos : "", machine: g ? g.machine : ""}; });  // glued block: machine name once, no 'GPU N' label
     },
     gpuOf(k) { const q = (this.D.queues || {})[k] || {}; return (q.gpu_label || (RB.HOSTS[k] || {}).gpu || "").replace(/\s*\(.*\)$/, ""); },
     /** Name with a break opportunity after every underscore only (never ellipsized). */
