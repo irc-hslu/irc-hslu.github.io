@@ -161,8 +161,11 @@ function base(page) {
 const STATUS_ORDER = RB.ORDER.status;
 const TABS = ["PromptDA", "Ours_SV", "Ours_MV", "Other", "Scratch"];
 /** [MAE, 'test'|'dev']: test l1 when the run has a test RMSE (same receipt), else the best dev MAE. */
-const mae = (r) => { const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_mae ?? null, "test"] : [(r.metrics_best || {}).mae ?? null, "dev"]; };
-const rmse = (r) => { const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
+/** Row metrics = the run's current (primary) attempt (build.row_metrics), null when it has none yet; only data built
+ *  before r.row existed (schema < 4) falls back to the run summary. */
+const mae = (r) => { if (r.row) return [r.row.mae ?? null, r.row.src]; const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_mae ?? null, "test"] : [(r.metrics_best || {}).mae ?? null, "dev"]; };
+const rmse = (r) => { if (r.row) return [r.row.rmse ?? null, r.row.src];  // current attempt only: null renders '—', never another attempt's value
+   const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
 let RUNS_TABLE = null, RUNS_EL = null;  // the Tabulator instance (kept out of Alpine's reactive state)
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };
 
@@ -179,7 +182,7 @@ document.addEventListener("alpine:init", () => {
         {part: "to", label: "", help: "separates the start from the training target"},
         {part: "scannetpp", label: "dataset", help: "training data of this run: hypersim, scannetpp, arkit, thuman"},
         {part: "lidarlow", label: "noise", help: "prompt noise preset: lidarlow, lower, low, none"},
-        {part: "dpt01", label: "tag", help: "optional variant: dpt01, shuf, null, 24k, offset, fivebin, smoke, eval; _2, _3 for twins"}],
+        {part: "dpt01", label: "tag", help: "optional variant: dpt01, shuf, null, 24k, offset, fivebin, abl, smoke, eval; _2, _3 for twins"}],
       async init() {
         const q = new URLSearchParams(location.search);  // old links: index.html?open=<id> / queues.html -> hash routes
         if (q.has("open") && !location.hash) history.replaceState(null, "", location.pathname + "#/runs?" + new URLSearchParams(q.getAll("open").map((o) => ["open", o])));
@@ -206,7 +209,7 @@ document.addEventListener("alpine:init", () => {
       onReload() { dispatchEvent(new CustomEvent("rb-reload")); },
       runCount() { return this.D ? this.D.runs.filter((r) => this.scratch || r.kind !== "scratch").length : 0; },
       activeQueues() { return this.D ? Object.values(this.D.queues || {}).filter((q) => q.status !== "destroyed" && !q.excluded && (q.running || []).length).length : 0; },
-      oldData() { return !!this.D && (this.D.schema || 0) < 3; },
+      oldData() { return !!this.D && (this.D.schema || 0) < 4; },
       openNames(e) {
         this._lastFocus = (e && e.currentTarget) || document.activeElement; this.nameModal = true; document.documentElement.classList.add("modal-open");
         this.$nextTick(() => { this.drawNames(this.$refs.howsvg); this.$refs.dlgClose.focus(); });
@@ -284,31 +287,24 @@ document.addEventListener("alpine:init", () => {
     comboName(c) { const mt = {"PromptDA-B": "promptda_B", "PromptDA-L": "promptda_L", Ours_SV: "sv_B"}[c.model] || (/^Ours_MV(\d+)$/.exec(c.model) ? `mv${RegExp.$1}_B` : "x_B");
       const dt = {Hypersim: "hypersim", "ScanNet++": "scannetpp", ARKitScenes: "arkit", THuman: "thuman"}[c.dataset] || "x";
       return [mt, c.init.replace(/_/g, ""), "to", dt, c.noise.replace(/_/g, "")].join("_"); },
-    /** 'Show all combinations': Model x Init x SFT dataset x Noise over sensible values present in the data (Pretrain follows Init),
-     *  narrowed by the filters; each missing combination becomes a 'not planned' row named by the grammar. */
+    /** The paper grid of full SFT runs: SFT dataset x noise x model x Hypersim-pretrained init (chained / not chained). */
+    GRID: {dataset: ["ScanNet++", "ARKitScenes", "THuman"], noise: ["lidar_low", "lower", "low"], model: ["PromptDA-B", "Ours_SV", "Ours_MV2", "Ours_MV3"],
+      init: {"PromptDA-B": ["pda_hs"], Ours_SV: ["sv_hs", "sv_hs_par"], Ours_MV2: ["sv_hs", "mv_hs", "sv_hs_par", "mv_hs_par"], Ours_MV3: ["sv_hs", "mv_hs", "sv_hs_par", "mv_hs_par"]}},
+    /** A real row belongs to the grid: a full P2 SFT run (200K budget; no P1, ablation, control, smoke or eval) on a grid cell. */
+    inGrid(x) { const g = this.GRID, r = x._r || {};
+      return /^(P2-|PLAN-)/.test(x.id) && !/^P2-(PDA|SV|MV)c\d*-/.test(x.id) && x.cap === 200000  // P2-PDAc / P2-SVc2 ...: controls and continuations && r.kind !== "scratch" && r.stage !== "Eval" && !/control|abl|smoke|eval/i.test(`${x.id} ${r.title || ""}`)
+        && g.dataset.includes(x.dataset) && g.noise.includes(x.noise) && (g.init[x.model] || []).includes(x.init); },
+    /** 'Show all combinations': every grid cell without a run becomes a 'not planned' row named by the grammar (narrowed by the filters). */
     combos(real) {
-      const CANON = ["PromptDA-B", "Ours_SV", "Ours_MV2", "Ours_MV3"], fam = (m) => (m.startsWith("PromptDA") ? "pda" : m === "Ours_SV" ? "sv" : "mv");
-      const pick = (k, xs) => (this.f[k] ? xs.filter((x) => x === this.f[k]) : xs);
-      const uniq = (k) => [...new Set(real.map((r) => r[k]))].filter(Boolean);
-      const models = pick("model", CANON.filter((m) => uniq("model").includes(m))), inits = pick("init", uniq("init").filter((i) => i !== "—"));
-      const sfts = pick("dataset", ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"].filter((d) => uniq("dataset").includes(d)));
-      const noiseBy = (d) => pick("noise", [...new Set(real.filter((r) => r.dataset === d).map((r) => r.noise))].filter((x) => x && x !== "none")
-        .sort((a, b) => RB.rank("noise", a).localeCompare(RB.rank("noise", b))));
-      const ok = (m, i, d) => {
-        if (i === "clean") return d === "Hypersim";  // only P1 roots start clean
-        const [f, ds] = i.split("_"), mf = fam(m);
-        if (!(f === "pda" ? mf !== "mv" : f === "sv" ? mf !== "pda" : mf === "mv")) return false;  // MV <- SV/MV, SV <- PromptDA/SV, PromptDA <- PromptDA
-        if (ds !== "hs") return d === {spp: "ScanNet++", as: "ARKitScenes", th: "THuman"}[ds];  // continuing from an SFT stays on its dataset
-        return d !== "Hypersim" || f !== mf;  // a Hypersim P1 run starts from another family (nested chain), not from itself
-      };
-      const have = new Set(real.map((r) => [r.model, r.init, r.dataset, r.noise].join("|"))), out = [];
-      for (const m of models) for (const i of inits) for (const d of sfts) for (const nz of noiseBy(d)) {
-        if (!ok(m, i, d) || have.has([m, i, d, nz].join("|"))) continue;
-        const pre = i === "clean" ? "—" : "Hypersim";
-        if (this.f.pretrain_ds && this.f.pretrain_ds !== pre) continue;
-        const v = {model: m, init: i, dataset: d, noise: nz, pretrain_ds: pre};
-        out.push({...v, id: "~" + [m, i, d, nz].join("|"), title: this.comboName(v), status: "not planned", _virtual: true, rmse: null, steps: null, samples: null, modified_at: null});
-      }
+      const g = this.GRID, pick = (k, xs) => (this.f[k] ? xs.filter((x) => x === this.f[k]) : xs), out = [];
+      if (this.f.pretrain_ds && this.f.pretrain_ds !== "Hypersim") return out;
+      const have = new Set(real.map((r) => [r.model, r.init, r.dataset, r.noise].join("|")));
+      for (const d of pick("dataset", g.dataset)) for (const nz of pick("noise", g.noise)) for (const m of pick("model", g.model))
+        for (const i of pick("init", g.init[m])) {
+          if (have.has([m, i, d, nz].join("|"))) continue;
+          const v = {model: m, init: i, dataset: d, noise: nz, pretrain_ds: "Hypersim"};
+          out.push({...v, id: "~" + [m, i, d, nz].join("|"), title: this.comboName(v), status: "not planned", _virtual: true, rmse: null, mae: null, steps: null, samples: null, modified_at: null});
+        }
       return out;
     },
     rows(realOnly) {
@@ -316,7 +312,9 @@ document.addEventListener("alpine:init", () => {
         pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: r.dataset, noise: r.noise, status: r.status,
         rmse: rmse(r)[0], rsrc: rmse(r)[1], mae: mae(r)[0], msrc: mae(r)[1], steps: (r.steps || {}).done ?? null, cap: (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
         modified_at: r.modified_at || null, _r: r}));
-      return realOnly || !this.all ? real : real.concat(this.combos(real));
+      if (realOnly || !this.all) return real;
+      const grid = real.filter((x) => this.inGrid(x));  // toggle on: exactly the paper grid (other real rows hidden)
+      return grid.concat(this.combos(grid));
     },
     /** One Tabulator table for all runs: 50 rows per page, sticky column titles, every dimension filterable. */
     mkTable() {
@@ -341,7 +339,12 @@ document.addEventListener("alpine:init", () => {
         initialSort: [{column: this.sort, dir: this.dir > 0 ? "asc" : "desc"}],
         initialHeaderFilter: Object.entries(this.f).filter(([, v]) => v).map(([field, value]) => ({field, value})),
         columns: [
-          col({title: "Run", field: "title", minWidth: 180, widthGrow: 3, responsive: 0, sorter: lastMissing,
+          col({title: "Run", field: "title", minWidth: 176, widthGrow: 3, responsive: 0, sorter: lastMissing,
+            titleFormatter: () => { const w = document.createElement("span"); w.className = "run-h"; w.append("Run ");
+              const bt = Object.assign(document.createElement("button"), {type: "button", className: "col-info", title: "How to read run names", innerHTML: RB.ic("info")});
+              bt.setAttribute("aria-label", "How to read run names"); bt.setAttribute("aria-haspopup", "dialog");
+              bt.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); Alpine.$data(document.body).openNames(e); });  // no sort on click
+              w.append(bt); return w; },
             formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
               if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
               return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
@@ -352,15 +355,15 @@ document.addEventListener("alpine:init", () => {
           col({title: "Noise", field: "noise", width: 96, responsive: 8, sorter: ranked("noise"), ...list("noise")}),
           col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
-          col({title: "RMSE", field: "rmse", width: 110, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
+          col({title: "RMSE", field: "rmse", width: 114, responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num">${c.getValue().toFixed(4)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`)}),
-          col({title: "MAE", field: "mae", width: 76, hozAlign: "right", headerHozAlign: "right", responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
+          col({title: "MAE", field: "mae", width: 76, responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
             // same receipt as RMSE (its DEV/TEST badge applies), so no second badge
             formatter: (c) => (c.getValue() == null ? `<span class="muted">-</span>` : `<span class="num" title="${esc(c.getData().msrc)} MAE">${c.getValue().toFixed(4)}</span>`)}),
-          col({title: "Steps", field: "steps", width: 100, hozAlign: "right", headerHozAlign: "right", responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
+          col({title: "Steps", field: "steps", width: 100, responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
               return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>`; }}),
-          col({title: "Samples", field: "samples", width: 100, hozAlign: "right", headerHozAlign: "right", responsive: 10, sorter: lastMissing, headerSortStartingDir: "desc",
+          col({title: "Samples", field: "samples", width: 100, responsive: 10, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getData()._virtual ? "" : c.getValue() == null ? `<span class="muted">—</span>` : `<span class="num" title="${c.getValue().toLocaleString("en-US")} images">${RB.kfmt(c.getValue())}</span>`)}),
           col({title: "Modified", field: "modified_at", width: 112, responsive: 4, headerSortStartingDir: "desc",
             sorter: (a, b) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : miss(a) ? -1 : 1) : a < b ? -1 : a > b ? 1 : 0),  // not started = oldest
@@ -399,7 +402,10 @@ document.addEventListener("alpine:init", () => {
       const f = (v, d = 4) => (typeof v === "number" ? v.toFixed(d) : "\u2014");  // 4 decimals: key differences are 1-2 mm
       return g ? [["RMSE", f(g.rmse)], ["MAE", f(g.mae)], ["AbsRel", f(g.absrel)], ["F1", typeof g.f1 === "number" ? g.f1.toFixed(1) : "\u2014"]] : [];
     },
-    attempts(r) { return [...(r.attempts || [])].reverse(); },  // latest first
+    smk: [],  // run ids whose smoke attempts are expanded
+    attempts(r) { const a = [...(r.attempts || [])].reverse(); return this.smk.includes(r.id) ? a : a.filter((x) => x.status !== "smoke"); },  // latest first
+    smokes(r) { return (r.attempts || []).filter((x) => x.status === "smoke").length; },
+    flipSmokes(r) { const i = this.smk.indexOf(r.id); i < 0 ? this.smk.push(r.id) : this.smk.splice(i, 1); },
     dur(a) {
       if (!a.started_at) return "not started";
       if (a.status === "running") return "still running";
@@ -408,7 +414,7 @@ document.addEventListener("alpine:init", () => {
       return m >= 60 ? (m / 60).toFixed(1) + " h" : m + " min";
     },
     stepsText(r) { const t = r.steps || {}; if (t.done == null) return "\u2014";
-      return t.done.toLocaleString("en-US") + (t.cap ? " of " + t.cap.toLocaleString("en-US") : "") + (t.best != null ? ` \u00b7 best dev RMSE at step ${t.best.toLocaleString("en-US")}` : "") + (t.stop ? ` \u00b7 stopped: ${t.stop}` : ""); },
+      return t.done.toLocaleString("en-US") + (t.cap ? " of " + t.cap.toLocaleString("en-US") : "") + (t.best ? ` \u00b7 best dev RMSE at step ${t.best.toLocaleString("en-US")}` : t.best === 0 ? " \u00b7 best dev RMSE at step 0 (no gain over init)" : " \u00b7 best dev step \u2014") + (t.stop ? ` \u00b7 stopped: ${t.stop}` : ""); },
     samplesText(r) { const t = r.steps || {}; if (t.samples == null) return "\u2014";
       return `${RB.kfmt(t.samples)} images (${RB.kfmt(t.done)} steps \u00d7 batch ${t.batch}${t.views > 1 ? ` \u00d7 ${t.views} views` : ""})`; },
     sha: (c) => (c ? c.slice(0, 7) : ""),
@@ -455,7 +461,7 @@ document.addEventListener("alpine:init", () => {
     chips(model, dataset, noise) {
       const ok = (x) => x && !["none", "-", "\u2014", "all", "n.a."].includes(x);
       const m = ok(model) ? RB.canonModel(model) : "";
-      return [m, ok(dataset) ? dataset : "", ok(noise) ? noise : "noise ?"].filter(Boolean);
+      return [m || "\u2014", ok(dataset) ? dataset : "\u2014", ok(noise) ? noise : "\u2014"];  // unknown = '—' (and a MISSING_META alert)
     },
     runAttempt(r) { const a = [...((r && r.attempts) || [])].reverse(); return a.find((x) => x.status === "running") || a[0] || {}; },
     /** One card model for queue jobs, lane plan entries and backlog items. */
@@ -510,3 +516,5 @@ document.addEventListener("alpine:init", () => {
     hostName: RB.hostName,
   }));
 });
+
+if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, { rmse, mae });  // node tests (test/test_runboard_app.mjs)

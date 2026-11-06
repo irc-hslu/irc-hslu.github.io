@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>MFP runboard</title>
+<title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=698642570f">
+<link rel="stylesheet" href="style.css?v=4841cdff31">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=6f193ee90d"></script>
+<script src="app.js?v=444d2ec807"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -21,20 +21,20 @@
 </div>
 <div class="wrap" x-show="D">
   <header class="top">
-    <div class="brand"><a class="logo" href="#/runs"><span x-html="ic('gauge')"></span>MFP runboard</a>
-      <nav class="nav" aria-label="Pages"><a href="#/runs" :class="route === 'runs' && 'on'" :aria-current="route === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs <span class="nc" x-text="'(' + runCount() + ')'"></span></a><a href="#/queues" :class="route === 'queues' && 'on'" :aria-current="route === 'queues' && 'page'"><span x-html="ic('server')"></span>GPU queues <span class="nc" x-text="'(' + activeQueues() + ')'"></span></a></nav></div>
-    <div class="meta"><div class="upd"><small>last updated</small><b :class="stale() && 'stale'" x-text="ago()" :title="updated()"></b></div>
-      <button type="button" class="rl" @click="reload()" :aria-busy="loading" :disabled="loading" title="Reload data" aria-label="Reload data"><span :class="loading && 'spin'" x-html="ic('refresh-cw')"></span></button>
+    <div class="brand"><a class="logo" href="#/runs">MFP-DFM Runboard</a>
+      <div class="upd-row"><small class="upd-line" :class="stale() && 'stale'" :title="updated()" x-text="'last updated ' + ago()"></small>
+        <button type="button" class="rl-mini" @click="reload()" :aria-busy="loading" :disabled="loading" title="Reload data" aria-label="Reload data"><span :class="loading && 'spin'" x-html="ic('refresh-cw')"></span></button></div></div>
+    <nav class="nav" aria-label="Pages"><a href="#/runs" :class="route === 'runs' && 'on'" :aria-current="route === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs <span class="nc" x-text="'(' + runCount() + ')'"></span></a><a href="#/queues" :class="route === 'queues' && 'on'" :aria-current="route === 'queues' && 'page'"><span x-html="ic('server')"></span>GPU queues <span class="nc" x-text="'(' + activeQueues() + ')'"></span></a></nav>
+    <div class="meta">
       <button type="button" class="switch" role="switch" :aria-checked="dark" aria-label="Dark theme" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" @click="toggleTheme()">
         <span class="ic sun" x-html="ic('sun')"></span>
         <span class="ic moon" x-html="ic('moon')"></span><span class="thumb"></span></button></div>
   </header>
   <p class="schema-warn" x-show="oldData()">This data was built by an older runboard version, so some derived columns may be empty. The hourly refresh (or <code>tools/runboard/refresh.sh</code>) fixes it.</p>
   <section class="page" x-data="runs" x-show="route === 'runs'" aria-label="Runs">
-  <div class="count"><span><b x-text="n"></b> runs</span>
-    <button type="button" class="info-chip" @click="openNames($event)" aria-haspopup="dialog"><span x-html="ic('list')"></span>Run names</button>
-    <label class="tgl"><input type="checkbox" role="switch" x-model="all"> show all combinations <span class="muted">(rows for combinations that never ran)</span></label>
-    <label class="tgl"><input type="checkbox" role="switch" x-model="scratch"> include scratch <span class="muted">(smokes, probes, short or killed runs)</span></label></div>
+  <div class="count">
+    <label class="tgl" title="Show the paper grid: full SFT runs plus a row for every combination that never ran"><input type="checkbox" role="switch" x-model="all"> all combinations</label>
+    <label class="tgl" title="Include smokes, probes and short or killed runs"><input type="checkbox" role="switch" x-model="scratch"> scratch</label></div>
   <div class="rb-mfilters"><template x-for="k in FILTER_KEYS" :key="'mf' + k">
     <select :aria-label="'Filter ' + KEY_LABEL[k]" :value="f[k]" @change="setFilter(k, $event.target.value)"><option value="" x-text="SHORT_LABEL[k] + ': all'"></option>
       <template x-for="v in (D ? opts(k) : [])" :key="k + v"><option :value="v" :selected="f[k] === v" x-text="v.replace('_', ' ')"></option></template></select></template></div>
@@ -50,6 +50,7 @@
             <dt>Model</dt><dd x-text="r.variant"></dd>
             <dt>Steps</dt><dd class="num" x-text="stepsText(r)"></dd>
             <dt>Samples</dt><dd x-text="samplesText(r)"></dd>
+            <dt x-show="r.override_note">Note</dt><dd x-show="r.override_note" x-text="r.override_note"></dd>
             <dt>Init</dt><dd><code class="init" x-text="r.init || '\u2014'"></code><span x-show="r.parent_id" class="muted"> &middot; parent <span class="mono" x-text="r.parent_id"></span></span></dd>
           </dl>
           <div class="mgroups">
@@ -67,8 +68,12 @@
             <dt>Duration</dt><dd x-text="dur(a)"></dd>
             <dt>Host</dt><dd :title="RB.hostTip(a.host)"><span class="lnk" x-show="a.host"><span x-html="ic('server')"></span><span x-text="RB.hostName(a.host)"></span></span><span x-show="!a.host">&mdash;</span></dd>
             <dt>Commit</dt><dd><a x-show="a.code_commit" :href="commitUrl(a.code_commit)" target="_blank" rel="noopener" class="mono lnk"><span x-html="ic('git-commit-horizontal')"></span><span x-text="sha(a.code_commit)"></span></a><span x-show="!a.code_commit">&mdash;</span></dd>
+            <dt x-show="(a.metrics || {}).dev_best_rmse != null">Dev best</dt><dd x-show="(a.metrics || {}).dev_best_rmse != null" class="num" x-text="'RMSE ' + ((a.metrics || {}).dev_best_rmse || 0).toFixed(4) + ((a.val_best || {}).mae != null ? ' · MAE ' + a.val_best.mae.toFixed(4) : '')"></dd>
+            <dt x-show="a.test">Test</dt><dd x-show="a.test" class="num" x-text="a.test ? 'RMSE ' + a.test.rmse.toFixed(4) + (a.test.mae != null ? ' · MAE ' + a.test.mae.toFixed(4) : '') + ' · test96' + (a.test.update ? ' @' + RB.kfmt(a.test.update) : '') : ''" :title="a.test ? 'ALL3 test96 of the checkpoint at update ' + a.test.update + ': ' + a.test.path : ''"></dd>
             <dt x-show="a.failure_reason">Reason</dt><dd x-show="a.failure_reason" x-text="a.failure_reason"></dd>
           </dl></div></template></div>
+        <button type="button" class="smk-toggle" x-show="smokes(r)" @click.stop="flipSmokes(r)" :aria-expanded="smk.includes(r.id)"
+          x-text="(smk.includes(r.id) ? '\u25be Hide ' : '\u25b8 ') + smokes(r) + (smokes(r) === 1 ? ' smoke' : ' smokes')"></button>
         <p class="muted" x-show="!r.attempts.length">No attempts yet.</p>
   </div></template>
   <template id="vdet-tpl"><div class="rb-det" @click.stop>
@@ -102,7 +107,7 @@
             <div class="qc-top"><span class="badge has-i" :class="'st-' + c.stage" x-html="badgeHtml(c.stage, c.pos ? c.label + ' #' + c.pos : c.label)"></span>
               <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span></div>
             <div class="qc-name" x-html="nameHtml(c.name)"></div>
-            <div class="qc-chips" x-show="c.chips.length"><template x-for="(t, ti) in c.chips" :key="t"><span class="pill" x-html="ic(['', 'database', 'audio-waveform'][ti] || '') + (ti === 0 ? RB.modelHtml(t) : RB.esc(t))"></span></template></div>
+            <div class="qc-chips" x-show="c.chips.length"><template x-for="(t, ti) in c.chips" :key="ti"><span class="pill" x-html="ic(['', 'database', 'audio-waveform'][ti] || '') + (ti === 0 ? RB.modelHtml(t) : RB.esc(t))"></span></template></div>
             <template x-if="c.kind === 'running'"><div class="qc-prog">
               <template x-if="c.budget.eval"><div class="qc-meta"><span class="badge st-eval">eval</span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div></template>
               <template x-if="!c.budget.eval"><div>
@@ -135,7 +140,7 @@
             <div class="qc-top"><span class="badge has-i" :class="'st-' + c.stage" x-html="badgeHtml(c.stage, c.pos ? c.label + ' #' + c.pos : c.label)"></span>
               <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span></div>
             <div class="qc-name" x-html="nameHtml(c.name)"></div>
-            <div class="qc-chips" x-show="c.chips.length"><template x-for="(t, ti) in c.chips" :key="t"><span class="pill" x-html="ic(['', 'database', 'audio-waveform'][ti] || '') + (ti === 0 ? RB.modelHtml(t) : RB.esc(t))"></span></template></div>
+            <div class="qc-chips" x-show="c.chips.length"><template x-for="(t, ti) in c.chips" :key="ti"><span class="pill" x-html="ic(['', 'database', 'audio-waveform'][ti] || '') + (ti === 0 ? RB.modelHtml(t) : RB.esc(t))"></span></template></div>
             <template x-if="c.kind === 'running'"><div class="qc-prog">
               <template x-if="c.budget.eval"><div class="qc-meta"><span class="badge st-eval">eval</span><span x-show="c.started" :title="abs(c.started)" x-text="'started ' + rel(c.started)"></span></div></template>
               <template x-if="!c.budget.eval"><div>

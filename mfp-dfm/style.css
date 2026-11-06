@@ -416,3 +416,45 @@ html.modal-open{overflow:hidden}
 .rb-table .tabulator-row .badge{font-size:.95em}.rb-table code.init{font-size:.9em}.rb-table .tag{font-size:.74em}
 .rb-table .rb-id{font-size:.92em}.rb-table .tabulator-col-title{font-size:11.5px}
 .rb-table .tabulator-header-filter input{font-size:13px}
+/* header: title + 'last updated' left, menu centred, icons right; phones: title | icons, menu on its own centred row */
+header.top{grid-template-columns:1fr auto 1fr;grid-template-areas:"brand nav meta"}
+header.top .brand{display:flex;flex-direction:column;align-items:flex-start;gap:0;grid-area:brand;min-width:0}
+header.top .logo{grid-area:auto}
+.upd-line{color:var(--muted);font-size:.74rem;line-height:1.2;margin-left:calc(1.15em + 8px)}
+header.top .nav{grid-area:nav;justify-self:center}
+header.top .meta{grid-area:meta;justify-self:end;gap:var(--s2)}
+@media (max-width:720px){header.top{grid-template-columns:1fr auto;grid-template-areas:"brand meta" "nav nav"}
+  header.top .nav{justify-self:center}.upd-line{margin-left:0}}
+/* 'last updated' + inline refresh under the title */
+.upd-row{display:flex;align-items:center;gap:4px;margin-left:calc(1.15em + 8px)}
+.upd-line{font-size:.8rem;color:var(--muted);margin-left:0}
+.rl-mini{all:unset;cursor:pointer;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;color:var(--muted);transition:color .15s,background .15s,transform .3s}
+.rl-mini svg.i{width:13px;height:13px}
+.rl-mini:hover:not(:disabled){color:var(--accent);background:var(--chip);transform:rotate(45deg)}.rl-mini:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.rl-mini:disabled{cursor:progress}.rl-mini .spin{display:grid;animation:rb-spin .8s linear infinite}
+@media (max-width:720px){.upd-row{margin-left:0}}
+.upd-row{margin-left:0}
+.upd-row{line-height:1;height:22px}.upd-line{line-height:22px}.rl-mini svg.i{display:block;vertical-align:0}
+/* run-names info icon in the Run column header */
+.run-h{display:inline-flex;align-items:center;gap:4px}
+.col-info{all:unset;cursor:pointer;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;color:var(--muted);transition:color .15s,background .15s}
+.col-info svg.i{width:13px;height:13px}.col-info:hover{color:var(--accent);background:var(--panel)}.col-info:focus-visible{outline:2px solid var(--accent)}
+.count{gap:var(--s4)}
+/* type: Inter (UI, tabular figures for numbers) + JetBrains Mono (run names, ids, codes); vendored, no CDN */
+@font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url("vendor/fonts/inter-5.3.0-latin-wght-normal.woff2") format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400;font-display:swap;src:url("vendor/fonts/jetbrains-mono-5.3.0-latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:600;font-display:swap;src:url("vendor/fonts/jetbrains-mono-5.3.0-latin-600-normal.woff2") format("woff2")}
+:root{--pico-font-family-sans-serif:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--pico-font-family:var(--pico-font-family-sans-serif);
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--pico-font-family-monospace:var(--mono)}
+body{font-family:var(--pico-font-family);font-feature-settings:"cv11","ss03";letter-spacing:-.005em}
+.logo{font-weight:680;letter-spacing:-.015em}
+.num,.qc-meta b,.qc-stats b,.rb-table .tabulator-cell[tabulator-field=rmse],.rb-table .tabulator-cell[tabulator-field=mae],
+.rb-table .tabulator-cell[tabulator-field=steps],.rb-table .tabulator-cell[tabulator-field=samples]{font-variant-numeric:tabular-nums}
+.rb-name,.qc-name{font-family:var(--mono);font-weight:600;letter-spacing:-.01em}
+.rb-id,code,code.init,.mono,.hl-live{font-family:var(--mono)}
+.rb-table .tabulator-col-title,.qc-top .badge,.tag{letter-spacing:.06em}
+.rb-table .tag{letter-spacing:.02em}
+/* expanding a run grows the table (the page scrolls): Tabulator pins the body to a pixel height at render time */
+.rb-table.tabulator .tabulator-tableholder{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important}
+.att dl.kv dd{white-space:normal;overflow-wrap:anywhere;min-width:0}
+.smk-toggle{all:unset;cursor:pointer;margin-top:var(--s2);font-size:.85em;color:var(--pico-muted-color)}.smk-toggle:hover{color:var(--pico-primary)}.smk-toggle:focus-visible{outline:2px solid var(--pico-primary);outline-offset:2px}
