@@ -366,7 +366,7 @@ document.addEventListener("alpine:init", () => {
         initialSort: [{column: this.sort, dir: this.dir > 0 ? "asc" : "desc"}],
         initialHeaderFilter: Object.entries(this.f).filter(([, v]) => v).map(([field, value]) => ({field, value})),
         columns: [
-          col({title: "Run", field: "title", minWidth: 176, widthGrow: 3, responsive: 0, sorter: lastMissing,
+          col({title: "Run", field: "title", minWidth: 276, widthGrow: 3,  /* +100 px from the hidden Samples column */ responsive: 0, sorter: lastMissing,
             titleFormatter: () => { const w = document.createElement("span"); w.className = "run-h"; w.append("Run ");
               const bt = Object.assign(document.createElement("button"), {type: "button", className: "col-info", title: "How to read run names", innerHTML: RB.ic("info")});
               bt.setAttribute("aria-label", "How to read run names"); bt.setAttribute("aria-haspopup", "dialog");
@@ -390,7 +390,7 @@ document.addEventListener("alpine:init", () => {
           col({title: "Steps", field: "steps", width: 100, responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
               return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>`; }}),
-          col({title: "Samples", field: "samples", width: 100, responsive: 10, sorter: lastMissing, headerSortStartingDir: "desc",
+          col({title: "Samples", field: "samples", width: 100, visible: false, responsive: 10,  /* hidden: samples stay in the expanded details */ sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getData()._virtual ? "" : c.getValue() == null ? `<span class="muted">—</span>` : `<span class="num" title="${c.getValue().toLocaleString("en-US")} images">${RB.kfmt(c.getValue())}</span>`)}),
           col({title: "Modified", field: "modified_at", width: 112, responsive: 4, headerSortStartingDir: "desc",
             sorter: (a, b) => (miss(a) || miss(b) ? (miss(a) === miss(b) ? 0 : miss(a) ? -1 : 1) : a < b ? -1 : a > b ? 1 : 0),  // not started = oldest
