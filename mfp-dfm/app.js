@@ -464,7 +464,7 @@ document.addEventListener("alpine:init", () => {
       if (!this.D) return [];
       const order = ["local", "iradonis", "desktop"], q = this.D.queues || {};
       const gone = (k) => (q[k].status === "destroyed" ? 1 : 0);  // destroyed rented machines last, newest destruction first
-      return Object.keys(q).filter((k) => !q[k].excluded).sort((a, b) => gone(a) - gone(b) ||
+      return Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden).sort((a, b) => gone(a) - gone(b) ||
           (gone(a) ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) || a.localeCompare(b))
         .map((k) => ({k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: k.startsWith("vastai_"), multi: !!/\.gpu\d+$/.exec(k), gone: q[k].status === "destroyed"}));
     },
