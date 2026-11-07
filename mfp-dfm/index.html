@@ -5,7 +5,7 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=1851fa2468">
+<link rel="stylesheet" href="style.css?v=20691e2f38">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
 <script src="app.js?v=2460dd5852"></script>
@@ -24,7 +24,7 @@
     <div class="brand"><a class="logo" href="#/runs">MFP-DFM Runboard</a>
       <div class="upd-row"><small class="upd-line" :class="stale() && 'stale'" :title="updated()" x-text="'last updated ' + ago()"></small>
         <button type="button" class="rl-mini" :class="loading && 'busy'" @click="reload()" :disabled="loading" title="Reload data" :aria-label="loading ? 'Reloading data' : 'Reload data'"><span class="rl-ic" x-html="ic('refresh-cw')"></span></button></div></div>
-    <nav class="nav" aria-label="Pages"><a href="#/runs" :class="route === 'runs' && 'on'" :aria-current="route === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs <span class="nc" x-text="'(' + runCount() + ')'"></span></a><a href="#/queues" :class="route === 'queues' && 'on'" :aria-current="route === 'queues' && 'page'" :title="availGpus() + ' GPUs available \u00b7 ' + activeQueues() + ' running'"><span x-html="ic('server')"></span>GPU queues <span class="nc" x-text="'(' + availGpus() + ')'"></span></a></nav>
+    <nav class="nav" aria-label="Pages"><a href="#/runs" :class="route === 'runs' && 'on'" :aria-current="route === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs <span class="nc" x-text="'(' + runCount() + ')'"></span></a><a href="#/queues" :class="route === 'queues' && 'on'" :aria-current="route === 'queues' && 'page'" :title="availGpus() + ' GPUs available \u00b7 ' + activeQueues() + ' running'"><span x-html="ic('server')"></span>GPU queues <span class="nc" x-text="'(' + availGpus() + ')'"></span></a><a href="memory.html"><span x-html="ic('book-open')"></span>Memory</a></nav>
     <div class="meta">
       <button type="button" class="switch" role="switch" :aria-checked="dark" aria-label="Dark theme" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" @click="toggleTheme()">
         <span class="ic sun" x-html="ic('sun')"></span>

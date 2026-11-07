@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>MFP-DFM Runboard · Memory</title>
+<link rel="stylesheet" href="vendor/pico.min.css">
+<link rel="stylesheet" href="style.css?v=20691e2f38">
+<script src="vendor/marked-12.0.2.min.js"></script>
+<script src="vendor/purify-3.1.6.min.js"></script>
+<script src="vendor/lucide-1.59.0-icons.js"></script>
+<script src="memory.js?v=66ac4a6f04"></script>
+<script defer src="vendor/alpine.min.js"></script>
+</head>
+<body x-data="memory" x-cloak>
+<div id="gate" x-show="gate" x-cloak><form @submit.prevent="ok()"><h2>MFP runboard</h2><p class="muted">Enter the password to decrypt the data.</p>
+  <input type="password" x-model="pw" placeholder="Password" autocomplete="current-password"><small x-text="err" class="stale"></small><button>Unlock</button></form></div>
+<div class="wrap mem" x-show="!gate">
+  <header class="top">
+    <div class="brand"><a class="logo" href="index.html#/runs">MFP-DFM Runboard</a></div>
+    <nav class="nav" aria-label="Pages"><a href="index.html#/runs">Runs</a><a href="index.html#/queues">GPU queues</a><a href="memory.html" class="on" aria-current="page">Memory</a></nav>
+    <div class="meta">
+      <button type="button" class="switch" role="switch" :aria-checked="dark" aria-label="Dark theme" @click="toggleTheme()">
+        <span class="ic sun" x-html="ic('sun')"></span><span class="ic moon" x-html="ic('moon')"></span><span class="thumb"></span></button></div>
+  </header>
+  <p class="muted" x-show="!D">Loading memory...</p>
+  <div class="mem-body" x-show="D">
+    <aside class="mem-list" :class="cur && 'has-cur'" aria-label="Memory files">
+      <template x-for="g in groups()" :key="g.key"><section>
+        <h3 x-text="g.label"></h3>
+        <template x-for="e in g.items" :key="e.path"><a class="mem-item" :class="cur && cur.path === e.path && 'on'" :href="'#' + e.path.replace(/\.md$/, '')">
+          <b x-text="e.title"></b><small x-text="e.description"></small><em x-text="'updated ' + e.modified.slice(0, 16).replace('T', ' ') + ' UTC'"></em></a></template>
+      </section></template>
+    </aside>
+    <article class="mem-view" x-show="cur" aria-live="polite">
+      <a class="mem-back" href="#">&larr; All files</a>
+      <template x-if="cur"><header><p class="muted" x-text="cur.group_label"></p><p class="mem-sub" x-text="cur.description"></p>
+        <small class="muted" x-text="'last updated ' + cur.modified.slice(0, 16).replace('T', ' ') + ' UTC'"></small></header></template>
+      <div class="md" x-html="html"></div>
+    </article>
+    <p class="muted mem-empty" x-show="!cur">Select a file to read it.</p>
+  </div>
+</div>
+</body>
+</html>
