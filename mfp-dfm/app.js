@@ -100,7 +100,7 @@ const RB = (() => {
   /** Canonical value order per key (unknown values follow, alphabetically). */
   const ORDER = {dataset: ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"], noise: ["lidar_low", "lower", "low", "none"],
     model: ["PromptDA-B", "PromptDA-L", "PromptDA-S", "Ours_SV", "Ours_MV2", "Ours_MV3"],
-    status: ["running", "queued", "planned", "failed", "succeeded", "cancelled", "stale", "superseded", "not planned"]};
+    status: ["running", "paused", "queued", "planned", "failed", "succeeded", "cancelled", "stale", "superseded", "not planned"]};
   const initRank = (v) => { if (!v || v === "clean") return "0"; const [f, d, par] = String(v).split("_");
     return `${"psm".indexOf(f[0]) + 1}${["hs", "spp", "as", "th"].indexOf(d) + 1 || 9}${par ? 1 : 0}${v}`; };
   const rank = (k, v) => { if (k === "init") return initRank(v); const o = ORDER[k] || [], i = o.indexOf(v);
