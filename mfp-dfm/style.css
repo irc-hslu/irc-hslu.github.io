@@ -532,3 +532,13 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
   .mem .mem-body{grid-template-columns:1fr}
   .mem-list.has-cur{display:none}.mem-back{display:inline-block;margin-bottom:8px}.mem-view{padding:14px 14px}
 }
+
+/* ---- status colours: one status = one colour on the runs table (.s-*) and the GPU queues page (.st-*) ---- */
+:root{--c-running:var(--run);--c-running-bg:var(--run-bg);--c-queued:var(--wait);--c-queued-bg:var(--wait-bg);--c-paused:var(--wait);--c-paused-bg:var(--wait-bg);
+  --c-succeeded:var(--ok);--c-succeeded-bg:var(--ok-bg);--c-failed:var(--bad);--c-failed-bg:var(--bad-bg);--c-planned:var(--plan);--c-planned-bg:var(--plan-bg)}
+.s-running,.st-running{color:var(--c-running);background:var(--c-running-bg)}
+.s-queued,.st-queued{color:var(--c-queued);background:var(--c-queued-bg)}
+.s-paused,.st-paused{color:var(--c-paused);background:var(--c-paused-bg)}
+.s-succeeded{color:var(--c-succeeded);background:var(--c-succeeded-bg)}
+.s-failed{color:var(--c-failed);background:var(--c-failed-bg)}
+.s-planned,.s-smoke,.st-planned{color:var(--c-planned);background:var(--c-planned-bg)}
