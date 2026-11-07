@@ -530,7 +530,7 @@ document.addEventListener("alpine:init", () => {
         ["Receipts", p ? `review ${si >= 2 ? "yes" : "no"} · preflight ${si >= 3 ? "yes" : "no"}` : ""],
         ["Last update", RB.relTime((p && p.updated) || att.heartbeat_at || (r && r.modified_at) || src.updated, this.now)]].filter(([, v]) => v);
       return {key: kind + ":" + (id || src.name) + ":" + (i || 0), kind, id, stage, label: this.STAGE[stage] || stage, pos: kind === "queued" ? i + 1 : 0,
-        name, unmapped: (kind === "running" || kind === "queued") && !r,
+        name, cotenant: !!src.cotenant, unmapped: (kind === "running" || kind === "queued") && !r,
         chips: this.chips((r && r.model !== "Other" && r.model) || (kind === "backlog" ? src.model : p && p.model) || fam,
           (kind === "backlog" ? src.dataset : p && p.dataset) || (r && r.dataset), (kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise)),
         waits: kind === "plan" ? src.waits_for || src.unlock_event || "" : kind === "backlog" ? src.waits_for : "",
