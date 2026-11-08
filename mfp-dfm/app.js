@@ -206,6 +206,10 @@ const TABS = ["PromptDA", "Ours_SV", "Ours_MV", "Other", "Scratch"];
 const mae = (r) => { if (r.row) return [r.row.mae ?? null, r.row.src]; const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_mae ?? null, "test"] : [(r.metrics_best || {}).mae ?? null, "dev"]; };
 const rmse = (r) => { if (r.row) return [r.row.rmse ?? null, r.row.src];  // current attempt only: null renders '—', never another attempt's value
    const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
+/** Tooltip of the row's metric badge: test = official ScanNet++ validation set (full), test96 = ALL3 96-tuple cohort, dev = best dev. */
+const SRC_TIP = {test: "test = official ScanNet++ validation set (full, 48 scenes / 2,544 tuples), all-pixel MAE/RMSE",
+  test96: "test96 = ALL3 96-tuple test cohort (no full-validation number yet)", dev: "dev = best dev-set value (no test number yet)"};
+const srcTip = (r) => (r.row && r.row.tip) || SRC_TIP[rmse(r)[1]] || "";
 let RUNS_TABLE = null, RUNS_EL = null;  // the Tabulator instance (kept out of Alpine's reactive state)
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };
 
@@ -354,7 +358,7 @@ document.addEventListener("alpine:init", () => {
     rows(realOnly) {
       const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: this.canon(r), init: r.init || "—",
         pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: r.dataset, noise: r.noise, status: r.status,
-        rmse: rmse(r)[0], rsrc: rmse(r)[1], mae: mae(r)[0], msrc: mae(r)[1], steps: (r.steps || {}).done ?? null, cap: (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
+        rmse: rmse(r)[0], rsrc: rmse(r)[1], rtip: srcTip(r), mae: mae(r)[0], msrc: mae(r)[1], steps: (r.steps || {}).done ?? null, cap: (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
         modified_at: r.modified_at || null, _r: r}));
       if (realOnly || !this.all) return real;
       const grid = real.filter((x) => this.inGrid(x));  // toggle on: exactly the paper grid (other real rows hidden)
@@ -401,12 +405,13 @@ document.addEventListener("alpine:init", () => {
           col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
           col({title: "RMSE", field: "rmse", width: 114, responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
+            headerTooltip: "RMSE / MAE in metres. Badge: test = official ScanNet++ validation set (full), all-pixel MAE/RMSE (valfull v1); test96 = ALL3 96-tuple test cohort; dev = best dev value (runs without a test number)",
             formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "rmse", c.getValue());
-              return `<span class="num${pc ? " cited" : ""}"${pc ? ` title="${esc(RB.paperTip(pc))}"` : ""}>${c.getValue().toFixed(4)}</span><span class="tag">${esc(c.getData().rsrc)}</span>`; }}),
+              return `<span class="num${pc ? " cited" : ""}"${pc ? ` title="${esc(RB.paperTip(pc))}"` : ""}>${c.getValue().toFixed(4)}</span><span class="tag" title="${esc(c.getData().rtip || "")}">${esc(c.getData().rsrc)}</span>`; }}),
           col({title: "MAE", field: "mae", width: 76, responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
             // same receipt as RMSE (its DEV/TEST badge applies), so no second badge
             formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "mae", c.getValue());
-              return `<span class="num${pc ? " cited" : ""}" title="${esc(pc ? RB.paperTip(pc) : c.getData().msrc + " MAE")}">${c.getValue().toFixed(4)}</span>`; }}),
+              return `<span class="num${pc ? " cited" : ""}" title="${esc(pc ? RB.paperTip(pc) : c.getData().msrc + " MAE" + (c.getData().rtip ? " (" + c.getData().rtip + ")" : ""))}">${c.getValue().toFixed(4)}</span>`; }}),
           col({title: "Steps", field: "steps", width: 100, responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
               return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>`; }}),
