@@ -160,7 +160,7 @@ RB.citedCell = (r, metric, v) => (v == null ? null : RB.paperCells(r).find((c) =
 /** Supabase run registry: runs.json carries {supabase: {url, anon_key}} (public, read-only key; inside the encrypted data). The page polls
  *  runs + events every 60 s and overlays them on the static build; without the config nothing happens and the static build is shown. */
 RB.registry = {
-  POLL_MS: 60000, FIELDS: "run_id,wandb_id,dataset,model,preset,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,title,kind,updated_at",
+  POLL_MS: 15 * 60 * 1000, FIELDS: "run_id,wandb_id,dataset,model,preset,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,title,kind,updated_at",
   STATUS: {finished: "succeeded"}, ACTIVE: ["running", "paused", "stale"],
   TAB: {promptda: "PromptDA", sv: "Ours_SV", mv: "Ours_MV"}, MODEL: {promptda: "PromptDA-B", sv: "Ours_SV", mv: "Ours_MV3"},
   DATASET: {scannetpp: "ScanNet++", hypersim: "Hypersim", arkitscenes: "ARKitScenes", arkit: "ARKitScenes", thuman: "THuman"},
@@ -267,7 +267,7 @@ function base(page) {
     updated() { return this.D ? new Date(this.D.last_updated).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""; },
     stale() { return !!this.D && !this.live && this.now - new Date(this.D.last_updated) > 3 * 3600e3; },
     ago() { return this.D ? RB.relTime(this.D.last_updated, this.now) : ""; },
-    liveTip() { return this.live ? "Run registry (Supabase), polled every 60 s. Latest events:\n" + (this.live.events || []).slice(0, 8).map((e) => `${RB.relTime(e.at, this.now)} ${e.run_id} ${e.kind}`).join("\n") : ""; },
+    liveTip() { return this.live ? "Run registry (Supabase), polled every 15 min (use the reload button for an immediate update). Latest events:\n" + (this.live.events || []).slice(0, 8).map((e) => `${RB.relTime(e.at, this.now)} ${e.run_id} ${e.kind}`).join("\n") : ""; },
   };
 }
 
