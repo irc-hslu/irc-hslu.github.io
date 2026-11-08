@@ -225,23 +225,35 @@ if (typeof module !== "undefined") module.exports = RB;
 /* Common page state: data, password gate, header. */
 function base(page) {
   return {
-    page, D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB, loading: false, live: null, toast: {msg: "", kind: "", n: 0},
+    page, D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB, loading: false, syncing: false, live: null, toast: {msg: "", kind: "", n: 0},
     ic: RB.ic, badgeHtml: (st, label) => RB.ic(RB.ICON[st] || "") + RB.esc(label ?? st),
     /** Keep --hdr-h = height of the sticky top bar, so sticky table headers sit right below it. */
     watchHeader() {
       const h = document.querySelector(".wrap:not(.skel) header.top"); if (!h || typeof ResizeObserver === "undefined") return;
       new ResizeObserver(() => document.documentElement.style.setProperty("--hdr-h", h.offsetHeight + "px")).observe(h);
     },
-    /** Header reload: fetch and decrypt the data again (saved password), with a visible spinner for at least ~0.5 s. */
+    /** Header reload: sync W&B -> registry (Edge Function sync-wandb; a failure falls through to a plain reload), then fetch and
+     *  decrypt the data again (saved password), with a visible spinner for at least ~0.5 s. */
     async reload() {
       if (this.loading) return;
       this.loading = true; const t0 = Date.now(), before = this.D && this.D.last_updated;
       let msg = ["Refresh failed", "err"];
       try {
+        await this.syncWandb();
         this.D = await RB.load(() => Promise.reject(new Error("locked"))); this.now = Date.now(); if (this.onReload) this.onReload(); this.pollLive();
         msg = RB.refreshMsg(before, this.D && this.D.last_updated);
       } catch (e) { /* keep the data we have */ }
       finally { setTimeout(() => { this.loading = false; this.notify(...msg); }, Math.max(0, 500 - (Date.now() - t0))); }
+    },
+    /** POST /functions/v1/sync-wandb with the anon key (at most 20 s); true when the registry was updated. */
+    async syncWandb() {
+      const cfg = this.D && this.D.supabase; if (!cfg) return false;
+      this.syncing = true;
+      try {
+        const r = await fetch(`${cfg.url.replace(/\/$/, "")}/functions/v1/sync-wandb`, {method: "POST", headers: {apikey: cfg.anon_key, Authorization: "Bearer " + cfg.anon_key},
+          signal: AbortSignal.timeout(20000)});
+        return r.ok;
+      } catch (e) { return false; } finally { this.syncing = false; }
     },
     /** Registry overlay (Supabase, anon key from the data): fetched once now and every 60 s; a failure keeps the static data and shows no live badge. */
     async pollLive() {
@@ -569,12 +581,15 @@ document.addEventListener("alpine:init", () => {
       this.runById = Object.fromEntries(this.D.runs.map((r) => [r.id, r])); this.planById = Object.fromEntries((this.D.plan || []).map((p) => [p.id, p]));
       this.$nextTick(() => this.onScroll());
     },
-    /** Lanes in a fixed order: own hosts, then rented ones. */
+    /** Lanes in a fixed order: own hosts, then rented ones; offline lanes without jobs or finished runs are left out. */
     hosts() {
       if (!this.D) return [];
       const order = ["local", "iradonis", "desktop"], q = this.D.queues || {};
       const gone = (k) => (q[k].status === "destroyed" ? 1 : 0);  // destroyed rented machines last, newest destruction first
-      const keys = Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden).sort((a, b) => gone(a) - gone(b) ||
+      // an offline lane (stopped/destroyed or unreachable) with nothing to show (no jobs, no finished runs) is hidden
+      const empty = (k) => (["stopped", "destroyed"].includes(q[k].status) || !q[k].reachable) && !this.recent(q[k]).length &&
+          !["running", "queued", "paused"].some((f) => (q[k][f] || []).length);
+      const keys = Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden && !empty(k)).sort((a, b) => gone(a) - gone(b) ||
           (gone(a) ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) || a.localeCompare(b));
       const G = RB.laneGroups(keys);  // lanes of one multi-GPU machine are drawn as a group
       return keys.map((k) => { const g = G[k];
