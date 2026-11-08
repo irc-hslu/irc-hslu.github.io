@@ -542,3 +542,13 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
 .s-succeeded{color:var(--c-succeeded);background:var(--c-succeeded-bg)}
 .s-failed{color:var(--c-failed);background:var(--c-failed-bg)}
 .s-planned,.s-smoke,.st-planned{color:var(--c-planned);background:var(--c-planned-bg)}
+
+/* Publishable numbers panel (runs page, above the table) */
+.pub{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:10px 14px;margin:0 0 14px}
+.pub>summary{cursor:pointer;font-size:var(--fs-h2,16px);line-height:1.35}
+.pub-wrap{overflow-x:auto;margin-top:8px}
+.pub-t{width:100%;border-collapse:collapse;font-size:var(--fs-cell,13.75px);margin:0}
+.pub-t th,.pub-t td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;background:transparent}
+.pub-t th{color:var(--muted);font-weight:600}.pub-t .n{text-align:right;font-variant-numeric:tabular-nums;font-family:"JetBrains Mono",monospace}
+.pub-t tr.best td{font-weight:650}.pub-t tr.pend td{color:var(--muted)}.pub-t .tag{margin-left:6px}
+.pub-c{margin:8px 0 0;color:var(--muted);font-size:var(--fs-small,12.5px)}
