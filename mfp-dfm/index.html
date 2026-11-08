@@ -43,15 +43,6 @@
         <td x-text="e.eta ? new Date(e.eta).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : '—'"></td>
         <td x-text="e.heartbeat_at ? RB.relTime(e.heartbeat_at, now) : '—'"></td><td class="n" x-text="e.gpu_util != null ? e.gpu_util + ' %' : '—'"></td>
         <td><span class="badge st-failed" x-show="e.stale" x-text="'STALE: ' + e.stale"></span></td></tr></template></tbody></table></div></details></template>
-  <template x-if="D && D.publishable"><details class="pub" open>
-    <summary><b x-text="D.publishable.title"></b></summary>
-    <div class="pub-wrap"><table class="pub-t"><thead><tr><th>Method</th><th>Checkpoint</th><th>Input geometry</th><th class="n">MAE</th><th class="n">RMSE</th>
-      <th class="n" title="GT patch mask v2, mean over the 48 scenes of per-scene means">Masked SB MAE</th></tr></thead>
-      <tbody><template x-for="r in D.publishable.rows" :key="r.method"><tr :class="[r.best ? 'best' : '', r.status !== 'ok' ? 'pend' : '']" :title="r.receipt || ''">
-        <td><span x-text="r.method"></span><span class="tag" x-show="r.best">best</span></td><td><code x-text="r.checkpoint"></code></td><td x-text="r.geometry || '—'"></td>
-        <td class="n" x-text="r.status === 'ok' ? r.mae.toFixed(4) : r.status"></td><td class="n" x-text="r.status === 'ok' ? r.rmse.toFixed(4) : ''"></td>
-        <td class="n" x-text="r.msb_mae != null ? r.msb_mae.toFixed(4) : '—'"></td></tr></template></tbody></table></div>
-    <p class="pub-c" x-text="D.publishable.caveat"></p></details></template>
   <div class="count">
     <label class="tgl" title="Show the paper grid: full SFT runs plus a row for every combination that never ran"><input type="checkbox" role="switch" x-model="all"> all combinations</label>
     <label class="tgl" title="Include smokes, probes and short or killed runs"><input type="checkbox" role="switch" x-model="scratch"> scratch</label>
