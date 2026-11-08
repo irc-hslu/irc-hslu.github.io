@@ -5,10 +5,10 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=278d137f9d">
+<link rel="stylesheet" href="style.css?v=e52c80d91c">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=b1af20fe35"></script>
+<script src="app.js?v=d22c7ea1b0"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -23,6 +23,7 @@
   <header class="top">
     <div class="brand"><a class="logo" href="#/runs">MFP-DFM Runboard</a>
       <div class="upd-row"><small class="upd-line" :class="stale() && 'stale'" :title="updated()" x-text="'last updated ' + ago()"></small>
+        <small class="upd-line live" x-show="live" :title="liveTip()" x-text="live ? '\u00b7 live ' + RB.relTime(new Date(live.at).toISOString(), now) : ''"></small>
         <button type="button" class="rl-mini" :class="loading && 'busy'" @click="reload()" :disabled="loading" title="Reload data" :aria-label="loading ? 'Reloading data' : 'Reload data'"><span class="rl-ic" x-html="ic('refresh-cw')"></span></button></div></div>
     <nav class="nav" aria-label="Pages"><a href="#/runs" :class="route === 'runs' && 'on'" :aria-current="route === 'runs' && 'page'"><span x-html="ic('list')"></span>Runs <span class="nc" x-text="'(' + runCount() + ')'"></span></a><a href="#/queues" :class="route === 'queues' && 'on'" :aria-current="route === 'queues' && 'page'" :title="availGpus() + ' GPUs available \u00b7 ' + activeQueues() + ' running'"><span x-html="ic('server')"></span>GPU queues <span class="nc" x-text="'(' + availGpus() + ')'"></span></a><a href="memory.html"><span x-html="ic('book-open')"></span>Memory</a></nav>
     <div class="meta">

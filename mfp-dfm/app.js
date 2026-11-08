@@ -157,12 +157,53 @@ RB.paperCells = (r) => (r && r.attempts || []).flatMap((a) => a.paper_cells || [
 RB.paperTip = (c) => `Paper: ${c.table} \u00b7 ${c.row} \u00b7 ${c.metric.toUpperCase()} ${(+c.value).toFixed(4)} \u00b7 ${c.selection_basis} (${c.receipt})`;
 /** The cited cell for a shown metric value (same number to 1e-9), else null. */
 RB.citedCell = (r, metric, v) => (v == null ? null : RB.paperCells(r).find((c) => c.cited !== false && c.metric === metric && Math.abs(c.value - v) < 1e-9) || null);
+/** Supabase run registry: runs.json carries {supabase: {url, anon_key}} (public, read-only key; inside the encrypted data). The page polls
+ *  runs + events every 60 s and overlays them on the static build; without the config nothing happens and the static build is shown. */
+RB.registry = {
+  POLL_MS: 60000, FIELDS: "run_id,wandb_id,dataset,model,preset,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,updated_at",
+  STATUS: {finished: "succeeded"}, ACTIVE: ["running", "paused", "stale"],
+  TAB: {promptda: "PromptDA", sv: "Ours_SV", mv: "Ours_MV"}, MODEL: {promptda: "PromptDA-B", sv: "Ours_SV", mv: "Ours_MV3"},
+  DATASET: {scannetpp: "ScanNet++", hypersim: "Hypersim", arkitscenes: "ARKitScenes", arkit: "ARKitScenes", thuman: "THuman"},
+  async fetch(cfg) {
+    const h = {apikey: cfg.anon_key, Authorization: "Bearer " + cfg.anon_key}, get = async (q) => { const r = await fetch(`${cfg.url.replace(/\/$/, "")}/rest/v1/${q}`, {headers: h, cache: "no-store"}); if (!r.ok) throw new Error("registry " + r.status); return r.json(); };
+    const [runs, events] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30")]);
+    return {runs, events, at: Date.now()};
+  },
+  /** Overlay registry rows on D.runs in place: live columns for runs the registry says are active (or the build still shows running); rows without a static run are added. */
+  apply(D, live) {
+    const byId = new Map(D.runs.map((r) => [r.id, r])), byWb = new Map(D.runs.flatMap((r) => (r.attempts || []).filter((a) => a.wandb_id).map((a) => [a.wandb_id, r])));
+    for (const w of live.runs) {
+      const status = this.STATUS[w.state] || w.state, pct = w.step != null && w.total ? Math.round(1000 * w.step / w.total) / 10 : null;
+      const l = w.last_val || {}, b = w.best || {}, row = (l.rmse != null || b.l1 != null) ? {rmse: l.rmse ?? null, mae: b.l1 ?? l.l1 ?? null, src: "dev", tip: "dev: validation reported to the run registry" + (b.step != null ? ` (best at step ${b.step})` : "")} : null;
+      const att = {status, host: w.host, gpu: w.gpu, heartbeat_at: w.heartbeat_at, wandb_id: w.wandb_id, code_commit: w.code_sha, metrics: {step: w.step, max_steps: w.total},
+        val_last: l.rmse != null ? {rmse: l.rmse, mae: l.l1, absrel: l.abs_rel} : null, source: "registry"};
+      const state = {step: w.step, total: w.total, pct, rate_per_h: w.rate_steps_per_h, eta: w.eta, stale: w.state === "stale" ? "STALE: registry heartbeat older than 30 min (state running)" : null};
+      let r = byId.get(w.run_id) || byWb.get(w.wandb_id);
+      if (!r) {
+        r = {id: w.run_id, title: w.run_id, display_name: w.run_id, kind: "main", source: "registry", tab: this.TAB[w.model] || "Other", model: this.MODEL[w.model] || w.model || "Other",
+          dataset: this.DATASET[w.dataset] || w.dataset, sft: this.DATASET[w.dataset] || w.dataset, noise: w.preset || "none", attempts: [att], status, notes: w.notes};
+        D.runs.push(r); byId.set(r.id, r);
+      } else if (!(this.ACTIVE.includes(w.state) || r.status === "running")) continue;
+      else {
+        const a = [...(r.attempts || [])].reverse().find((x) => w.wandb_id && x.wandb_id === w.wandb_id) || [...(r.attempts || [])].reverse().find((x) => x.status !== "smoke");
+        if (a) { Object.assign(a, {status, heartbeat_at: w.heartbeat_at || a.heartbeat_at, metrics: {...a.metrics, step: w.step ?? (a.metrics || {}).step, max_steps: w.total ?? (a.metrics || {}).max_steps}}); }
+        else (r.attempts = r.attempts || []).push(att);
+        r.status = status;
+      }
+      r.live_state = state; r.steps = {...r.steps, done: w.step, cap: w.total}; r.modified_at = w.updated_at;
+      if (row && (!r.row || r.source === "registry")) r.row = row;
+      if (w.eval && !r.test_full) r.test_full = w.eval;
+    }
+    D.registry_events = live.events;
+  },
+};
+
 if (typeof module !== "undefined") module.exports = RB;
 
 /* Common page state: data, password gate, header. */
 function base(page) {
   return {
-    page, D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB, loading: false, toast: {msg: "", kind: "", n: 0},
+    page, D: null, gate: false, err: "", pw: "", ok: null, dark: RB.theme.isDark(), now: Date.now(), RB, loading: false, live: null, toast: {msg: "", kind: "", n: 0},
     ic: RB.ic, badgeHtml: (st, label) => RB.ic(RB.ICON[st] || "") + RB.esc(label ?? st),
     /** Keep --hdr-h = height of the sticky top bar, so sticky table headers sit right below it. */
     watchHeader() {
@@ -175,10 +216,16 @@ function base(page) {
       this.loading = true; const t0 = Date.now(), before = this.D && this.D.last_updated;
       let msg = ["Refresh failed", "err"];
       try {
-        this.D = await RB.load(() => Promise.reject(new Error("locked"))); this.now = Date.now(); if (this.onReload) this.onReload();
+        this.D = await RB.load(() => Promise.reject(new Error("locked"))); this.now = Date.now(); if (this.onReload) this.onReload(); this.pollLive();
         msg = RB.refreshMsg(before, this.D && this.D.last_updated);
       } catch (e) { /* keep the data we have */ }
       finally { setTimeout(() => { this.loading = false; this.notify(...msg); }, Math.max(0, 500 - (Date.now() - t0))); }
+    },
+    /** Registry overlay (Supabase, anon key from the data): fetched once now and every 60 s; a failure keeps the static data and shows no live badge. */
+    async pollLive() {
+      const cfg = this.D && this.D.supabase; if (!cfg) return;
+      try { const live = await RB.registry.fetch(cfg); RB.registry.apply(this.D, live); this.live = live; this.now = Date.now(); if (this.onReload) this.onReload(); }
+      catch (e) { this.live = null; }
     },
     /** Bottom-right toast in a persistent role=status region; auto-dismisses after ~3 s (a newer toast restarts the timer). */
     notify(msg, kind) {
@@ -189,14 +236,16 @@ function base(page) {
       this.D = await RB.load((ok) => new Promise((res) => { this.gate = true; this.ok = async () => {
         try { const d = await ok(this.pw); this.gate = false; res(d); } catch (e) { this.err = "Wrong password."; } }; }));
       setInterval(() => (this.now = Date.now()), 30000);
+      this.pollLive(); setInterval(() => this.pollLive(), RB.registry.POLL_MS);
       this.$nextTick(() => this.watchHeader());
       if (this.afterLoad) this.afterLoad();
     },
     toggleTheme() { this.dark = RB.theme.toggle(); },
     // methods, not getters: object spread would freeze getter values at init (D still null)
     updated() { return this.D ? new Date(this.D.last_updated).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""; },
-    stale() { return !!this.D && this.now - new Date(this.D.last_updated) > 3 * 3600e3; },
+    stale() { return !!this.D && !this.live && this.now - new Date(this.D.last_updated) > 3 * 3600e3; },
     ago() { return this.D ? RB.relTime(this.D.last_updated, this.now) : ""; },
+    liveTip() { return this.live ? "Run registry (Supabase), polled every 60 s. Latest events:\n" + (this.live.events || []).slice(0, 8).map((e) => `${RB.relTime(e.at, this.now)} ${e.run_id} ${e.kind}`).join("\n") : ""; },
   };
 }
 
