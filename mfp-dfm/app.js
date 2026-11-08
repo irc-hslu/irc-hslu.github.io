@@ -160,19 +160,23 @@ RB.citedCell = (r, metric, v) => (v == null ? null : RB.paperCells(r).find((c) =
 /** Supabase run registry: runs.json carries {supabase: {url, anon_key}} (public, read-only key; inside the encrypted data). The page polls
  *  runs + events every 60 s and overlays them on the static build; without the config nothing happens and the static build is shown. */
 RB.registry = {
-  POLL_MS: 60000, FIELDS: "run_id,wandb_id,dataset,model,preset,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,updated_at",
+  POLL_MS: 60000, FIELDS: "run_id,wandb_id,dataset,model,preset,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,title,kind,updated_at",
   STATUS: {finished: "succeeded"}, ACTIVE: ["running", "paused", "stale"],
   TAB: {promptda: "PromptDA", sv: "Ours_SV", mv: "Ours_MV"}, MODEL: {promptda: "PromptDA-B", sv: "Ours_SV", mv: "Ours_MV3"},
   DATASET: {scannetpp: "ScanNet++", hypersim: "Hypersim", arkitscenes: "ARKitScenes", arkit: "ARKitScenes", thuman: "THuman"},
   async fetch(cfg) {
     const h = {apikey: cfg.anon_key, Authorization: "Bearer " + cfg.anon_key}, get = async (q) => { const r = await fetch(`${cfg.url.replace(/\/$/, "")}/rest/v1/${q}`, {headers: h, cache: "no-store"}); if (!r.ok) throw new Error("registry " + r.status); return r.json(); };
-    const [runs, events] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30")]);
-    return {runs, events, at: Date.now()};
+    const opt = (q) => get(q).catch(() => []);  // v2 tables: a registry without them still serves runs + events
+    const [runs, events, evals, cells, hosts] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30"),
+      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status")]);
+    return {runs, events, evals, cells, hosts, at: Date.now()};
   },
   /** Overlay registry rows on D.runs in place: live columns for runs the registry says are active (or the build still shows running); rows without a static run are added. */
   apply(D, live) {
     const byId = new Map(D.runs.map((r) => [r.id, r])), byWb = new Map(D.runs.flatMap((r) => (r.attempts || []).filter((a) => a.wandb_id).map((a) => [a.wandb_id, r])));
+    const runOfEval = new Map((live.evals || []).map((e) => [e.id, e.run_id])), cited = new Set((live.cells || []).map((c) => runOfEval.get(c.eval_id)));
     for (const w of live.runs) {
+      if (w.kind === "ckpt" && !cited.has(w.run_id)) continue;  // stub run that only anchors evals of a checkpoint no run claims: shown only when a paper cell cites it
       const status = this.STATUS[w.state] || w.state, pct = w.step != null && w.total ? Math.round(1000 * w.step / w.total) / 10 : null;
       const l = w.last_val || {}, b = w.best || {}, row = (l.rmse != null || b.l1 != null) ? {rmse: l.rmse ?? null, mae: b.l1 ?? l.l1 ?? null, src: "dev", tip: "dev: validation reported to the run registry" + (b.step != null ? ` (best at step ${b.step})` : "")} : null;
       const att = {status, host: w.host, gpu: w.gpu, heartbeat_at: w.heartbeat_at, wandb_id: w.wandb_id, code_commit: w.code_sha, metrics: {step: w.step, max_steps: w.total},
@@ -195,6 +199,24 @@ RB.registry = {
       if (w.eval && !r.test_full) r.test_full = w.eval;
     }
     D.registry_events = live.events;
+    this.applyV2(D, live, byId);
+  },
+  /** evals -> eval badge (latest eval with MAE/RMSE of a run whose row is not an eval yet), paper_cells -> 'paper' label, hosts -> offline hosts. */
+  applyV2(D, live, byId) {
+    const byEval = new Map((live.evals || []).map((e) => [e.id, e])), runOf = new Map([...byEval].map(([id, e]) => [id, e.run_id])), pick = new Map();
+    for (const c of live.cells || []) { const e = byEval.get(c.eval_id); if (e && !pick.has(e.run_id)) pick.set(e.run_id, e); }  // the eval a paper cell cites wins over the newest one
+    for (const e of live.evals || []) if (!pick.has(e.run_id)) { const r = byId.get(e.run_id); if (r && !(r.row && r.row.src === "eval")) pick.set(e.run_id, e); }  // newest first
+    for (const [id, e] of pick) {
+      const r = byId.get(id), m = e.metrics || {};
+      if (!r || m.mae == null || m.rmse == null) continue;
+      r.row = {rmse: m.rmse, mae: m.mae, src: "eval", tip: `eval: ${e.cohort} (${e.geometry}${e.frames ? ", " + e.frames + " frames" : ""}), registry`};
+    }
+    for (const c of live.cells || []) {
+      const r = byId.get(runOf.get(c.eval_id)); if (!r) continue;
+      const shown = pick.get(r.id) && pick.get(r.id).id === c.eval_id, e = byEval.get(c.eval_id);  // a cell citing another eval than the badge's says which cohort it is
+      r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), `${c.paper_table} / ${c.row_label} / ${c.column_label}${shown ? "" : ` (other eval: ${e.cohort}, ${e.geometry}, eval #${e.id})`}`])].join("; ");
+    }
+    for (const h of live.hosts || []) { const q = (D.queues || {})[h.host]; if (q && h.status !== "online") q.status = h.status; }
   },
 };
 
