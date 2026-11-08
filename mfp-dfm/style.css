@@ -46,7 +46,7 @@ tbody.run tr.det td{background:var(--bg);padding:1.2rem 1.4rem}
 .s-succeeded{color:var(--ok);background:var(--ok-bg)} .s-running{color:var(--run);background:var(--run-bg)}
 .s-queued,.s-paused{color:var(--wait);background:var(--wait-bg)} .s-planned,.s-smoke{color:var(--plan);background:var(--plan-bg)}
 .s-failed{color:var(--bad);background:var(--bad-bg)}
-.s-superseded,.s-cancelled{color:var(--muted);background:transparent;border:1px solid var(--line);text-decoration:line-through}
+.s-superseded,.s-cancelled,.s-stopped{color:var(--muted);background:transparent;border:1px solid var(--line);text-decoration:line-through}
 .s-running::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.s-running::before{animation:none}}

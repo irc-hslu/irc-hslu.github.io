@@ -94,13 +94,13 @@ const RB = (() => {
     return L[name] ? `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${L[name]}</svg>` : "";
   };
   /** Icon per run status / queue stage / matrix word. */
-  const ICON = {succeeded: "circle-check", running: "activity", queued: "hourglass", paused: "hourglass", planned: "clock", failed: "circle-x", cancelled: "ban",
+  const ICON = {succeeded: "circle-check", running: "activity", queued: "hourglass", paused: "hourglass", planned: "clock", failed: "circle-x", cancelled: "ban", stopped: "ban",
     smoke: "flask-conical", stale: "clock", superseded: "archive", reviewed: "check", "host-tested": "flask-conical", built: "package",
     "not planned": ""};
   /** Canonical value order per key (unknown values follow, alphabetically). */
   const ORDER = {dataset: ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"], noise: ["lidar_low", "lower", "low", "none"],
     model: ["PromptDA-B", "PromptDA-L", "PromptDA-S", "Ours_SV", "Ours_MV2", "Ours_MV3"],
-    status: ["running", "paused", "queued", "planned", "failed", "succeeded", "cancelled", "stale", "superseded", "not planned"]};
+    status: ["running", "paused", "queued", "planned", "failed", "succeeded", "cancelled", "stopped", "stale", "superseded", "not planned"]};
   const initRank = (v) => { if (!v || v === "clean") return "0"; const [f, d, par] = String(v).split("_");
     return `${"psm".indexOf(f[0]) + 1}${["hs", "spp", "as", "th"].indexOf(d) + 1 || 9}${par ? 1 : 0}${v}`; };
   const rank = (k, v) => { if (k === "init") return initRank(v); const o = ORDER[k] || [], i = o.indexOf(v);
