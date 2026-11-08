@@ -150,6 +150,8 @@ RB.liveLine = (status, gpu) => {
   return `Util: ${Math.round(+m[2] / 1024)}${cap ? "/" + cap : ""} GB @ ${m[1]}%`;
 };
 /** Paper cells of a run (all attempts): [{table, row, metric, value, update, receipt, selection_basis}]. */
+/** Live state of a running run for its Steps cell: ETA and the STALE flag (from the build's per-run live_state). */
+RB.liveBits = (r) => { const l = r && r.live_state; if (!l) return ""; return (l.eta ? `<div class="muted" title="ETA from the run's own rate">ETA ${new Date(l.eta).toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"})}</div>` : "") + (l.stale ? `<div class="badge st-failed" title="${RB.esc(l.stale)}">STALE</div>` : ""); };
 RB.paperCells = (r) => (r && r.attempts || []).flatMap((a) => a.paper_cells || []);
 /** Tooltip for one paper cell: table, row, value and selection basis. */
 RB.paperTip = (c) => `Paper: ${c.table} \u00b7 ${c.row} \u00b7 ${c.metric.toUpperCase()} ${(+c.value).toFixed(4)} \u00b7 ${c.selection_basis} (${c.receipt})`;
@@ -395,7 +397,7 @@ document.addEventListener("alpine:init", () => {
               w.append(bt); return w; },
             formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
               if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
-              const pc = RB.paperCells(d._r).filter((x) => x.cited !== false), pb = pc.length ? ` <span class="tag paper" title="${esc(pc.map(RB.paperTip).join("\n"))}">paper</span>` : "";
+              const r = d._r || {}, pb = (r.paper ? ` <span class="tag paper" title="${esc(r.paper_label || "")}">paper</span>` : "") + (r.superseded_by ? ` <span class="tag" title="a better run now carries the paper label">superseded by ${esc(r.superseded_by)}</span>` : "");
               return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}${pb}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
           col({title: "Model", field: "model", width: 120, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
           col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (miss(c.getValue()) ? `<span class="muted">—</span>` : `<code class="init">${esc(c.getValue())}</code>`)}),
@@ -414,7 +416,7 @@ document.addEventListener("alpine:init", () => {
               return `<span class="num${pc ? " cited" : ""}" title="${esc(pc ? RB.paperTip(pc) : c.getData().msrc + " MAE" + (c.getData().rtip ? " (" + c.getData().rtip + ")" : ""))}">${c.getValue().toFixed(4)}</span>`; }}),
           col({title: "Steps", field: "steps", width: 100, responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
-              return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>`; }}),
+              return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>${RB.liveBits(d._r)}`; }}),
           col({title: "Samples", field: "samples", width: 100, visible: false, responsive: 10,  /* hidden: samples stay in the expanded details */ sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getData()._virtual ? "" : c.getValue() == null ? `<span class="muted">—</span>` : `<span class="num" title="${c.getValue().toLocaleString("en-US")} images">${RB.kfmt(c.getValue())}</span>`)}),
           col({title: "Modified", field: "modified_at", width: 112, responsive: 4, headerSortStartingDir: "desc",
