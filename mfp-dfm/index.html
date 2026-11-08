@@ -5,7 +5,7 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=a9aa43002e">
+<link rel="stylesheet" href="style.css?v=eb8f8b08fc">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
 <script src="app.js?v=c7bf31af54"></script>
@@ -32,6 +32,17 @@
   </header>
   <p class="schema-warn" x-show="oldData()">This data was built by an older runboard version, so some derived columns may be empty. The hourly refresh (or <code>tools/runboard/refresh.sh</code>) fixes it.</p>
   <section class="page" x-data="runs" x-show="route === 'runs'" aria-label="Runs">
+  <template x-if="D && D.live"><details class="pub live" open>
+    <summary><b x-text="'Live runs · ' + D.live.filter((e) => e.state === 'running').length + ' training · ' + D.live.filter((e) => e.stale).length + ' stale'"></b>
+      <small class="muted" x-text="' (one registry for page and lead check; step = W&amp;B trainer step; rate between the last two refreshes; also runs finished in the last 24 h)'"></small></summary>
+    <div class="pub-wrap"><table class="pub-t"><thead><tr><th>Run</th><th>Host · GPU</th><th>W&amp;B id</th><th class="n">Step / total</th><th class="n">%</th><th class="n">Steps/h</th><th>ETA</th><th>Heartbeat</th><th class="n">GPU</th><th>Flag</th></tr></thead>
+      <tbody><template x-for="e in D.live" :key="e.key"><tr :class="[e.stale ? 'stale' : '', e.state !== 'running' ? 'pend' : '']" :title="(e.via || e.state) + (e.step_source ? ' · step source: ' + e.step_source : '')">
+        <td x-text="e.name"></td><td x-text="RB.hostName(e.lane)"></td><td><code x-text="e.wandb_id || '—'"></code></td>
+        <td class="n" x-text="(e.step != null ? e.step.toLocaleString('en-US') : '—') + ' / ' + (e.total ? e.total.toLocaleString('en-US') : '?')"></td>
+        <td class="n" x-text="e.pct != null ? e.pct.toFixed(1) : '—'"></td><td class="n" x-text="e.state !== 'running' ? e.state : e.rate_per_h != null ? Math.round(e.rate_per_h).toLocaleString('en-US') : 'next refresh'"></td>
+        <td x-text="e.eta ? new Date(e.eta).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : '—'"></td>
+        <td x-text="e.heartbeat_at ? RB.relTime(e.heartbeat_at, now) : '—'"></td><td class="n" x-text="e.gpu_util != null ? e.gpu_util + ' %' : '—'"></td>
+        <td><span class="badge st-failed" x-show="e.stale" x-text="'STALE: ' + e.stale"></span></td></tr></template></tbody></table></div></details></template>
   <template x-if="D && D.publishable"><details class="pub" open>
     <summary><b x-text="D.publishable.title"></b></summary>
     <div class="pub-wrap"><table class="pub-t"><thead><tr><th>Method</th><th>Checkpoint</th><th>Input geometry</th><th class="n">MAE</th><th class="n">RMSE</th>

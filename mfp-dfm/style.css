@@ -552,3 +552,4 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
 .pub-t th{color:var(--muted);font-weight:600}.pub-t .n{text-align:right;font-variant-numeric:tabular-nums;font-family:"JetBrains Mono",monospace}
 .pub-t tr.best td{font-weight:650}.pub-t tr.pend td{color:var(--muted)}.pub-t .tag{margin-left:6px}
 .pub-c{margin:8px 0 0;color:var(--muted);font-size:var(--fs-small,12.5px)}
+.pub-t tr.stale td{background:color-mix(in srgb,var(--accent) 0%,#e5484d 12%)}
