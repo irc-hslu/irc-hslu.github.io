@@ -202,15 +202,14 @@ function base(page) {
 
 const STATUS_ORDER = RB.ORDER.status;
 const TABS = ["PromptDA", "Ours_SV", "Ours_MV", "Other", "Scratch"];
-/** [MAE, 'test'|'dev']: test l1 when the run has a test RMSE (same receipt), else the best dev MAE. */
+/** [MAE, 'eval'|'dev']: eval l1 when the run has an eval RMSE (same receipt), else the best dev MAE. */
 /** Row metrics = the run's current (primary) attempt (build.row_metrics), null when it has none yet; only data built
  *  before r.row existed (schema < 4) falls back to the run summary. */
-const mae = (r) => { if (r.row) return [r.row.mae ?? null, r.row.src]; const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_mae ?? null, "test"] : [(r.metrics_best || {}).mae ?? null, "dev"]; };
+const mae = (r) => { if (r.row) return [r.row.mae ?? null, r.row.src]; const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_mae ?? null, "eval"] : [(r.metrics_best || {}).mae ?? null, "dev"]; };
 const rmse = (r) => { if (r.row) return [r.row.rmse ?? null, r.row.src];  // current attempt only: null renders '—', never another attempt's value
-   const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "test"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
-/** Tooltip of the row's metric badge: test = official ScanNet++ validation set (full), test96 = ALL3 96-tuple cohort, dev = best dev. */
-const SRC_TIP = {test: "test = official ScanNet++ validation set (full, 48 scenes / 2,544 tuples), all-pixel MAE/RMSE",
-  test96: "test96 = ALL3 96-tuple test cohort (no full-validation number yet)", dev: "dev = best dev-set value (no test number yet)"};
+   const m = r.summary_metrics || {}; return m.test_rmse != null ? [m.test_rmse, "eval"] : m.dev_best_rmse != null ? [m.dev_best_rmse, "dev"] : [null, ""]; };
+/** Tooltip of the badge when the row carries no tip (schema < 4): eval = a finished run's receipt, dev = best W&B validation. */
+const SRC_TIP = {eval: "eval = proper evaluation receipt of the finished run", dev: "dev = best W&B validation during training"};
 const srcTip = (r) => (r.row && r.row.tip) || SRC_TIP[rmse(r)[1]] || "";
 let RUNS_TABLE = null, RUNS_EL = null;  // the Tabulator instance (kept out of Alpine's reactive state)
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };
@@ -407,7 +406,7 @@ document.addEventListener("alpine:init", () => {
           col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
           col({title: "RMSE", field: "rmse", width: 114, responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
-            headerTooltip: "RMSE / MAE in metres. Badge: test = official ScanNet++ validation set (full), all-pixel MAE/RMSE (valfull v1); test96 = ALL3 96-tuple test cohort; dev = best dev value (runs without a test number)",
+            headerTooltip: "RMSE / MAE in metres. Badge: eval = proper evaluation receipt of the finished run (hover: checkpoint, protocol); dev = best W&B validation during training (hover: step)",
             formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "rmse", c.getValue());
               return `<span class="num${pc ? " cited" : ""}"${pc ? ` title="${esc(RB.paperTip(pc))}"` : ""}>${c.getValue().toFixed(4)}</span><span class="tag" title="${esc(c.getData().rtip || "")}">${esc(c.getData().rsrc)}</span>`; }}),
           col({title: "MAE", field: "mae", width: 76, responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
