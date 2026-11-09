@@ -270,6 +270,7 @@ details.hl-recent>summary{color:var(--muted);font-size:.82rem}
 .hlane.gone .hl-gpu{font-size:1.1rem}
 .st-destroyed{color:var(--muted);background:transparent;border:1px solid var(--line);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;padding:0 6px}
 .dot.grey{background:var(--muted)}
+.dot.down{background:color-mix(in srgb,var(--bad) 65%,#000)}  /* destroyed: dark red; stopped/offline: red (.off) */
 .hl-gpu{flex-wrap:wrap;column-gap:var(--s2);row-gap:2px}.hl-gpu .tag{white-space:nowrap}
 .rj-name.unmapped{color:var(--muted);font-family:var(--mono);font-size:.76rem}
 /* ==== UI pass: shared header + nav, reload, skeleton, progress, matrix, motion ==== */
