@@ -217,6 +217,16 @@ RB.registry = {
       r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), `${c.paper_table} / ${c.row_label} / ${c.column_label}${shown ? "" : ` (other eval: ${e.cohort}, ${e.geometry}, eval #${e.id})`}`])].join("; ");
     }
     for (const h of live.hosts || []) { const q = (D.queues || {})[h.host]; if (q && h.status !== "online") q.status = h.status; }
+    // running/stale registry runs go into their host's lane: the static queue snapshot can be old (its monitor is off)
+    for (const w of live.runs || []) {
+      if (!["running", "stale"].includes(w.state) || !w.host) continue;
+      D.queues = D.queues || {};
+      const q = D.queues[w.host] = D.queues[w.host] || {gpu: "", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
+      if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
+      q.running = q.running || [];
+      // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
+      if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, progress: w.step != null && w.total ? `${w.step}/${w.total}` : ""});
+    }
   },
 };
 
