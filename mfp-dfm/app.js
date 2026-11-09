@@ -160,7 +160,7 @@ RB.citedCell = (r, metric, v) => (v == null ? null : RB.paperCells(r).find((c) =
 /** Supabase run registry: runs.json carries {supabase: {url, anon_key}} (public, read-only key; inside the encrypted data). The page polls
  *  runs + events every 60 s and overlays them on the static build; without the config nothing happens and the static build is shown. */
 RB.registry = {
-  POLL_MS: 15 * 60 * 1000, FIELDS: "run_id,wandb_id,dataset,model,preset,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,title,kind,updated_at,queue_pos",
+  POLL_MS: 15 * 60 * 1000, FIELDS: "run_id,wandb_id,dataset,model,preset,parent_sha,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,title,kind,updated_at,queue_pos",
   STATUS: {finished: "succeeded"}, ACTIVE: ["running", "paused", "stale"],
   TAB: {promptda: "PromptDA", sv: "Ours_SV", mv: "Ours_MV"}, MODEL: {promptda: "PromptDA-B", sv: "Ours_SV", mv: "Ours_MV3"},
   DATASET: {scannetpp: "ScanNet++", hypersim: "Hypersim", arkitscenes: "ARKitScenes", arkit: "ARKitScenes", thuman: "THuman"},
@@ -202,6 +202,16 @@ RB.registry = {
         r.status = status;
       }
       r.live_state = state; r.steps = {...r.steps, done: w.step, cap: w.total}; r.modified_at = w.updated_at;
+      // a row the static build does not know (runs started on rentals) gets its details from the registry, so its expanded view is complete
+      if (r.source === "registry") Object.assign(r, {
+        stage: /^ABL-/.test(w.run_id) ? "ablation" : /^P2-|^S2-/.test(w.run_id) ? "fine-tuning" : r.stage || "",
+        pretrain: w.parent_sha ? "Hypersim" : r.pretrain, sft: r.dataset, variant: [r.model, w.preset].filter(Boolean).join(" \u00b7 "),
+        init: w.parent_sha ? `parent sha ${w.parent_sha.slice(0, 8)}` : r.init, parent_id: r.parent_id,
+        steps: (() => { const batch = /^ABL-/.test(w.run_id) ? 16 : /-TH/.test(w.run_id) ? 4 : (r.steps || {}).batch;  // global batch of the ablation / THuman recipes
+          return {...r.steps, batch, views: /MV/.test(r.model || "") ? 3 : 1, samples: batch && w.step != null ? batch * w.step : (r.steps || {}).samples}; })(),
+        metrics_last: w.last_val ? {rmse: w.last_val.rmse, mae: w.last_val.l1, absrel: w.last_val.abs_rel, src: "dev"} : r.metrics_last,
+        metrics_best: w.best ? {rmse: w.best.rmse, mae: w.best.l1, absrel: w.best.abs_rel, src: "dev"} : r.metrics_best,
+        notes: w.notes || r.notes});
       if (row && (!r.row || r.source === "registry")) r.row = row;
       if (w.eval && !r.test_full) r.test_full = w.eval;
     }
