@@ -245,6 +245,11 @@ RB.registry = {
       // per-GPU 'util %, MiB' from out/vast_gpu_status.sh (every 10 min); older than 30 min is not shown
       if (h.gpu_status && Date.now() - new Date(h.gpu_status_at) < 30 * 60e3) keys.forEach((k, i) => { if (h.gpu_status[i]) D.queues[k].gpu_status = h.gpu_status[i]; });
     }
+    // our machines (single GPU, lane key = host) get the same live 'util %, MiB' line; it replaces the static snapshot's value
+    for (const h of live.hosts || []) {
+      const q = (D.queues || {})[h.host];
+      if (h.kind === "local" && q && h.gpu_status && Date.now() - new Date(h.gpu_status_at) < 30 * 60e3) q.gpu_status = h.gpu_status[0];
+    }
     for (const w of live.runs || []) {
       const span = /^(.+)\.gpu(\d+)-(\d+)$/.exec(w.host || "");
       if (!span || !["finished", "failed", "crashed"].includes(w.state)) continue;
