@@ -216,7 +216,8 @@ RB.registry = {
       const shown = pick.get(r.id) && pick.get(r.id).id === c.eval_id, e = byEval.get(c.eval_id);  // a cell citing another eval than the badge's says which cohort it is
       r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), `${c.paper_table} / ${c.row_label} / ${c.column_label}${shown ? "" : ` (other eval: ${e.cohort}, ${e.geometry}, eval #${e.id})`}`])].join("; ");
     }
-    for (const h of live.hosts || []) { const q = (D.queues || {})[h.host]; if (q && h.status !== "online") q.status = h.status; }
+    // the registry's host status (stopped/destroyed/online) applies to the machine and all of its GPU lanes
+    for (const h of live.hosts || []) for (const [k, q] of Object.entries(D.queues || {})) if (k === h.host || k.startsWith(h.host + ".gpu")) q.status = h.status;
     // online rented machines get one lane per GPU ('<host>.gpuN') or one lane; existing lanes are kept as they are
     D.queues = D.queues || {};
     for (const h of live.hosts || []) {
@@ -612,7 +613,8 @@ document.addEventListener("alpine:init", () => {
           !["running", "queued", "paused"].some((f) => (q[k][f] || []).length);
       const shown = Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden && !empty(k)), mach = (k) => k.replace(/\.gpu\d+(-\d+)?$/, "");
       // machine class: running work, then idle/online, then stopped, then destroyed; never mixed (all GPU lanes of a machine share one class)
-      const cls = (k) => { const ls = shown.filter((x) => mach(x) === mach(k)).map((x) => q[x]);
+      const local = (k) => order.includes(mach(k));  // our own machines always come first
+      const cls = (k) => { if (local(k)) return -1; const ls = shown.filter((x) => mach(x) === mach(k)).map((x) => q[x]);
         return ls.some((x) => x.status === "destroyed") ? 3 : ls.some((x) => x.status === "stopped") ? 2 : ls.some((x) => (x.running || []).length) ? 0 : 1; };
       const keys = shown.sort((a, b) => cls(a) - cls(b) ||
           (cls(a) === 3 ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) ||
