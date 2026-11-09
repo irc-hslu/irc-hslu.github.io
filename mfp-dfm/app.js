@@ -168,7 +168,7 @@ RB.registry = {
     const h = {apikey: cfg.anon_key, Authorization: "Bearer " + cfg.anon_key}, get = async (q) => { const r = await fetch(`${cfg.url.replace(/\/$/, "")}/rest/v1/${q}`, {headers: h, cache: "no-store"}); if (!r.ok) throw new Error("registry " + r.status); return r.json(); };
     const opt = (q) => get(q).catch(() => []);  // v2 tables: a registry without them still serves runs + events
     const [runs, events, evals, cells, hosts] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30"),
-      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status")]);
+      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status,kind,gpus")]);
     return {runs, events, evals, cells, hosts, at: Date.now()};
   },
   /** Overlay registry rows on D.runs in place: live columns for runs the registry says are active (or the build still shows running); rows without a static run are added. */
@@ -217,11 +217,19 @@ RB.registry = {
       r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), `${c.paper_table} / ${c.row_label} / ${c.column_label}${shown ? "" : ` (other eval: ${e.cohort}, ${e.geometry}, eval #${e.id})`}`])].join("; ");
     }
     for (const h of live.hosts || []) { const q = (D.queues || {})[h.host]; if (q && h.status !== "online") q.status = h.status; }
+    // online rented machines get one lane per GPU ('<host>.gpuN') or one lane; existing lanes are kept as they are
+    D.queues = D.queues || {};
+    for (const h of live.hosts || []) {
+      if (h.kind !== "rental" || h.status !== "online") continue;
+      const gpus = h.gpus || [], n = gpus.reduce((s, g) => s + (g.count || 0), 0), label = (gpus[0] || {}).gpu || "";
+      const keys = n > 1 ? [...Array(n).keys()].map((i) => `${h.host}.gpu${i}`) : [h.host];
+      for (const k of keys) D.queues[k] = D.queues[k] || {gpu: "", gpu_label: label, reachable: true, status: "online", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
+    }
     // running/stale registry runs go into their host's lane: the static queue snapshot can be old (its monitor is off)
     for (const w of live.runs || []) {
       if (!["running", "stale"].includes(w.state) || !w.host) continue;
-      D.queues = D.queues || {};
-      const q = D.queues[w.host] = D.queues[w.host] || {gpu: "", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
+      const key = D.queues[w.host] ? w.host : D.queues[`${w.host}.gpu0`] ? `${w.host}.gpu0` : w.host;  // bare machine name -> its first GPU lane
+      const q = D.queues[key] = D.queues[key] || {gpu: "", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
       if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
       q.running = q.running || [];
       // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
