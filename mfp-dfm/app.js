@@ -209,7 +209,8 @@ RB.registry = {
     for (const [id, e] of pick) {
       const r = byId.get(id), m = e.metrics || {};
       if (!r || m.mae == null || m.rmse == null) continue;
-      r.row = {rmse: m.rmse, mae: m.mae, src: "eval", tip: `eval: ${e.cohort} (${e.geometry}${e.frames ? ", " + e.frames + " frames" : ""}), registry`};
+      const evalp = e.protocol === "promptda_reimpl_author_mesh";  // PromptDA evaluation protocol (ScanNet++ default): tagged EVALP
+      r.row = {rmse: m.rmse, mae: m.mae, src: "eval", evalp, tip: `eval: ${e.cohort} (${e.geometry}${e.frames ? ", " + e.frames + " frames" : ""}), registry${evalp ? "; EVALP = PromptDA evaluation protocol" : ""}`};
     }
     for (const c of live.cells || []) {
       const r = byId.get(runOf.get(c.eval_id)); if (!r) continue;
@@ -317,6 +318,7 @@ const rmse = (r) => { if (r.row) return [r.row.rmse ?? null, r.row.src];  // cur
 /** Tooltip of the badge when the row carries no tip (schema < 4): eval = a finished run's receipt, dev = best W&B validation. */
 const SRC_TIP = {eval: "eval = proper evaluation receipt of the finished run", dev: "dev = best W&B validation during training"};
 const srcTip = (r) => (r.row && r.row.tip) || SRC_TIP[rmse(r)[1]] || "";
+const evalpTag = (r) => (r && r.row && r.row.evalp ? ' <span class="tag" title="PromptDA evaluation protocol (promptda_reimpl_author_mesh)">EVALP</span>' : "");
 let RUNS_TABLE = null, RUNS_EL = null;  // the Tabulator instance (kept out of Alpine's reactive state)
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };
 
@@ -514,11 +516,11 @@ document.addEventListener("alpine:init", () => {
           col({title: "RMSE", field: "rmse", width: 114, responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
             headerTooltip: "RMSE / MAE in metres. Badge: eval = proper evaluation receipt of the finished run (hover: checkpoint, protocol); dev = best W&B validation during training (hover: step)",
             formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "rmse", c.getValue());
-              return `<span class="num${pc ? " cited" : ""}"${pc ? ` title="${esc(RB.paperTip(pc))}"` : ""}>${c.getValue().toFixed(4)}</span><span class="tag" title="${esc(c.getData().rtip || "")}">${esc(c.getData().rsrc)}</span>`; }}),
-          col({title: "MAE", field: "mae", width: 76, responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
+              return `<span class="num${pc ? " cited" : ""}"${pc ? ` title="${esc(RB.paperTip(pc))}"` : ""}>${c.getValue().toFixed(4)}</span>${evalpTag(c.getData()._r)}<span class="tag" title="${esc(c.getData().rtip || "")}">${esc(c.getData().rsrc)}</span>`; }}),
+          col({title: "MAE", field: "mae", width: 124, responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
             // same receipt as RMSE (its DEV/TEST badge applies), so no second badge
             formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "mae", c.getValue());
-              return `<span class="num${pc ? " cited" : ""}" title="${esc(pc ? RB.paperTip(pc) : c.getData().msrc + " MAE" + (c.getData().rtip ? " (" + c.getData().rtip + ")" : ""))}">${c.getValue().toFixed(4)}</span>`; }}),
+              return `<span class="num${pc ? " cited" : ""}" title="${esc(pc ? RB.paperTip(pc) : c.getData().msrc + " MAE" + (c.getData().rtip ? " (" + c.getData().rtip + ")" : ""))}">${c.getValue().toFixed(4)}</span>${evalpTag(c.getData()._r)}`; }}),
           col({title: "Steps", field: "steps", width: 100, responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
               return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>${RB.liveBits(d._r)}`; }}),
