@@ -233,7 +233,7 @@ RB.registry = {
       if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
       q.running = q.running || [];
       // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
-      if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, progress: w.step != null && w.total ? `${w.step}/${w.total}` : ""});
+      if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}});  // card() reads budget.steps for the bar and total
     }
   },
 };
