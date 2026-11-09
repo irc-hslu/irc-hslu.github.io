@@ -145,7 +145,7 @@ RB.vramGb = (gpu) => { const m = /(\d+)\s*GB\b/.exec(gpu || ""); if (m) return +
   return /4090|3090/.test(gpu || "") ? 24 : /4080/.test(gpu || "") ? 16 : null; };
 /** nvidia-smi '92 %, 13029 MiB' -> 'Util: 13/32 GB @ 92%' (memory rounded to whole GB, capacity after the slash). */
 RB.liveLine = (status, gpu) => {
-  const m = /^\s*(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec(status || ""); if (!m) return status ? "GPU " + status : "no GPU data";
+  const m = /^\s*(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec(status || ""); if (!m) return status ? "GPU " + status : "";  // no telemetry: '' (the lane shows the run instead)
   const cap = RB.vramGb(gpu);
   return `Util: ${Math.round(+m[2] / 1024)}${cap ? "/" + cap : ""} GB @ ${m[1]}%`;
 };
@@ -228,12 +228,16 @@ RB.registry = {
     // running/stale registry runs go into their host's lane: the static queue snapshot can be old (its monitor is off)
     for (const w of live.runs || []) {
       if (!["running", "stale"].includes(w.state) || !w.host) continue;
-      const key = D.queues[w.host] ? w.host : D.queues[`${w.host}.gpu0`] ? `${w.host}.gpu0` : w.host;  // bare machine name -> its first GPU lane
-      const q = D.queues[key] = D.queues[key] || {gpu: "", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
-      if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
-      q.running = q.running || [];
-      // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
-      if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}});  // card() reads budget.steps for the bar and total
+      const span = /^(.+)\.gpu(\d+)-(\d+)$/.exec(w.host);  // 'vast_4x.gpu0-1' = one run on GPUs 0..1: the same entry in each of those lanes
+      const keys = span ? [...Array(+span[3] - +span[2] + 1).keys()].map((i) => `${span[1]}.gpu${+span[2] + i}`) :
+        [D.queues[w.host] ? w.host : D.queues[`${w.host}.gpu0`] ? `${w.host}.gpu0` : w.host];  // bare machine name -> its first GPU lane
+      for (const key of keys) {
+        const q = D.queues[key] = D.queues[key] || {gpu: "", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
+        if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
+        q.running = q.running || [];
+        // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
+        if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
+      }
     }
   },
 };
@@ -603,18 +607,30 @@ document.addEventListener("alpine:init", () => {
     hosts() {
       if (!this.D) return [];
       const order = ["local", "iradonis", "desktop"], q = this.D.queues || {};
-      const gone = (k) => (q[k].status === "destroyed" ? 1 : 0);  // destroyed rented machines last, newest destruction first
       // an offline lane (stopped/destroyed or unreachable) with nothing to show (no jobs, no finished runs) is hidden
       const empty = (k) => (["stopped", "destroyed"].includes(q[k].status) || !q[k].reachable) && !this.recent(q[k]).length &&
           !["running", "queued", "paused"].some((f) => (q[k][f] || []).length);
-      const keys = Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden && !empty(k)).sort((a, b) => gone(a) - gone(b) ||
-          (gone(a) ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) || a.localeCompare(b));
+      const shown = Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden && !empty(k)), mach = (k) => k.replace(/\.gpu\d+$/, "");
+      // machine class: running work, then idle/online, then stopped, then destroyed; never mixed (all GPU lanes of a machine share one class)
+      const cls = (k) => { const ls = shown.filter((x) => mach(x) === mach(k)).map((x) => q[x]);
+        return ls.some((x) => x.status === "destroyed") ? 3 : ls.some((x) => x.status === "stopped") ? 2 : ls.some((x) => (x.running || []).length) ? 0 : 1; };
+      const keys = shown.sort((a, b) => cls(a) - cls(b) ||
+          (cls(a) === 3 ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) ||
+          mach(a).localeCompare(mach(b)) || a.localeCompare(b));
       const G = RB.laneGroups(keys);  // lanes of one multi-GPU machine are drawn as a group
       return keys.map((k) => { const g = G[k];
           return {k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: /^vast/.test(k), multi: !!/\.gpu\d+$/.exec(k), gone: q[k].status === "destroyed",
             grp: g ? g.pos : "", machine: g ? g.machine : ""}; });  // glued block: machine name once, no 'GPU N' label
     },
     gpuOf(k) { const q = (this.D.queues || {})[k] || {}; return (q.gpu_label || (RB.HOSTS[k] || {}).gpu || "").replace(/\s*\(.*\)$/, ""); },
+    /** Lane status line: the GPU meter when the monitor has telemetry, else the lane's first running run (step, heartbeat age); '' hides it. */
+    liveText(h) {
+      if (h.gone) return "machine destroyed · not polled";
+      if (!h.reachable) return this.seen(h);
+      const gpu = RB.liveLine(h.gpu_status, h.gpuName); if (gpu) return gpu;
+      const j = (h.running || [])[0]; if (!j) return "";
+      return [j.step != null && (j.budget || {}).steps ? `step ${j.step}/${j.budget.steps}` : "", j.heartbeat_at ? "heartbeat " + RB.relTime(j.heartbeat_at, this.now) : ""].filter(Boolean).join(" · ");
+    },
     /** Name with a break opportunity after every underscore only (never ellipsized). */
     nameHtml: (s) => RB.esc(s || "").replace(/_/g, "_<wbr>"),
     /** model · dataset · noise, model in the main-table form (PromptDA-B, SV-B, MV(3)-B); noise always shown ('noise ?' when unknown). */
