@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="style.css?v=e52c80d91c">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=0783429cfd"></script>
+<script src="app.js?v=31e329d0ed"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -103,7 +103,7 @@
           <span class="badge st-destroyed" x-show="h.gone" :title="h.destroyed_at" x-text="'destroyed ' + destroyedOn(h.destroyed_at)"></span>
           <span class="tag" x-show="(h.merged_from || []).length" :title="'Finished jobs of the destroyed machines are listed here too: ' + (h.merged_from || []).join(', ')" x-text="'+ history ' + [...new Set((h.merged_from || []).map((x) => x.replace(/\.gpu\d+$/, '')))].join(', ')"></span></div>
         <div class="hl-gpu"><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span></div>
-        <div class="hl-live" x-show="liveText(h)" x-text="liveText(h)"></div>
+        <div class="hl-live" x-text="h.gone ? 'machine destroyed \u00b7 not polled' : h.reachable ? RB.liveLine(h.gpu_status, h.gpuName) : seen(h)"></div>
       </div>
       <div class="hl-cards">
         <template x-for="c in lane(h)" :key="c.key">
