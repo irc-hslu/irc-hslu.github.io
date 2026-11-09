@@ -183,6 +183,13 @@ RB.registry = {
         val_last: l.rmse != null ? {rmse: l.rmse, mae: l.l1, absrel: l.abs_rel} : null, source: "registry"};
       const state = {step: w.step, total: w.total, pct, rate_per_h: w.rate_steps_per_h, eta: w.eta, stale: w.state === "stale" ? "STALE: registry heartbeat older than 30 min (state running)" : null};
       let r = byId.get(w.run_id) || byWb.get(w.wandb_id);
+      // the static build can group several registry runs under one W&B group row (e.g. 'ABL-AS' holding ABL-AS-REF and ABL-AS-NP):
+      // the registry run id wins; its attempt leaves the group row, and an emptied group row is dropped
+      if (r && w.run_id && r.id !== w.run_id) {
+        r.attempts = (r.attempts || []).filter((x) => x.wandb_id !== w.wandb_id);
+        if (!r.attempts.length) { D.runs.splice(D.runs.indexOf(r), 1); byId.delete(r.id); }
+        r = null;
+      }
       if (!r) {
         r = {id: w.run_id, title: w.run_id, display_name: w.run_id, kind: "main", source: "registry", tab: this.TAB[w.model] || "Other", model: this.MODEL[w.model] || w.model || "Other",
           dataset: this.DATASET[w.dataset] || w.dataset, sft: this.DATASET[w.dataset] || w.dataset, noise: w.preset || "none", attempts: [att], status, notes: w.notes};
