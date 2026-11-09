@@ -555,3 +555,8 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
 .pub-t tr.best td{font-weight:650}.pub-t tr.pend td{color:var(--muted)}.pub-t .tag{margin-left:6px}
 .pub-c{margin:8px 0 0;color:var(--muted);font-size:var(--fs-small,12.5px)}
 .pub-t tr.stale td{background:color-mix(in srgb,var(--accent) 0%,#e5484d 12%)}
+
+/* a run on several GPUs: its card is widened across the next GPU lanes by spanCards(); the placeholder keeps the height */
+details.qcard[data-span]{position:relative;z-index:2}
+details.qcard.ghost{visibility:hidden;overflow:hidden}
+.hlane:has(details.qcard[data-span]){position:relative;z-index:2}  /* lanes are separate stacking contexts (rise animation): lift the one holding a wide card */

@@ -227,21 +227,43 @@ RB.registry = {
       const keys = n > 1 ? [...Array(n).keys()].map((i) => `${h.host}.gpu${i}`) : [h.host];
       for (const k of keys) D.queues[k] = D.queues[k] || {gpu: "", gpu_label: label, reachable: true, status: "online", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
     }
+    for (const w of live.runs || []) {
+      const span = /^(.+)\.gpu(\d+)-(\d+)$/.exec(w.host || "");
+      if (!span || !["finished", "failed", "crashed"].includes(w.state)) continue;
+      for (let i = +span[2]; i <= +span[3]; i++) {
+        const q = D.queues[`${span[1]}.gpu${i}`]; if (!q) continue;
+        const f = w.state === "finished" ? (q.done_recent = q.done_recent || []) : (q.failed_recent = q.failed_recent || []);
+        if (!f.some((j) => j.run_id === w.run_id || j.name === w.run_id)) f.push({name: w.run_id, run_id: w.run_id, finished: w.heartbeat_at, step: w.step});
+      }
+    }
     // running/stale registry runs go into their host's lane: the static queue snapshot can be old (its monitor is off)
     for (const w of live.runs || []) {
       if (!["running", "stale"].includes(w.state) || !w.host) continue;
-      const span = /^(.+)\.gpu(\d+)-(\d+)$/.exec(w.host);  // 'vast_4x.gpu0-1' = one run on GPUs 0..1: one wide lane spanning those GPU columns
-      if (span) for (let i = +span[2]; i <= +span[3]; i++) { const g = D.queues[`${span[1]}.gpu${i}`]; if (g && !(g.running || []).length) g.hidden = true; }
-      const keys = [span ? w.host : D.queues[w.host] ? w.host : D.queues[`${w.host}.gpu0`] ? `${w.host}.gpu0` : w.host];  // bare machine name -> its first GPU lane
-      for (const key of keys) {
+      // 'vast_4x.gpu0-1' = one run on GPUs 0 and 1: its card sits in GPU 0's lane and is drawn across GPU 1's lane (like colspan);
+      // GPU 1's lane holds an empty placeholder of the same height, and both lanes keep their own queue and finished list
+      const span = /^(.+)\.gpu(\d+)-(\d+)$/.exec(w.host);
+      const keys = span ? [...Array(+span[3] - +span[2] + 1).keys()].map((i) => `${span[1]}.gpu${+span[2] + i}`)
+        : [D.queues[w.host] ? w.host : D.queues[`${w.host}.gpu0`] ? `${w.host}.gpu0` : w.host];  // bare machine name -> its first GPU lane
+      keys.forEach((key, i) => {
         const q = D.queues[key] = D.queues[key] || {gpu: "", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
         if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
         q.running = q.running || [];
         // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
-        if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
-      }
+        if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at, span: i ? 0 : keys.length, ghost: i > 0});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
+      });
     }
   },
+};
+
+/** A run on n GPUs: widen its card from its own lane to the right edge of the (n-1)-th next lane; its placeholders get the same height. */
+RB.spanCards = () => {
+  for (const c of document.querySelectorAll("details.qcard[data-span]")) {
+    let lane = c.closest(".hlane");
+    for (let i = 1; i < +c.dataset.span && lane.nextElementSibling; i++) lane = lane.nextElementSibling;
+    const box = lane.querySelector(".hl-cards") || lane, w = box.getBoundingClientRect().right - c.getBoundingClientRect().left;
+    if (Math.abs(c.offsetWidth - w) > 1) c.style.width = `${w}px`;
+    for (const g of document.querySelectorAll(`details.qcard.ghost[data-rid="${CSS.escape(c.dataset.rid)}"]`)) g.style.height = `${c.offsetHeight}px`;
+  }
 };
 
 if (typeof module !== "undefined") module.exports = RB;
@@ -588,6 +610,7 @@ document.addEventListener("alpine:init", () => {
       addEventListener("rb-reload", () => this.onReload());
       addEventListener("rb-route", () => this.route === "queues" && this.$nextTick(() => this.onScroll()));
       addEventListener("resize", () => this.onScroll());
+      setInterval(RB.spanCards, 1000);  // cards re-render on live updates; re-measure the wide ones
     },
     /** Lane carousel: CSS scroll-snap does the snapping; these only drive the arrows and dots. */
     laneEls() { return this.$refs.lanes ? [...this.$refs.lanes.querySelectorAll(".hlane")] : []; },
@@ -670,7 +693,7 @@ document.addEventListener("alpine:init", () => {
     },
     lane(h) {
       if (h.gone) return [];  // a destroyed machine has no queue or plan, only its finished jobs
-      return [...(h.running || []).map((j, i) => this.card(j, "running", i)), ...(h.queued || []).map((j, i) => this.card(j, "queued", i)),
+      return [...(h.running || []).map((j, i) => ({...this.card(j, "running", i), span: j.span, ghost: j.ghost, rid: j.run_id})), ...(h.queued || []).map((j, i) => this.card(j, "queued", i)),
         ...(this.D.plan || []).filter((p) => p.host_key === h.k && p.run_status === "planned" && p.stage_effective !== "queued").map((p, i) => this.card(p, "plan", i))];
     },
     /** Paused jobs of every host (interrupted runs that resume from last.ckpt), then the planned backlog. */
