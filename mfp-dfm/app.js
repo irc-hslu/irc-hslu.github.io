@@ -212,6 +212,8 @@ RB.registry = {
       const evalp = e.protocol === "promptda_reimpl_author_mesh";  // PromptDA evaluation protocol (ScanNet++ default): tagged EVALP
       r.row = {rmse: m.rmse, mae: m.mae, src: "eval", evalp, tip: `eval: ${e.cohort} (${e.geometry}${e.frames ? ", " + e.frames + " frames" : ""}), registry${evalp ? "; EVALP = PromptDA evaluation protocol" : ""}`};
     }
+    // the registry's paper_cells are the current paper: they replace the static labels (old receipts cite tables the paper no longer has)
+    if ((live.cells || []).length) for (const r of D.runs || []) { r.paper = false; r.paper_label = ""; }
     for (const c of live.cells || []) {
       const r = byId.get(runOf.get(c.eval_id)); if (!r) continue;
       const shown = pick.get(r.id) && pick.get(r.id).id === c.eval_id, e = byEval.get(c.eval_id);  // a cell citing another eval than the badge's says which cohort it is
