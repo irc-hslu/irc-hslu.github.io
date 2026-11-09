@@ -160,7 +160,7 @@ RB.citedCell = (r, metric, v) => (v == null ? null : RB.paperCells(r).find((c) =
 /** Supabase run registry: runs.json carries {supabase: {url, anon_key}} (public, read-only key; inside the encrypted data). The page polls
  *  runs + events every 60 s and overlays them on the static build; without the config nothing happens and the static build is shown. */
 RB.registry = {
-  POLL_MS: 15 * 60 * 1000, FIELDS: "run_id,wandb_id,dataset,model,preset,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,title,kind,updated_at",
+  POLL_MS: 15 * 60 * 1000, FIELDS: "run_id,wandb_id,dataset,model,preset,host,gpu,code_sha,state,step,total,ref_tuples_seen,rate_steps_per_h,eta,heartbeat_at,last_val,best,eval,paper_role,notes,title,kind,updated_at,queue_pos",
   STATUS: {finished: "succeeded"}, ACTIVE: ["running", "paused", "stale"],
   TAB: {promptda: "PromptDA", sv: "Ours_SV", mv: "Ours_MV"}, MODEL: {promptda: "PromptDA-B", sv: "Ours_SV", mv: "Ours_MV3"},
   DATASET: {scannetpp: "ScanNet++", hypersim: "Hypersim", arkitscenes: "ARKitScenes", arkit: "ARKitScenes", thuman: "THuman"},
@@ -273,6 +273,18 @@ RB.registry = {
         q.running = q.running || [];
         // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
         if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at, span: i ? 0 : keys.length, ghost: i > 0});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
+      });
+    }
+    // planned registry runs with a host and queue_pos are the next runs of that GPU (pair), in queue_pos order;
+    // a GPU pair ('vast_bg.gpu2-3') spans its columns like a running run; a run already in the static plan is not repeated
+    const inPlan = new Set((D.plan || []).filter((p) => p.host_key && p.run_status === "planned" && p.stage_effective !== "queued").map((p) => p.id));  // plan cards already drawn in a lane
+    for (const w of [...(live.runs || [])].filter((x) => x.state === "planned" && x.host && x.queue_pos != null && !inPlan.has(x.run_id)).sort((a, b) => a.queue_pos - b.queue_pos)) {
+      const span = /^(.+)\.gpu(\d+)-(\d+)$/.exec(w.host);
+      const keys = span ? [...Array(+span[3] - +span[2] + 1).keys()].map((i) => `${span[1]}.gpu${+span[2] + i}`) : [D.queues[w.host] ? w.host : `${w.host}.gpu0`];
+      keys.forEach((key, i) => {
+        const q = D.queues[key]; if (!q) return;
+        q.queued = q.queued || [];
+        if (!q.queued.some((j) => j.run_id === w.run_id)) q.queued.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}, span: i ? 0 : keys.length, ghost: i > 0});
       });
     }
   },
@@ -716,7 +728,7 @@ document.addEventListener("alpine:init", () => {
     },
     lane(h) {
       if (h.gone) return [];  // a destroyed machine has no queue or plan, only its finished jobs
-      return [...(h.running || []).map((j, i) => ({...this.card(j, "running", i), span: j.span, ghost: j.ghost, rid: j.run_id})), ...(h.queued || []).map((j, i) => this.card(j, "queued", i)),
+      return [...(h.running || []).map((j, i) => ({...this.card(j, "running", i), span: j.span, ghost: j.ghost, rid: j.run_id})), ...(h.queued || []).map((j, i) => ({...this.card(j, "queued", i), span: j.span, ghost: j.ghost, rid: j.run_id})),
         ...(this.D.plan || []).filter((p) => p.host_key === h.k && p.run_status === "planned" && p.stage_effective !== "queued").map((p, i) => this.card(p, "plan", i))];
     },
     /** Paused jobs of every host (interrupted runs that resume from last.ckpt), then the planned backlog. */
