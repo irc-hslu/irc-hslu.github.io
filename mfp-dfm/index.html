@@ -5,10 +5,10 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=a73ce48065">
+<link rel="stylesheet" href="style.css?v=7c53386f4e">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=70403623a7"></script>
+<script src="app.js?v=240b493149"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -110,7 +110,7 @@
           <details class="qcard" :class="['k-' + c.kind, c.ghost && 'ghost']" :data-span="c.span > 1 ? c.span : null" :data-rid="c.rid">
           <summary>
             <div class="qc-top"><span class="badge has-i" :class="'st-' + c.stage" x-html="badgeHtml(c.stage, c.pos ? c.label + ' #' + c.pos : c.label)"></span>
-              <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span><span class="tag" x-show="c.cotenant" title="runs beside another job on the same GPU">shared GPU</span><span class="tag" x-show="c.live" title="training process found on the host, started outside the GPU queue (systemd unit or supervisor)">outside queue</span></div>
+              <span class="badge st-unmapped" x-show="c.unmapped">unmapped</span><span class="tag" x-show="c.cotenant" title="runs beside another job on the same GPU">shared GPU</span></div>
             <div class="qc-name" x-html="nameHtml(c.name)"></div>
             <div class="qc-chips" x-show="c.chips.length"><template x-for="(t, ti) in c.chips" :key="ti"><span class="pill" x-html="ic(['', 'database', 'audio-waveform'][ti] || '') + (ti === 0 ? RB.modelHtml(t) : RB.esc(t))"></span></template></div>
             <template x-if="c.kind === 'running'"><div class="qc-prog">

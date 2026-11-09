@@ -266,7 +266,8 @@ details.hl-recent>summary{color:var(--muted);font-size:.82rem}
 .rb-table.tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort=ascending] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow{border-bottom-color:var(--accent)}
 .rb-table.tabulator .tabulator-header .tabulator-col.tabulator-sortable[aria-sort=descending] .tabulator-col-content .tabulator-col-sorter .tabulator-arrow{border-top-color:var(--accent)}
 /* destroyed rented machine: frozen, muted lane */
-.hlane.gone{opacity:.62;filter:grayscale(1);border-style:dashed;background:transparent}
+.hlane.gone{opacity:.62;border-style:dashed;background:transparent}
+.hlane.gone .hl-cards,.hlane.gone .hl-recent,.hlane.gone .hl-gpu{filter:grayscale(1)}  /* grey, but the status dot keeps its red */
 .hlane.gone .hl-gpu{font-size:1.1rem}
 .st-destroyed{color:var(--muted);background:transparent;border:1px solid var(--line);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;padding:0 6px}
 .dot.grey{background:var(--muted)}
