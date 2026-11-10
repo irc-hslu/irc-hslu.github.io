@@ -173,7 +173,9 @@ RB.registry = {
     const opt = (q) => get(q).catch(() => []);  // v2 tables: a registry without them still serves runs + events
     const [runs, events, evals, cells, hosts] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30"),
       opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status,kind,gpus,gpu_status,gpu_status_at")]);
-    return {runs, events, evals, cells, hosts, at: Date.now()};
+    // 'paper' = a number that landed in the main manuscript: supplementary tables do not tag a run
+    const main = (cells || []).filter((c) => !/supp/i.test(c.paper_table || ""));
+    return {runs, events, evals, cells: main, hosts, at: Date.now()};
   },
   /** Overlay registry rows on D.runs in place: live columns for runs the registry says are active (or the build still shows running); rows without a static run are added. */
   apply(D, live) {
