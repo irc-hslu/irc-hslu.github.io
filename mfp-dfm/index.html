@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="style.css?v=c8e0517f18">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=16b0f22b05"></script>
+<script src="app.js?v=02a0488117"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -133,7 +133,7 @@
       </div>
       <details class="hl-recent" x-show="recent(h).length"><summary>Recently finished</summary>
         <template x-for="j in recent(h)" :key="j.name + j.state"><div class="rj">
-          <span class="badge has-i" :class="j.state === 'done' ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-html="badgeHtml(j.state === 'done' ? 'succeeded' : j.exit === 'lost' ? 'cancelled' : 'failed', j.state === 'done' ? 'done' : j.exit === 'lost' ? 'killed' : 'exit ' + (j.exit || '?'))"></span>
+          <span class="badge has-i" :class="RB.jobDone(j) ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-html="badgeHtml(RB.jobDone(j) ? 'succeeded' : j.exit === 'lost' ? 'cancelled' : 'failed', RB.jobDone(j) ? 'done' : j.exit === 'lost' ? 'killed' : (j.exit ? 'exit ' + j.exit : 'stopped'))"></span>
           <span class="rj-name" :class="!jobRun(j).r && 'unmapped'" :title="jobRun(j).r ? j.name : 'job file (not mapped to a run)'" x-html="nameHtml(jobName(j))"></span><span class="rj-when" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished) : ''"></span></div></template>
       </details>
     </div></template>

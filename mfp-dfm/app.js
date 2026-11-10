@@ -151,6 +151,8 @@ RB.emptyLane = (h) => {
   return "IDLE";
 };
 RB.isIdleLane = (h) => RB.emptyLane(h) === "IDLE";
+/** A recently finished job counts as done when its state says so or it reached its planned steps (rental runs carry no exit code). */
+RB.jobDone = (j) => !!j && (["done", "finished", "succeeded"].includes(j.state) || (j.step && j.budget && j.budget.steps && j.step >= j.budget.steps - 1));
 RB.liveLine = (status, gpu) => {
   const m = /^\s*(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec(status || ""); if (!m) return status ? "GPU " + status : "";  // no telemetry: '' (the lane shows the run instead)
   const cap = RB.vramGb(gpu);
@@ -256,7 +258,7 @@ RB.registry = {
       const done = (q.running || []).filter((j) => j.step && j.budget && j.budget.steps && j.step >= j.budget.steps && !(live.runs || []).some((w) => w.run_id === j.run_id && w.state === "running"));
       if (!done.length) continue;
       q.running = q.running.filter((j) => !done.includes(j));
-      q.done_recent = [...done.map((j) => ({...j, finished: j.heartbeat_at || j.started || ""})), ...(q.done_recent || [])];
+      q.done_recent = [...done.map((j) => ({...j, state: "done", finished: j.heartbeat_at || j.started || ""})), ...(q.done_recent || [])];
     }
     // online rented machines get one lane per GPU ('<host>.gpuN') or one lane; existing lanes are kept as they are
     D.queues = D.queues || {};
