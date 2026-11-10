@@ -147,9 +147,10 @@ RB.vramGb = (gpu) => { const m = /(\d+)\s*GB\b/.exec(gpu || ""); if (m) return +
 /** Text of a lane with no queued run: busy when the live GPU reading shows work (evaluations, renders and other jobs are not registry runs). */
 RB.emptyLane = (h) => {
   const m = /(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec((h && h.gpu_status) || "");
-  if (m && (+m[1] >= 10 || +m[2] >= 1024)) return `Busy with a job outside the queue (evaluation, render or test): GPU ${m[1]} %, ${(+m[2] / 1024).toFixed(1)} GB.`;
-  return "Idle, nothing queued or planned.";
+  if (m && (+m[1] >= 10 || +m[2] >= 1024)) return `Busy (job outside the queue) · GPU ${m[1]} %, ${(+m[2] / 1024).toFixed(1)} GB`;
+  return "IDLE";
 };
+RB.isIdleLane = (h) => RB.emptyLane(h) === "IDLE";
 RB.liveLine = (status, gpu) => {
   const m = /^\s*(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec(status || ""); if (!m) return status ? "GPU " + status : "";  // no telemetry: '' (the lane shows the run instead)
   const cap = RB.vramGb(gpu);
