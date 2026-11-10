@@ -147,7 +147,7 @@ RB.vramGb = (gpu) => { const m = /(\d+)\s*GB\b/.exec(gpu || ""); if (m) return +
 /** Text of a lane with no queued run: busy when the live GPU reading shows work (evaluations, renders and other jobs are not registry runs). */
 RB.emptyLane = (h) => {
   const m = /(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec((h && h.gpu_status) || "");
-  if (m && (+m[1] >= 10 || +m[2] >= 1024)) return `Busy (job outside the queue) · GPU ${m[1]} %, ${(+m[2] / 1024).toFixed(1)} GB`;
+  if (m && (+m[1] >= 10 || +m[2] >= 1024)) return "Busy (job outside the queue)";
   return "IDLE";
 };
 RB.isIdleLane = (h) => RB.emptyLane(h) === "IDLE";
