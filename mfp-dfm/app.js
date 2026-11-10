@@ -695,15 +695,15 @@ document.addEventListener("alpine:init", () => {
     /** Lanes in a fixed order: own hosts, then rented ones; offline lanes without jobs or finished runs are left out. */
     hosts() {
       if (!this.D) return [];
-      const order = ["local", "iradonis", "desktop"], q = this.D.queues || {};
+      const order = ["local", "iradonis", "desktop", "copernicus"], q = this.D.queues || {};
       // an offline lane (stopped/destroyed or unreachable) with nothing to show (no jobs, no finished runs) is hidden
       const empty = (k) => (["stopped", "destroyed"].includes(q[k].status) || !q[k].reachable) && !this.recent(q[k]).length &&
           !["running", "queued", "paused"].some((f) => (q[k][f] || []).length);
       const shown = Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden && !empty(k)), mach = (k) => k.replace(/\.gpu\d+(-\d+)?$/, "");
       // machine class: running work, then idle/online, then stopped, then destroyed; never mixed (all GPU lanes of a machine share one class)
-      const local = (k) => order.includes(mach(k));  // our own machines always come first
+      const local = (k) => order.includes(mach(k)) || !/^vast/.test(mach(k));  // our own machines always come first, then active rentals, then stopped/destroyed ones
       const cls = (k) => { if (local(k)) return -1; const ls = shown.filter((x) => mach(x) === mach(k)).map((x) => q[x]);
-        return ls.some((x) => x.status === "destroyed") ? 3 : ls.some((x) => x.status === "stopped") ? 2 : ls.some((x) => (x.running || []).length) ? 0 : 1; };
+        return ls.some((x) => x.status === "destroyed") ? 3 : ls.some((x) => x.status === "stopped") ? 2 : 0; };  // active rentals together (running or idle), before stopped and destroyed ones
       const keys = shown.sort((a, b) => cls(a) - cls(b) ||
           (cls(a) === 3 ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) ||
           mach(a).localeCompare(mach(b)) || a.localeCompare(b));
