@@ -3,7 +3,7 @@
 const RB = (() => {
   const HOSTS = {  // the single place for host display names
     local: {name: "IR-Hermes", gpu: "RTX 4090"}, iradonis: {name: "IR-Adonis", gpu: "RTX 4080"},
-    desktop: {name: "charisoudisDesktop", gpu: "RTX 3090"},
+    desktop: {name: "charisoudisDesktop", gpu: "RTX 3090"}, copernicus: {name: "IR-Copernicus", gpu: "RTX 4090"},
   };
   const gpuKey = (k) => /^(.+)\.gpu(\d+(?:-\d+)?)$/.exec(k || "");  // one queue per GPU on multi-GPU machines: '<host>.gpu<i>'
   const hostName = (k) => { const m = gpuKey(k); return m ? `${m[1]} \u00b7 GPU ${m[2].replace("-", "–")}` : HOSTS[k] ? HOSTS[k].name : k || "-"; };
@@ -269,6 +269,8 @@ RB.registry = {
     }
     // our machines (single GPU, lane key = host) get the same live 'util %, MiB' line; it replaces the static snapshot's value
     for (const h of live.hosts || []) {
+      // a local host without a static lane (e.g. added later) still gets one, so its live load shows
+      if (h.kind === "local" && h.gpu_status && h.host !== "cotenants") D.queues[h.host] = D.queues[h.host] || {gpu: "", gpu_label: (RB.HOSTS[h.host] || {}).gpu || "", reachable: true, status: "online", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
       const q = (D.queues || {})[h.host];
       if (h.kind === "local" && q && h.gpu_status && Date.now() - new Date(h.gpu_status_at) < 30 * 60e3) q.gpu_status = h.gpu_status[0];
     }
