@@ -154,6 +154,8 @@ RB.liveLine = (status, gpu) => {
 RB.liveBits = (r) => { const l = r && r.live_state; if (!l) return ""; return (l.eta ? `<div class="muted" title="ETA from the run's own rate">ETA ${new Date(l.eta).toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"})}</div>` : "") + (l.stale ? `<div class="badge st-failed" title="${RB.esc(l.stale)}">STALE</div>` : ""); };
 /** Ablation runs: registry ids ABL-* (one variant of the ablation recipe per run). */
 RB.isAbl = (r) => /^ABL-/.test((r && (r.run_id || r.id || r.name)) || "");
+/** Cited in the paper's ablation table (Table 3) by a registry paper cell. */
+RB.inAblTable = (r) => !!r.paper && /(^|; )table_3 \//.test(r.paper_label || "");
 RB.paperCells = (r) => (r && r.attempts || []).flatMap((a) => a.paper_cells || []);
 /** Tooltip for one paper cell: table, row, value and selection basis. */
 RB.paperTip = (c) => `Paper: ${c.table} \u00b7 ${c.row} \u00b7 ${c.metric.toUpperCase()} ${(+c.value).toFixed(4)} \u00b7 ${c.selection_basis} (${c.receipt})`;
@@ -505,7 +507,7 @@ document.addEventListener("alpine:init", () => {
     },
     refresh() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.rows()); },
     // 'paper': only runs cited in the paper; 'ablation': only ablation runs; both: the paper's ablation-table runs
-    base() { return this.D.runs.filter((r) => (this.abl ? RB.isAbl(r) : true) && (this.paper ? r.paper : (this.abl || this.scratch || r.kind !== "scratch"))); },
+    base() { return this.D.runs.filter((r) => (this.abl ? RB.isAbl(r) : true) && (this.paper ? (this.abl ? RB.inAblTable(r) : r.paper) : (this.abl || this.scratch || r.kind !== "scratch"))); },
     canon(r) { return r.model || RB.canonModel(r.variant) || "Other"; },
     opts(k) { const v = [...new Set(this.rows(true).map((r) => r[k]))].filter((x) => x && x !== "-" && x !== "all");
       return v.sort((a, b) => RB.rank(k === "pretrain_ds" ? "dataset" : k, a).localeCompare(RB.rank(k === "pretrain_ds" ? "dataset" : k, b))); },
