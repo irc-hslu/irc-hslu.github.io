@@ -561,3 +561,4 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
 details.qcard[data-span]{position:relative;z-index:2}
 details.qcard.ghost{visibility:hidden;overflow:hidden}
 .hlane:has(details.qcard[data-span]){position:relative;z-index:2}  /* lanes are separate stacking contexts (rise animation): lift the one holding a wide card */
+.tag.abl{background:color-mix(in srgb,#b06a00 14%,transparent);color:#b06a00;border-color:color-mix(in srgb,#b06a00 40%,transparent);font-weight:600}

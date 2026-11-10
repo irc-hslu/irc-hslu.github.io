@@ -152,6 +152,8 @@ RB.liveLine = (status, gpu) => {
 /** Paper cells of a run (all attempts): [{table, row, metric, value, update, receipt, selection_basis}]. */
 /** Live state of a running run for its Steps cell: ETA and the STALE flag (from the build's per-run live_state). */
 RB.liveBits = (r) => { const l = r && r.live_state; if (!l) return ""; return (l.eta ? `<div class="muted" title="ETA from the run's own rate">ETA ${new Date(l.eta).toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"})}</div>` : "") + (l.stale ? `<div class="badge st-failed" title="${RB.esc(l.stale)}">STALE</div>` : ""); };
+/** Ablation runs: registry ids ABL-* (one variant of the ablation recipe per run). */
+RB.isAbl = (r) => /^ABL-/.test((r && (r.run_id || r.id || r.name)) || "");
 RB.paperCells = (r) => (r && r.attempts || []).flatMap((a) => a.paper_cells || []);
 /** Tooltip for one paper cell: table, row, value and selection basis. */
 RB.paperTip = (c) => `Paper: ${c.table} \u00b7 ${c.row} \u00b7 ${c.metric.toUpperCase()} ${(+c.value).toFixed(4)} \u00b7 ${c.selection_basis} (${c.receipt})`;
@@ -468,7 +470,7 @@ document.addEventListener("alpine:init", () => {
   /** Started once the root has the data; reacts to reloads and to route changes (the table re-measures when it becomes visible). */
   const whenData = (c, start) => { if (c.D) start(); else addEventListener("rb-data", start, {once: true}); };
   Alpine.data("runs", () => ({
-    f: {model: "", init: "", pretrain_ds: "", dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1, all: false, paper: false, n: 0, built: false, open: [],
+    f: {model: "", init: "", pretrain_ds: "", dataset: "", noise: "", status: ""}, sort: "modified_at", dir: -1, all: false, paper: false, abl: false, n: 0, built: false, open: [],
     FILTER_KEYS: ["model", "init", "pretrain_ds", "dataset", "noise", "status"],
     KEY_LABEL: {model: "Model", init: "Init", pretrain_ds: "Pretrain dataset", dataset: "SFT dataset", noise: "Noise", status: "Status"},
     SHORT_LABEL: {model: "Model", init: "Init", pretrain_ds: "Pretrain", dataset: "SFT", noise: "Noise", status: "Status"},
@@ -484,6 +486,7 @@ document.addEventListener("alpine:init", () => {
       try { Object.assign(this, JSON.parse(sessionStorage.getItem("rb-runs") || "{}")); } catch (e) {}
       try { this.all = JSON.parse(localStorage.getItem("rb-all") || "false"); } catch (e) {}
       try { this.paper = JSON.parse(localStorage.getItem("rb-paper") || "false"); } catch (e) {}
+      try { this.abl = JSON.parse(localStorage.getItem("rb-abl") || "false"); } catch (e) {}
       const want = this.openIds()[0] && this.D.runs.find((r) => r.id === this.openIds()[0]);
       if (want && want.kind === "scratch") this.scratch = true;
       const save = () => { try { sessionStorage.setItem("rb-runs", JSON.stringify({f: this.f, sort: this.sort, dir: this.dir})); } catch (e) {} };
@@ -491,6 +494,7 @@ document.addEventListener("alpine:init", () => {
       this.$watch("scratch", () => this.refresh());
       this.$watch("all", (v) => { try { localStorage.setItem("rb-all", JSON.stringify(v)); } catch (e) {} this.refresh(); });
       this.$watch("paper", (v) => { try { localStorage.setItem("rb-paper", JSON.stringify(v)); } catch (e) {} this.refresh(); });
+      this.$watch("abl", (v) => { try { localStorage.setItem("rb-abl", JSON.stringify(v)); } catch (e) {} this.refresh(); });
       this.built = true; this.$nextTick(() => this.mkTable());
     },
     openIds() { return this.params.getAll("open"); },
@@ -500,7 +504,8 @@ document.addEventListener("alpine:init", () => {
       RUNS_TABLE.setPageToRow(id).then(() => RUNS_TABLE.scrollToRow(id, "top", false)).catch(() => {});
     },
     refresh() { if (RUNS_TABLE) RUNS_TABLE.replaceData(this.rows()); },
-    base() { return this.D.runs.filter((r) => this.paper ? r.paper : (this.scratch || r.kind !== "scratch")); },  // 'paper': only runs cited in the paper
+    // 'paper': only runs cited in the paper; 'ablation': only ablation runs; both: the paper's ablation-table runs
+    base() { return this.D.runs.filter((r) => (this.abl ? RB.isAbl(r) : true) && (this.paper ? r.paper : (this.abl || this.scratch || r.kind !== "scratch"))); },
     canon(r) { return r.model || RB.canonModel(r.variant) || "Other"; },
     opts(k) { const v = [...new Set(this.rows(true).map((r) => r[k]))].filter((x) => x && x !== "-" && x !== "all");
       return v.sort((a, b) => RB.rank(k === "pretrain_ds" ? "dataset" : k, a).localeCompare(RB.rank(k === "pretrain_ds" ? "dataset" : k, b))); },
@@ -571,7 +576,7 @@ document.addEventListener("alpine:init", () => {
               w.append(bt); return w; },
             formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
               if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
-              const r = d._r || {}, pb = (r.paper ? ` <span class="tag paper" title="${esc(r.paper_label || "")}">paper</span>` : "") + (r.superseded_by ? ` <span class="tag" title="a better run now carries the paper label">superseded by ${esc(r.superseded_by)}</span>` : "");
+              const r = d._r || {}, pb = (r.paper ? ` <span class="tag paper" title="${esc(r.paper_label || "")}">paper</span>` : "") + (RB.isAbl(r) ? ` <span class="tag abl" title="ablation run">ablation</span>` : "") + (r.superseded_by ? ` <span class="tag" title="a better run now carries the paper label">superseded by ${esc(r.superseded_by)}</span>` : "");
               return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}${pb}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
           col({title: "Model", field: "model", width: 120, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
           col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (miss(c.getValue()) ? `<span class="muted">—</span>` : `<code class="init">${esc(c.getValue())}</code>`)}),

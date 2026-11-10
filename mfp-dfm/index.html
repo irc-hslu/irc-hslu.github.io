@@ -5,10 +5,10 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=7c53386f4e">
+<link rel="stylesheet" href="style.css?v=7824dca0e3">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=816ad594c7"></script>
+<script src="app.js?v=45990c8c9d"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -37,7 +37,8 @@
   <div class="count">
     <label class="tgl" title="Show the paper grid: full SFT runs plus a row for every combination that never ran"><input type="checkbox" role="switch" x-model="all"> all combinations</label>
     <label class="tgl" title="Include smokes, probes and short or killed runs"><input type="checkbox" role="switch" x-model="scratch"> scratch</label>
-    <label class="tgl" title="Only runs whose results are cited in the paper (evidence receipts on the paper's dist branch)"><input type="checkbox" role="switch" x-model="paper"> paper</label></div>
+    <label class="tgl" title="Only runs whose results are cited in the paper (evidence receipts on the paper's dist branch)"><input type="checkbox" role="switch" x-model="paper"> paper</label>
+    <label class="tgl" title="Only ablation runs (ABL-*); with 'paper' on: the runs of the paper's ablation table"><input type="checkbox" role="switch" x-model="abl"> ablation</label></div>
   <div class="rb-mfilters"><template x-for="k in FILTER_KEYS" :key="'mf' + k">
     <select :aria-label="'Filter ' + KEY_LABEL[k]" :value="f[k]" @change="setFilter(k, $event.target.value)"><option value="" x-text="SHORT_LABEL[k] + ': all'"></option>
       <template x-for="v in (D ? opts(k) : [])" :key="k + v"><option :value="v" :selected="f[k] === v" x-text="v.replace('_', ' ')"></option></template></select></template></div>
