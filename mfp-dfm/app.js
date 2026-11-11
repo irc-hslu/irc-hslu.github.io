@@ -318,8 +318,27 @@ RB.registry = {
   },
 };
 
+/** A multi-GPU machine's finished list (first lane, data-gspan = its GPU count): as wide as all of its lanes; the other lanes hold a
+ *  placeholder of the same height and the machine's lanes share one height, so the list sits at the bottom across the whole machine. */
+RB.spanRecent = () => {
+  const phone = matchMedia("(max-width:720px)").matches;
+  for (const d of document.querySelectorAll("details.hl-recent[data-gspan]")) {
+    const lanes = [d.closest(".hlane")];
+    while (lanes.length < +d.dataset.gspan && lanes[lanes.length - 1].nextElementSibling) lanes.push(lanes[lanes.length - 1].nextElementSibling);
+    const ghosts = lanes.slice(1).map((l) => l.querySelector(".hl-recent-ghost")).filter(Boolean);
+    lanes.forEach((l) => { l.style.minHeight = ""; });
+    if (phone || !d.offsetParent) { d.style.width = ""; ghosts.forEach((g) => { g.style.height = "0px"; }); continue; }
+    const last = lanes[lanes.length - 1], box = last.querySelector(".hl-cards") || last, w = box.getBoundingClientRect().right - d.getBoundingClientRect().left;
+    if (Math.abs(d.offsetWidth - w) > 1) d.style.width = `${w}px`;
+    ghosts.forEach((g) => { g.style.height = `${d.offsetHeight}px`; });
+    const h = Math.max(...lanes.map((l) => l.offsetHeight));
+    lanes.forEach((l) => { l.style.minHeight = `${h}px`; });
+  }
+};
+document.addEventListener("toggle", (e) => { if (e.target.matches && e.target.matches("details.hl-recent, details.qcard")) RB.spanCards(); }, true);
 /** A run on n GPUs: widen its card from its own lane to the right edge of the (n-1)-th next lane; its placeholders get the same height. */
 RB.spanCards = () => {
+  RB.spanRecent();
   for (const c of document.querySelectorAll("details.qcard[data-span]")) {
     let lane = c.closest(".hlane");
     for (let i = 1; i < +c.dataset.span && lane.nextElementSibling; i++) lane = lane.nextElementSibling;
@@ -711,8 +730,11 @@ document.addEventListener("alpine:init", () => {
           (cls(a) === 3 ? (q[b].destroyed_at || "").localeCompare(q[a].destroyed_at || "") : ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99)) ||
           mach(a).localeCompare(mach(b)) || a.localeCompare(b));
       const G = RB.laneGroups(keys);  // lanes of one multi-GPU machine are drawn as a group
+      // a multi-GPU machine's finished jobs: one list on its first lane, drawn across all of its GPU lanes (RB.spanRecent)
+      const mrec = {}; keys.forEach((k) => { if (G[k]) (mrec[G[k].machine] = mrec[G[k].machine] || []).push(...this.recent(q[k])); });
+      Object.values(mrec).forEach((l) => l.sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).splice(6));
       return keys.map((k) => { const g = G[k];
-          return {k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: /^vast/.test(k), multi: !!/\.gpu\d+(-\d+)?$/.exec(k), span: (/\.gpu(\d+)-(\d+)$/.exec(k) || [0, 0, 0]).slice(1).reduce((a, b) => +b - +a + 1), gone: q[k].status === "destroyed",
+          return {k, ...q[k], rec: g ? (g.pos === "first" ? mrec[g.machine] : []) : this.recent(q[k]), gn: g ? g.n : 1, grec: !!(g && mrec[g.machine].length), name: RB.hostName(k), gpuName: this.gpuOf(k), rented: /^vast/.test(k), multi: !!/\.gpu\d+(-\d+)?$/.exec(k), span: (/\.gpu(\d+)-(\d+)$/.exec(k) || [0, 0, 0]).slice(1).reduce((a, b) => +b - +a + 1), gone: q[k].status === "destroyed",
             grp: g ? g.pos : "", machine: g ? g.machine : ""}; });  // glued block: machine name once, no 'GPU N' label
     },
     gpuOf(k) { const q = (this.D.queues || {})[k] || {}; return (q.gpu_label || (RB.HOSTS[k] || {}).gpu || "").replace(/\s*\(.*\)$/, ""); },

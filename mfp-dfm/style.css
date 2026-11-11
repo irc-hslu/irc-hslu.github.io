@@ -564,3 +564,7 @@ details.qcard.ghost{visibility:hidden;overflow:hidden}
 .tag.abl{background:color-mix(in srgb,#b06a00 14%,transparent);color:#b06a00;border-color:color-mix(in srgb,#b06a00 40%,transparent);font-weight:600}
 
 .hl-empty.idle-red{color:#fff;background:#d32f2f;font-weight:700;letter-spacing:.06em;border-radius:4px;padding:2px 8px;display:inline-block}
+/* a multi-GPU machine's finished list: drawn from its first lane across all of its GPU lanes by spanRecent(); placeholders keep the height */
+details.hl-recent[data-gspan],.hl-recent-ghost{margin-top:auto}
+details.hl-recent[data-gspan]{position:relative;background:var(--chip);margin-bottom:calc(-1 * var(--s3));padding-bottom:calc(var(--s1) + var(--s3))}  /* also covers the lane padding, so no column divider shows below it */
+.hlane:has(details.hl-recent[data-gspan]){position:relative;z-index:3}
