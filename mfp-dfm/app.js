@@ -159,13 +159,15 @@ RB.dur = (sec) => (sec < 3600 ? `${Math.max(1, Math.round(sec / 60))} min` : sec
 RB.shortTag = (s) => { if (!s) return s; const t = String(s).trim();
   if (/baselines\.py/.test(t)) return "baseline"; if (/^pose/i.test(t)) return "pose eval";
   const h = t.split(/\s*[(:,]\s*/)[0].trim(); return h.length > 18 ? h.slice(0, 16) + "\u2026" : h; };
+RB.wandbUrl = (id) => `https://wandb.ai/charisoudis/metricsplat/runs/${encodeURIComponent(id)}`;
 /** Evaluation job (no training steps): registry kind 'eval' or an EVAL-/ZS- id. */
 RB.isEval = (r) => !!r && (r.rkind === "eval" || /^(EVAL|ZS)-/.test(r.id || ""));
-/** Short row tags besides paper/ablation: baseline, zero-shot, eval. */
+/** Short row tags besides paper/ablation: baseline, zero-shot, eval, seed. */
 RB.rowTags = (r) => { const id = (r && r.id) || "", t = [];
   if (/^BL-/.test(id)) t.push(["baseline", "external baseline fine-tuned on our data"]);
   if (/^ZS-/.test(id)) t.push(["zero-shot", "zero-shot evaluation"]);
   if (RB.isEval(r)) t.push(["eval", "evaluation job"]);
+  const sd = /-S(\d+)$/.exec(id); if (sd) t.push(["seed", `seed-${sd[1]} replicate of ${id.replace(/-S\d+$/, "")}`]);
   return t; };
 /** A recently finished job counts as done when its state says so or it reached its planned steps (rental runs carry no exit code). */
 RB.jobDone = (j) => !!j && (["done", "finished", "succeeded"].includes(j.state) || (j.step && j.budget && j.budget.steps && j.step >= j.budget.steps - 1));
@@ -197,10 +199,10 @@ RB.registry = {
     const h = {apikey: cfg.anon_key, Authorization: "Bearer " + cfg.anon_key}, get = async (q) => { const r = await fetch(`${cfg.url.replace(/\/$/, "")}/rest/v1/${q}`, {headers: h, cache: "no-store"}); if (!r.ok) throw new Error("registry " + r.status); return r.json(); };
     const opt = (q) => get(q).catch(() => []);  // v2 tables: a registry without them still serves runs + events
     const [runs, events, evals, cells, hosts, starts] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30"),
-      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status,kind,gpus,gpu_status,gpu_status_at"), opt("events?select=run_id,at&kind=eq.start&order=at.desc&limit=500")]);
+      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status,kind,gpus,gpu_status,gpu_status_at"), opt("events?select=run_id,at&kind=in.(start,resume)&order=at.desc&limit=500")]);
     // 'paper' = a number that landed in the main manuscript: supplementary tables do not tag a run
     const main = (cells || []).filter((c) => !/supp/i.test(c.paper_table || ""));
-    const started = {}; for (const e of starts || []) if (!started[e.run_id]) started[e.run_id] = e.at;  // newest start of each run
+    const started = {}; for (const e of starts || []) if (!started[e.run_id]) started[e.run_id] = e.at;  // newest start or resume of each run (a moved run counts from its resume)
     for (const w of runs) w.started_at = started[w.run_id] || null;
     return {runs, events, evals, cells: main, hosts, at: Date.now()};
   },
@@ -217,6 +219,14 @@ RB.registry = {
         val_last: l.rmse != null ? {rmse: l.rmse, mae: l.l1, absrel: l.abs_rel} : null, source: "registry"};
       const state = {step: w.step, total: w.total, pct, rate_per_h: w.rate_steps_per_h, eta: w.eta, stale: w.state === "stale" ? "STALE: registry heartbeat older than 30 min (state running)" : null};
       let r = byId.get(w.run_id) || byWb.get(w.wandb_id);
+      // a W&B-only static row of this run ('MV:TH-MV-R0-LOWER') beside its registry row: its attempts join the registry row, the row goes
+      if (r && r.id === w.run_id) for (const o of D.runs.filter((x) => x !== r && (x.id || "").endsWith(":" + w.run_id))) {
+        const have = new Set((r.attempts || []).map((a) => a.wandb_id).filter(Boolean));
+        r.attempts = [...(o.attempts || []).filter((a) => !a.wandb_id || !have.has(a.wandb_id)), ...(r.attempts || [])];
+        if (!r.row && o.row) r.row = o.row;
+        D.runs.splice(D.runs.indexOf(o), 1); byId.delete(o.id);
+        for (const a of r.attempts) if (a.wandb_id) byWb.set(a.wandb_id, r);
+      }
       // the static build can group several registry runs under one W&B group row (e.g. 'ABL-AS' holding ABL-AS-REF and ABL-AS-NP):
       // the registry run id wins; its attempt leaves the group row, and an emptied group row is dropped
       // a static row named after this very run ('MV:TH-MV-R0-LOW', W&B attempts only) is replaced by the registry row, which takes all of its attempts
@@ -257,6 +267,8 @@ RB.registry = {
       if (w.eval && !r.test_full) r.test_full = w.eval;
     }
     D.registry_events = live.events;
+    // every attempt with a W&B id links to its run page (registry rows carry the id only; all runs log to charisoudis/metricsplat)
+    for (const r of D.runs) for (const a of r.attempts || []) if (a.wandb_id && !a.wandb_url) a.wandb_url = RB.wandbUrl(a.wandb_id);
     this.applyV2(D, live, byId);
   },
   /** evals -> eval badge (latest eval with MAE/RMSE of a run whose row is not an eval yet), paper_cells -> 'paper' label, hosts -> offline hosts. */
@@ -278,8 +290,12 @@ RB.registry = {
       r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), `${c.paper_table} / ${c.row_label} / ${c.column_label}${shown ? "" : ` (other eval: ${e.cohort}, ${e.geometry}, eval #${e.id})`}`])].join("; ");
     }
     // a registry row marked 'paper: <where>' in paper_role is a paper run before (or without) a paper cell, e.g. Table 1 baselines and zero-shot rows
-    for (const w of live.runs || []) { const r = byId.get(w.run_id), m = /^paper:\s*(.*)$/.exec(w.paper_role || "");
-      if (r && m) { r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), m[1] || "paper"])].join("; "); } }
+    // ... and 'supp: <where>' marks a result in the supplementary (both parts may be present, separated by ';')
+    for (const w of live.runs || []) { const r = byId.get(w.run_id); if (!r) continue;
+      const part = (k) => ((w.paper_role || "").split(/\s*;\s*/).map((x) => new RegExp(`^${k}:\\s*(.*)$`).exec(x)).find(Boolean) || [])[1];
+      const pp = part("paper"), sp = part("supp");
+      if (pp != null) { r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), pp || "paper"])].join("; "); }
+      if (sp != null) { r.supp = true; r.supp_label = sp || "supplementary"; } }
     // the registry's host status (stopped/destroyed/online) applies to the machine and all of its GPU lanes
     for (const h of live.hosts || []) for (const [k, q] of Object.entries(D.queues || {})) if (k === h.host || k.startsWith(h.host + ".gpu")) q.status = h.status;
     // the lanes follow the registry: a static 'running' job whose run the registry has finished, failed or stopped leaves the lane
@@ -661,7 +677,7 @@ document.addEventListener("alpine:init", () => {
               w.append(bt); return w; },
             formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
               if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
-              const r = d._r || {}, pb = (r.paper ? ` <span class="tag paper" title="${esc(r.paper_label || "")}">paper</span>` : "") + (RB.isAbl(r) ? ` <span class="tag abl" title="ablation run">ablation</span>` : "") + (r.superseded_by ? ` <span class="tag" title="superseded by ${esc(r.superseded_by)}: a better run now carries the paper label">superseded</span>` : "") + RB.rowTags(r).map(([t, tip]) => ` <span class="tag" title="${esc(tip)}">${esc(t)}</span>`).join("");
+              const r = d._r || {}, pb = (r.paper ? ` <span class="tag paper" title="${esc(r.paper_label || "")}">paper</span>` : "") + (r.supp ? ` <span class="tag paper" title="${esc(r.supp_label || "")}">supp</span>` : "") + (RB.isAbl(r) ? ` <span class="tag abl" title="ablation run">ablation</span>` : "") + (r.superseded_by ? ` <span class="tag" title="superseded by ${esc(r.superseded_by)}: a better run now carries the paper label">superseded</span>` : "") + RB.rowTags(r).map(([t, tip]) => ` <span class="tag" title="${esc(tip)}">${esc(t)}</span>`).join("");
               return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}${pb}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
           col({title: "Model", field: "model", width: 120, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
           col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (miss(c.getValue()) ? `<span class="muted">—</span>` : `<code class="init">${esc(c.getValue())}</code>`)}),
@@ -813,7 +829,8 @@ document.addEventListener("alpine:init", () => {
       const id = kind === "backlog" || kind === "plan" ? src.id : jr ? jr.id : src.run_id, r = id && this.runById[id], p = id && this.planById[id];
       const att = this.runAttempt(r), m = att.metrics || {}, fam = r && {PromptDA: "PromptDA", Ours_SV: "SV", Ours_MV: "MV"}[r.tab];
       const stage = kind === "running" || kind === "queued" || kind === "paused" ? kind : (src.stage_effective || src.stage || "planned");
-      const name = kind === "backlog" ? src.name : (p && p.display_name) || (r && (r.display_name || r.title)) || (src.name || "").replace(/\.job$/, "");
+      // lane cards of runs show the run id (W&B display names only for jobs without one)
+      const name = kind === "backlog" ? src.name : id && !/^[A-Z]{2,4}:/.test(id) ? id : (p && p.display_name) || (r && (r.display_name || r.title)) || (src.name || "").replace(/\.job$/, "");
       const si = ["planned", "built", "reviewed", "host-tested", "queued"].indexOf(p ? p.stage_effective : "");
       const det = [["Run id", id || "not mapped to a run"], ["Parent", (p && p.parent) || (r && r.parent_id) || src.parent],
         ["Lineage", r && r.lineage !== "n.a." ? r.lineage : ""], ["Owner", (p && p.owner) || src.owner],
