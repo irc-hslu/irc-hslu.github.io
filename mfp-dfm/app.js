@@ -289,14 +289,14 @@ RB.registry = {
     }
     // running/stale registry runs go into their host's lane: the static queue snapshot can be old (its monitor is off)
     const ALIAS = {"IR-Hermes": "local", "IR-Adonis": "iradonis", charisoudisDesktop: "desktop", "IR-Copernicus": "copernicus", "IR-Bebop": "bebop"};  // registry host names of our machines -> lane keys
-    for (const w of live.runs || []) if (ALIAS[w.host]) w.host = ALIAS[w.host];
+    for (const w of live.runs || []) w.host = ALIAS[w.host] || (w.host || "").replace(/^(\S+) \(\d+\)(?: GPU (\d+(?:-\d+)?))?$/, (_, m, g) => g ? `${m}.gpu${g}` : m) || w.host;  // 'vast_lower (60198907) GPU 0' -> 'vast_lower.gpu0', 'vast_lower (60198907)' -> 'vast_lower'
     for (const w of live.runs || []) {
       if (!["running", "stale"].includes(w.state) || !w.host) continue;
       // 'vast_4x.gpu0-1' = one run on GPUs 0 and 1: its card sits in GPU 0's lane and is drawn across GPU 1's lane (like colspan);
       // GPU 1's lane holds an empty placeholder of the same height, and both lanes keep their own queue and finished list
       const span = /^(.+)\.gpu(\d+)-(\d+)$/.exec(w.host);
       const keys = span ? [...Array(+span[3] - +span[2] + 1).keys()].map((i) => `${span[1]}.gpu${+span[2] + i}`)
-        : [D.queues[w.host] ? w.host : D.queues[`${w.host}.gpu0`] ? `${w.host}.gpu0` : w.host];  // bare machine name -> its first GPU lane
+        : [D.queues[w.host] ? w.host : (Object.keys(D.queues).filter((k) => k.startsWith(w.host + ".gpu")).sort().find((k) => !(D.queues[k].running || []).length) || (D.queues[`${w.host}.gpu0`] ? `${w.host}.gpu0` : w.host))];  // bare machine name -> its first free GPU lane
       keys.forEach((key, i) => {
         const q = D.queues[key] = D.queues[key] || {gpu: "", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
         if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
