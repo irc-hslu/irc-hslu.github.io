@@ -150,6 +150,7 @@ RB.emptyLane = (h) => {
   if (ps.length) return ps.map((x) => `Running: ${x.label}` + (x.start ? ` \u00b7 ${RB.dur(Date.now() / 1000 - x.start)}` : "")).join("; ");
   const m = /(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec((h && h.gpu_status) || "");
   if (m && (+m[1] >= 10 || +m[2] >= 1024)) return "Busy (job outside the queue)";
+  if (h && h.idle_reason) return "Waiting: " + h.idle_reason;
   return "IDLE";
 };
 RB.isIdleLane = (h) => RB.emptyLane(h) === "IDLE";
@@ -212,7 +213,7 @@ RB.registry = {
     const h = {apikey: cfg.anon_key, Authorization: "Bearer " + cfg.anon_key}, get = async (q) => { const r = await fetch(`${cfg.url.replace(/\/$/, "")}/rest/v1/${q}`, {headers: h, cache: "no-store"}); if (!r.ok) throw new Error("registry " + r.status); return r.json(); };
     const opt = (q) => get(q).catch(() => []);  // v2 tables: a registry without them still serves runs + events
     const [runs, events, evals, cells, hosts, starts] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30"),
-      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status,kind,gpus,gpu_status,gpu_status_at"), opt("events?select=run_id,at&kind=in.(start,resume)&order=at.desc&limit=500")]);
+      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status,kind,gpus,gpu_status,gpu_status_at,notes"), opt("events?select=run_id,at&kind=in.(start,resume)&order=at.desc&limit=500")]);
     // 'paper' = a number that landed in the main manuscript: supplementary tables do not tag a run
     const main = (cells || []).filter((c) => !/supp/i.test(c.paper_table || ""));
     const started = {}; for (const e of starts || []) if (!started[e.run_id]) started[e.run_id] = e.at;  // newest start or resume of each run (a moved run counts from its resume)
@@ -338,6 +339,7 @@ RB.registry = {
       const n = Math.max(gpus.reduce((s, g) => s + (g.count || 0), 0), per);
       const keys = n > 1 ? [...Array(n).keys()].map((i) => `${h.host}.gpu${i}`) : Object.keys(D.queues).some((k) => k.startsWith(h.host + ".gpu")) ? [] : [h.host];
       for (const k of keys) D.queues[k] = D.queues[k] || {gpu: "", gpu_label: label, reachable: true, status: "online", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
+      keys.forEach((k) => { D.queues[k].idle_reason = (h.notes || "").startsWith("WAITING:") ? h.notes.slice(8).trim() : ""; });
       // per-GPU 'util %, MiB' from out/vast_gpu_status.sh (every 10 min); older than 30 min is not shown
       if (h.gpu_status && Date.now() - new Date(h.gpu_status_at) < 30 * 60e3) keys.forEach((k, i) => { if (h.gpu_status[i]) D.queues[k].gpu_status = h.gpu_status[i]; });
     }
