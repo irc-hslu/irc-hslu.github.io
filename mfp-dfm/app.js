@@ -264,8 +264,9 @@ RB.registry = {
     D.queues = D.queues || {};
     for (const h of live.hosts || []) {
       if (h.kind !== "rental" || h.status !== "online") continue;
-      const gpus = h.gpus || [], n = gpus.reduce((s, g) => s + (g.count || 0), 0), label = (gpus[0] || {}).gpu || "";
-      const keys = n > 1 ? [...Array(n).keys()].map((i) => `${h.host}.gpu${i}`) : [h.host];
+      const gpus = h.gpus || [], label = (gpus[0] || {}).gpu || "", per = (h.gpu_status || []).length;  // one lane per GPU: from the row, else its live readings
+      const n = Math.max(gpus.reduce((s, g) => s + (g.count || 0), 0), per);
+      const keys = n > 1 ? [...Array(n).keys()].map((i) => `${h.host}.gpu${i}`) : Object.keys(D.queues).some((k) => k.startsWith(h.host + ".gpu")) ? [] : [h.host];
       for (const k of keys) D.queues[k] = D.queues[k] || {gpu: "", gpu_label: label, reachable: true, status: "online", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
       // per-GPU 'util %, MiB' from out/vast_gpu_status.sh (every 10 min); older than 30 min is not shown
       if (h.gpu_status && Date.now() - new Date(h.gpu_status_at) < 30 * 60e3) keys.forEach((k, i) => { if (h.gpu_status[i]) D.queues[k].gpu_status = h.gpu_status[i]; });
