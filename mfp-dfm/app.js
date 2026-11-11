@@ -161,13 +161,11 @@ RB.shortTag = (s) => { if (!s) return s; const t = String(s).trim();
   const h = t.split(/\s*[(:,]\s*/)[0].trim(); return h.length > 18 ? h.slice(0, 16) + "\u2026" : h; };
 /** Evaluation job (no training steps): registry kind 'eval' or an EVAL-/ZS- id. */
 RB.isEval = (r) => !!r && (r.rkind === "eval" || /^(EVAL|ZS)-/.test(r.id || ""));
-/** Short row tags besides paper/ablation: control, baseline, eval, zero-shot, THuman. */
+/** Short row tags besides paper/ablation: baseline, zero-shot, eval. */
 RB.rowTags = (r) => { const id = (r && r.id) || "", t = [];
-  if (/^CTRL-/.test(id)) t.push(["control", "same-budget control run"]);
   if (/^BL-/.test(id)) t.push(["baseline", "external baseline fine-tuned on our data"]);
   if (/^ZS-/.test(id)) t.push(["zero-shot", "zero-shot evaluation"]);
   if (RB.isEval(r)) t.push(["eval", "evaluation job"]);
-  if (/^TH-/.test(id) || /thuman/i.test(r.dataset || "")) t.push(["THuman", "THuman dataset"]);
   return t; };
 /** A recently finished job counts as done when its state says so or it reached its planned steps (rental runs carry no exit code). */
 RB.jobDone = (j) => !!j && (["done", "finished", "succeeded"].includes(j.state) || (j.step && j.budget && j.budget.steps && j.step >= j.budget.steps - 1));
@@ -279,6 +277,9 @@ RB.registry = {
       const shown = pick.get(r.id) && pick.get(r.id).id === c.eval_id, e = byEval.get(c.eval_id);  // a cell citing another eval than the badge's says which cohort it is
       r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), `${c.paper_table} / ${c.row_label} / ${c.column_label}${shown ? "" : ` (other eval: ${e.cohort}, ${e.geometry}, eval #${e.id})`}`])].join("; ");
     }
+    // a registry row marked 'paper: <where>' in paper_role is a paper run before (or without) a paper cell, e.g. Table 1 baselines and zero-shot rows
+    for (const w of live.runs || []) { const r = byId.get(w.run_id), m = /^paper:\s*(.*)$/.exec(w.paper_role || "");
+      if (r && m) { r.paper = true; r.paper_label = [...new Set([...(r.paper_label ? r.paper_label.split("; ") : []), m[1] || "paper"])].join("; "); } }
     // the registry's host status (stopped/destroyed/online) applies to the machine and all of its GPU lanes
     for (const h of live.hosts || []) for (const [k, q] of Object.entries(D.queues || {})) if (k === h.host || k.startsWith(h.host + ".gpu")) q.status = h.status;
     // the lanes follow the registry: a static 'running' job whose run the registry has finished, failed or stopped leaves the lane
