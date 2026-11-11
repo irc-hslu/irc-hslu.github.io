@@ -5,10 +5,10 @@
 <title>MFP-DFM Runboard</title>
 <link rel="stylesheet" href="vendor/pico.min.css">
 <link rel="stylesheet" href="vendor/tabulator-6.6.1.min.css">
-<link rel="stylesheet" href="style.css?v=c8e0517f18">
+<link rel="stylesheet" href="style.css?v=c942b15248">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=02a0488117"></script>
+<script src="app.js?v=514844dce3"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -102,7 +102,6 @@
       <div class="hl-h">
         <div class="hl-name"><span class="dot" :class="h.gone ? 'down' : (h.status === 'stopped' || !h.reachable) && 'off'" :title="h.gone ? 'destroyed' : h.reachable ? 'online' : 'offline'"></span><b x-text="h.grp ? h.machine : h.name"></b><span class="hl-cloud" x-show="h.rented" :title="h.location ? 'rented (' + h.location + ')' : 'rented'" :aria-label="'rented'" x-html="ic('cloud')"></span>
           <span class="badge st-destroyed" x-show="h.gone" :title="h.destroyed_at" x-text="'destroyed ' + destroyedOn(h.destroyed_at)"></span>
-          <span class="tag" x-show="(h.merged_from || []).length" :title="'Finished jobs of the destroyed machines are listed here too: ' + (h.merged_from || []).join(', ')" x-text="'+ history ' + [...new Set((h.merged_from || []).map((x) => x.replace(/\.gpu\d+$/, '')))].join(', ')"></span></div>
         <div class="hl-gpu"><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span></div>
         <div class="hl-live" x-show="liveText(h)" x-text="liveText(h)"></div>
       </div>
@@ -129,10 +128,10 @@
             <div class="kvr" x-show="c.id && runById[c.id]"><dt>Runs table</dt><dd><a class="lnk" :href="'#/runs?open=' + encodeURIComponent(c.id)"><span x-html="ic('list')"></span>show row</a></dd></div></dl>
         </details>
         </template>
-        <p class="hl-empty" :class="{'idle-red': !h.gone && RB.isIdleLane(h)}" x-show="!lane(h).length && !(h.gone && recent(h).length)" x-text="h.gone ? 'No finished jobs on this machine.' : RB.emptyLane(h)"></p>
+        <p class="hl-empty" :class="{'idle-red': !h.gone && RB.isIdleLane(h)}" x-show="!lane(h).length && !(h.gone && h.rec.length)" x-text="h.gone ? 'No finished jobs on this machine.' : RB.emptyLane(h)"></p>
       </div>
-      <details class="hl-recent" x-show="recent(h).length"><summary>Recently finished</summary>
-        <template x-for="j in recent(h)" :key="j.name + j.state"><div class="rj">
+      <details class="hl-recent" x-show="h.rec.length && (!h.grp || h.grp === 'first')" :data-span="h.grp === 'first' && h.n > 1 ? h.n : null"><summary>Recently finished</summary>
+        <template x-for="j in h.rec" :key="j.name + j.state"><div class="rj">
           <span class="badge has-i" :class="RB.jobDone(j) ? 's-succeeded' : j.exit === 'lost' ? 's-cancelled' : 's-failed'" x-html="badgeHtml(RB.jobDone(j) ? 'succeeded' : j.exit === 'lost' ? 'cancelled' : 'failed', RB.jobDone(j) ? 'done' : j.exit === 'lost' ? 'killed' : (j.exit ? 'exit ' + j.exit : 'stopped'))"></span>
           <span class="rj-name" :class="!jobRun(j).r && 'unmapped'" :title="jobRun(j).r ? j.name : 'job file (not mapped to a run)'" x-html="nameHtml(jobName(j))"></span><span class="rj-when" :title="abs(j.finished)" x-text="j.finished ? rel(j.finished) : ''"></span></div></template>
       </details>

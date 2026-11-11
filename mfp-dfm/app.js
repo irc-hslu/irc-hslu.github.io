@@ -319,12 +319,12 @@ RB.registry = {
 
 /** A run on n GPUs: widen its card from its own lane to the right edge of the (n-1)-th next lane; its placeholders get the same height. */
 RB.spanCards = () => {
-  for (const c of document.querySelectorAll("details.qcard[data-span]")) {
+  for (const c of document.querySelectorAll("details.qcard[data-span], details.hl-recent[data-span]")) {
     let lane = c.closest(".hlane");
     for (let i = 1; i < +c.dataset.span && lane.nextElementSibling; i++) lane = lane.nextElementSibling;
-    const box = lane.querySelector(".hl-cards") || lane, w = box.getBoundingClientRect().right - c.getBoundingClientRect().left;
+    const box = lane.querySelector(".hl-cards") || lane, w = box.getBoundingClientRect().right - c.getBoundingClientRect().left;  // a finished list spans to the last lane's cards too
     if (Math.abs(c.offsetWidth - w) > 1) c.style.width = `${w}px`;
-    for (const g of document.querySelectorAll(`details.qcard.ghost[data-rid="${CSS.escape(c.dataset.rid)}"]`)) g.style.height = `${c.offsetHeight}px`;
+    for (const g of document.querySelectorAll(`details.qcard.ghost[data-rid="${CSS.escape(c.dataset.rid || "")}"]`)) g.style.height = `${c.offsetHeight}px`;
   }
 };
 
@@ -711,8 +711,10 @@ document.addEventListener("alpine:init", () => {
           mach(a).localeCompare(mach(b)) || a.localeCompare(b));
       const G = RB.laneGroups(keys);  // lanes of one multi-GPU machine are drawn as a group
       return keys.map((k) => { const g = G[k];
+          // a multi-GPU machine's finished jobs are one list (shown once, spanning its GPU lanes), not one per lane
+          const rec = g ? keys.filter((x) => G[x] && G[x].machine === g.machine).flatMap((x) => this.recent(q[x])).sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).slice(0, 6) : this.recent(q[k]);
           return {k, ...q[k], name: RB.hostName(k), gpuName: this.gpuOf(k), rented: /^vast/.test(k), multi: !!/\.gpu\d+(-\d+)?$/.exec(k), span: (/\.gpu(\d+)-(\d+)$/.exec(k) || [0, 0, 0]).slice(1).reduce((a, b) => +b - +a + 1), gone: q[k].status === "destroyed",
-            grp: g ? g.pos : "", machine: g ? g.machine : ""}; });  // glued block: machine name once, no 'GPU N' label
+            grp: g ? g.pos : "", machine: g ? g.machine : "", n: g ? g.n : 1, rec}; });  // glued block: machine name once, no 'GPU N' label
     },
     gpuOf(k) { const q = (this.D.queues || {})[k] || {}; return (q.gpu_label || (RB.HOSTS[k] || {}).gpu || "").replace(/\s*\(.*\)$/, ""); },
     /** Lane status line: the GPU meter when the monitor has telemetry, else the lane's first running run (step, heartbeat age); '' hides it. */

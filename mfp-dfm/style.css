@@ -558,9 +558,9 @@ details.hl-recent,details.hl-recent>summary{font-size:var(--fs-cell)}
 .pub-t tr.stale td{background:color-mix(in srgb,var(--accent) 0%,#e5484d 12%)}
 
 /* a run on several GPUs: its card is widened across the next GPU lanes by spanCards(); the placeholder keeps the height */
-details.qcard[data-span]{position:relative;z-index:2}
+details.qcard[data-span],details.hl-recent[data-span]{position:relative;z-index:2}
 details.qcard.ghost{visibility:hidden;overflow:hidden}
-.hlane:has(details.qcard[data-span]){position:relative;z-index:2}  /* lanes are separate stacking contexts (rise animation): lift the one holding a wide card */
+.hlane:has(details[data-span]){position:relative;z-index:2}  /* lanes are separate stacking contexts (rise animation): lift the one holding a wide card */
 .tag.abl{background:color-mix(in srgb,#b06a00 14%,transparent);color:#b06a00;border-color:color-mix(in srgb,#b06a00 40%,transparent);font-weight:600}
 
 .hl-empty.idle-red{color:#fff;background:#d32f2f;font-weight:700;letter-spacing:.06em;border-radius:4px;padding:2px 8px;display:inline-block}
