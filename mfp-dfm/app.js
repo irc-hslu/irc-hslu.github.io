@@ -3,7 +3,7 @@
 const RB = (() => {
   const HOSTS = {  // the single place for host display names
     local: {name: "IR-Hermes", gpu: "RTX 4090"}, iradonis: {name: "IR-Adonis", gpu: "RTX 4080"},
-    desktop: {name: "charisoudisDesktop", gpu: "RTX 3090"}, copernicus: {name: "IR-Copernicus", gpu: "RTX 4090"},
+    desktop: {name: "charisoudisDesktop", gpu: "RTX 3090"}, copernicus: {name: "IR-Copernicus", gpu: "RTX 4090"}, bebop: {name: "IR-Bebop", gpu: "RTX 3080"},
   };
   const gpuKey = (k) => /^(.+)\.gpu(\d+(?:-\d+)?)$/.exec(k || "");  // one queue per GPU on multi-GPU machines: '<host>.gpu<i>'
   const hostName = (k) => { const m = gpuKey(k); return m ? `${m[1]} \u00b7 GPU ${m[2].replace("-", "–")}` : HOSTS[k] ? HOSTS[k].name : k || "-"; };
