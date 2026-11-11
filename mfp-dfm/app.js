@@ -188,6 +188,7 @@ RB.registry = {
   },
   /** Overlay registry rows on D.runs in place: live columns for runs the registry says are active (or the build still shows running); rows without a static run are added. */
   apply(D, live) {
+    for (const w of live.runs || []) w.host = RB.normHost(w.host, D.queues || {});  // one lane per machine, whatever name the registry row uses
     const byId = new Map(D.runs.map((r) => [r.id, r])), byWb = new Map(D.runs.flatMap((r) => (r.attempts || []).filter((a) => a.wandb_id).map((a) => [a.wandb_id, r])));
     const runOfEval = new Map((live.evals || []).map((e) => [e.id, e.run_id])), cited = new Set((live.cells || []).map((c) => runOfEval.get(c.eval_id)));
     for (const w of live.runs) {
@@ -200,14 +201,20 @@ RB.registry = {
       let r = byId.get(w.run_id) || byWb.get(w.wandb_id);
       // the static build can group several registry runs under one W&B group row (e.g. 'ABL-AS' holding ABL-AS-REF and ABL-AS-NP):
       // the registry run id wins; its attempt leaves the group row, and an emptied group row is dropped
+      // a static row named after this very run ('MV:TH-MV-R0-LOW', W&B attempts only) is replaced by the registry row, which takes all of its attempts
+      let carried = [], carriedRow = null;
       if (r && w.run_id && r.id !== w.run_id) {
-        r.attempts = (r.attempts || []).filter((x) => x.wandb_id !== w.wandb_id);
+        const whole = (r.id || "").endsWith(":" + w.run_id);
+        if (whole) { carried = r.attempts || []; carriedRow = r.row || null; }
+        r.attempts = whole ? [] : (r.attempts || []).filter((x) => x.wandb_id !== w.wandb_id);
         if (!r.attempts.length) { D.runs.splice(D.runs.indexOf(r), 1); byId.delete(r.id); }
         r = null;
       }
       if (!r) {
+        const own = carried.find((x) => w.wandb_id && x.wandb_id === w.wandb_id); if (own) own.status = status;
         r = {id: w.run_id, title: w.run_id, display_name: w.run_id, kind: "main", source: "registry", tab: this.TAB[w.model] || "Other", model: this.MODEL[w.model] || w.model || "Other",
-          dataset: this.DATASET[w.dataset] || w.dataset, sft: this.DATASET[w.dataset] || w.dataset, noise: w.preset || "none", attempts: [att], status, notes: w.notes};
+          dataset: this.DATASET[w.dataset] || w.dataset, sft: this.DATASET[w.dataset] || w.dataset, noise: w.preset || "none", attempts: own ? carried : [...carried, att], status, notes: w.notes};
+        if (carriedRow) r.row = carriedRow;
         D.runs.push(r); byId.set(r.id, r);
       } else if (!(this.ACTIVE.includes(w.state) || r.status === "running")) continue;
       else {
@@ -288,8 +295,6 @@ RB.registry = {
       }
     }
     // running/stale registry runs go into their host's lane: the static queue snapshot can be old (its monitor is off)
-    const ALIAS = {"IR-Hermes": "local", "IR-Adonis": "iradonis", charisoudisDesktop: "desktop", "IR-Copernicus": "copernicus", "IR-Bebop": "bebop"};  // registry host names of our machines -> lane keys
-    for (const w of live.runs || []) w.host = ALIAS[w.host] || (w.host || "").replace(/^(\S+) \(\d+\)(?: GPU (\d+(?:-\d+)?))?$/, (_, m, g) => g ? `${m}.gpu${g}` : m) || w.host;  // 'vast_lower (60198907) GPU 0' -> 'vast_lower.gpu0', 'vast_lower (60198907)' -> 'vast_lower'
     for (const w of live.runs || []) {
       if (!["running", "stale"].includes(w.state) || !w.host) continue;
       // 'vast_4x.gpu0-1' = one run on GPUs 0 and 1: its card sits in GPU 0's lane and is drawn across GPU 1's lane (like colspan);
@@ -320,6 +325,19 @@ RB.registry = {
   },
 };
 
+/** Registry host -> lane key. Our machines under any of their names ('IR-Adonis', 'adonis', 'iradonis.gpu0' -> 'iradonis');
+ *  a rental as '<machine> (<id>)[ GPU n]' -> '<machine>[.gpun]'; a '.gpuN' suffix on a single-GPU machine is dropped. */
+RB.HOST_ALIAS = {local: ["ir-hermes", "hermes", "irhermes"], iradonis: ["ir-adonis", "adonis"], desktop: ["charisoudisdesktop", "ir-desktop"],
+  copernicus: ["ir-copernicus", "ircopernicus"], bebop: ["ir-bebop", "irbebop"]};
+RB.normHost = (host, queues) => {
+  if (!host) return host;
+  let h = host.replace(/^(\S+) \(\d+\)(?: GPU (\d+(?:-\d+)?))?$/, (_, m, g) => (g ? `${m}.gpu${g}` : m));
+  const m = /^(.+?)(\.gpu\d+(?:-\d+)?)?$/.exec(h), base = m[1].toLowerCase();
+  const key = Object.keys(RB.HOST_ALIAS).find((k) => k === base || RB.HOST_ALIAS[k].includes(base));
+  if (key) return key;  // our machines have one GPU and one lane
+  if (m[2] && queues[m[1]] && !Object.keys(queues).some((k) => k.startsWith(m[1] + ".gpu"))) return m[1];
+  return h;
+};
 /** A multi-GPU machine's finished list (first lane, data-gspan = its GPU count): as wide as all of its lanes; the other lanes hold a
  *  placeholder of the same height and the machine's lanes share one height, so the list sits at the bottom across the whole machine. */
 RB.spanRecent = () => {
