@@ -102,7 +102,6 @@
       <div class="hl-h">
         <div class="hl-name"><span class="dot" :class="h.gone ? 'down' : (h.status === 'stopped' || !h.reachable) && 'off'" :title="h.gone ? 'destroyed' : h.reachable ? 'online' : 'offline'"></span><b x-text="h.grp ? h.machine : h.name"></b><span class="hl-cloud" x-show="h.rented" :title="h.location ? 'rented (' + h.location + ')' : 'rented'" :aria-label="'rented'" x-html="ic('cloud')"></span>
           <span class="badge st-destroyed" x-show="h.gone" :title="h.destroyed_at" x-text="'destroyed ' + destroyedOn(h.destroyed_at)"></span>
-          <span class="tag" x-show="(h.merged_from || []).length" :title="'Finished jobs of the destroyed machines are listed here too: ' + (h.merged_from || []).join(', ')" x-text="'+ history ' + [...new Set((h.merged_from || []).map((x) => x.replace(/\.gpu\d+$/, '')))].join(', ')"></span></div>
         <div class="hl-gpu"><span x-text="h.gpuName.replace(/\s*\d+\s*GB$/, '')"></span><span class="tag" x-show="/\d+\s*GB$/.test(h.gpuName)" x-text="(h.gpuName.match(/(\d+)\s*GB$/) || [])[1] + ' GB'"></span></div>
         <div class="hl-live" x-show="liveText(h)" x-text="liveText(h)"></div>
       </div>
