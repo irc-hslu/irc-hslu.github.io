@@ -146,11 +146,29 @@ RB.vramGb = (gpu) => { const m = /(\d+)\s*GB\b/.exec(gpu || ""); if (m) return +
 /** nvidia-smi '92 %, 13029 MiB' -> 'Util: 13/32 GB @ 92%' (memory rounded to whole GB, capacity after the slash). */
 /** Text of a lane with no queued run: busy when the live GPU reading shows work (evaluations, renders and other jobs are not registry runs). */
 RB.emptyLane = (h) => {
+  const ps = (h && h.procs) || [];  // GPU processes outside the queue seen by the host scan: name and running time
+  if (ps.length) return ps.map((x) => `Running: ${x.label}` + (x.start ? ` \u00b7 ${RB.dur(Date.now() / 1000 - x.start)}` : "")).join("; ");
   const m = /(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec((h && h.gpu_status) || "");
   if (m && (+m[1] >= 10 || +m[2] >= 1024)) return "Busy (job outside the queue)";
   return "IDLE";
 };
 RB.isIdleLane = (h) => RB.emptyLane(h) === "IDLE";
+/** Seconds -> '25 min' / '3.4 h' / '2.1 d'. */
+RB.dur = (sec) => (sec < 3600 ? `${Math.max(1, Math.round(sec / 60))} min` : sec < 172800 ? `${(sec / 3600).toFixed(1)} h` : `${(sec / 86400).toFixed(1)} d`);
+/** Short label of a preset / noise text for chips and cells ('ablation_as (SF, 1 view, ...)' -> 'ablation_as'); the full text goes to the tooltip. */
+RB.shortTag = (s) => { if (!s) return s; const t = String(s).trim();
+  if (/baselines\.py/.test(t)) return "baseline"; if (/^pose/i.test(t)) return "pose eval";
+  const h = t.split(/\s*[(:,]\s*/)[0].trim(); return h.length > 18 ? h.slice(0, 16) + "\u2026" : h; };
+/** Evaluation job (no training steps): registry kind 'eval' or an EVAL-/ZS- id. */
+RB.isEval = (r) => !!r && (r.rkind === "eval" || /^(EVAL|ZS)-/.test(r.id || ""));
+/** Short row tags besides paper/ablation: control, baseline, eval, zero-shot, THuman. */
+RB.rowTags = (r) => { const id = (r && r.id) || "", t = [];
+  if (/^CTRL-/.test(id)) t.push(["control", "same-budget control run"]);
+  if (/^BL-/.test(id)) t.push(["baseline", "external baseline fine-tuned on our data"]);
+  if (/^ZS-/.test(id)) t.push(["zero-shot", "zero-shot evaluation"]);
+  if (RB.isEval(r)) t.push(["eval", "evaluation job"]);
+  if (/^TH-/.test(id) || /thuman/i.test(r.dataset || "")) t.push(["THuman", "THuman dataset"]);
+  return t; };
 /** A recently finished job counts as done when its state says so or it reached its planned steps (rental runs carry no exit code). */
 RB.jobDone = (j) => !!j && (["done", "finished", "succeeded"].includes(j.state) || (j.step && j.budget && j.budget.steps && j.step >= j.budget.steps - 1));
 RB.liveLine = (status, gpu) => {
@@ -180,10 +198,12 @@ RB.registry = {
   async fetch(cfg) {
     const h = {apikey: cfg.anon_key, Authorization: "Bearer " + cfg.anon_key}, get = async (q) => { const r = await fetch(`${cfg.url.replace(/\/$/, "")}/rest/v1/${q}`, {headers: h, cache: "no-store"}); if (!r.ok) throw new Error("registry " + r.status); return r.json(); };
     const opt = (q) => get(q).catch(() => []);  // v2 tables: a registry without them still serves runs + events
-    const [runs, events, evals, cells, hosts] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30"),
-      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status,kind,gpus,gpu_status,gpu_status_at")]);
+    const [runs, events, evals, cells, hosts, starts] = await Promise.all([get(`runs?select=${this.FIELDS}&order=updated_at.desc&limit=1000`), get("events?select=run_id,at,kind,payload&order=at.desc&limit=30"),
+      opt("evals?select=id,run_id,protocol,cohort,geometry,frames,metrics&order=created_at.desc&limit=1000"), opt("paper_cells?select=paper_table,row_label,column_label,eval_id&limit=1000"), opt("hosts?select=host,status,kind,gpus,gpu_status,gpu_status_at"), opt("events?select=run_id,at&kind=eq.start&order=at.desc&limit=500")]);
     // 'paper' = a number that landed in the main manuscript: supplementary tables do not tag a run
     const main = (cells || []).filter((c) => !/supp/i.test(c.paper_table || ""));
+    const started = {}; for (const e of starts || []) if (!started[e.run_id]) started[e.run_id] = e.at;  // newest start of each run
+    for (const w of runs) w.started_at = started[w.run_id] || null;
     return {runs, events, evals, cells: main, hosts, at: Date.now()};
   },
   /** Overlay registry rows on D.runs in place: live columns for runs the registry says are active (or the build still shows running); rows without a static run are added. */
@@ -210,10 +230,11 @@ RB.registry = {
         if (!r.attempts.length) { D.runs.splice(D.runs.indexOf(r), 1); byId.delete(r.id); }
         r = null;
       }
+      if (r) Object.assign(r, {rkind: w.kind, started_at: w.started_at});  // registry kind (eval jobs have no training steps) and start time
       if (!r) {
         const own = carried.find((x) => w.wandb_id && x.wandb_id === w.wandb_id); if (own) own.status = status;
         r = {id: w.run_id, title: w.run_id, display_name: w.run_id, kind: "main", source: "registry", tab: this.TAB[w.model] || "Other", model: this.MODEL[w.model] || w.model || "Other",
-          dataset: this.DATASET[w.dataset] || w.dataset, sft: this.DATASET[w.dataset] || w.dataset, noise: w.preset || "none", attempts: own ? carried : [...carried, att], status, notes: w.notes};
+          dataset: this.DATASET[w.dataset] || w.dataset, sft: this.DATASET[w.dataset] || w.dataset, noise: w.preset || "none", attempts: own ? carried : [...carried, att], status, notes: w.notes, rkind: w.kind, started_at: w.started_at};
         if (carriedRow) r.row = carriedRow;
         D.runs.push(r); byId.set(r.id, r);
       } else if (!(this.ACTIVE.includes(w.state) || r.status === "running")) continue;
@@ -260,6 +281,14 @@ RB.registry = {
     }
     // the registry's host status (stopped/destroyed/online) applies to the machine and all of its GPU lanes
     for (const h of live.hosts || []) for (const [k, q] of Object.entries(D.queues || {})) if (k === h.host || k.startsWith(h.host + ".gpu")) q.status = h.status;
+    // the lanes follow the registry: a static 'running' job whose run the registry has finished, failed or stopped leaves the lane
+    const regState = new Map((live.runs || []).map((w) => [w.run_id, w.state]));
+    for (const q of Object.values(D.queues || {})) {
+      const gone = (q.running || []).filter((j) => j.run_id && regState.has(j.run_id) && !["running", "stale"].includes(regState.get(j.run_id)));
+      if (!gone.length) continue;
+      q.running = q.running.filter((j) => !gone.includes(j));
+      for (const j of gone) { const ok = regState.get(j.run_id) === "finished"; (ok ? (q.done_recent = q.done_recent || []) : (q.failed_recent = q.failed_recent || [])).unshift({...j, state: ok ? "done" : "failed", exit: ok ? j.exit : regState.get(j.run_id), finished: j.heartbeat_at || j.started || ""}); }
+    }
     // a static 'running' job at its full step budget has finished (the host's queue file is not updated after the end)
     for (const q of Object.values(D.queues || {})) {
       const done = (q.running || []).filter((j) => j.step && j.budget && j.budget.steps && j.step >= j.budget.steps && !(live.runs || []).some((w) => w.run_id === j.run_id && w.state === "running"));
@@ -307,7 +336,7 @@ RB.registry = {
         if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
         q.running = q.running || [];
         // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
-        if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at, span: i ? 0 : keys.length, ghost: i > 0});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
+        if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.kind === "eval" || /^(EVAL|ZS)-/.test(w.run_id) ? {eval: true} : w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at, started: w.started_at, span: i ? 0 : keys.length, ghost: i > 0});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
       });
     }
     // planned registry runs with a host and queue_pos are the next runs of that GPU (pair), in queue_pos order;
@@ -594,7 +623,7 @@ document.addEventListener("alpine:init", () => {
     rows(realOnly) {
       const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: this.canon(r), init: r.init || "—",
         pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: r.dataset, noise: r.noise, status: r.status,
-        rmse: rmse(r)[0], rsrc: rmse(r)[1], rtip: srcTip(r), mae: mae(r)[0], msrc: mae(r)[1], steps: (r.steps || {}).done ?? null, cap: (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
+        rmse: rmse(r)[0], rsrc: rmse(r)[1], rtip: srcTip(r), mae: mae(r)[0], msrc: mae(r)[1], steps: RB.isEval(r) ? null : (r.steps || {}).done ?? null, cap: RB.isEval(r) ? null : (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
         modified_at: r.modified_at || null, _r: r}));
       if (realOnly || !this.all) return real;
       const grid = real.filter((x) => this.inGrid(x));  // toggle on: exactly the paper grid (other real rows hidden)
@@ -631,13 +660,13 @@ document.addEventListener("alpine:init", () => {
               w.append(bt); return w; },
             formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
               if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
-              const r = d._r || {}, pb = (r.paper ? ` <span class="tag paper" title="${esc(r.paper_label || "")}">paper</span>` : "") + (RB.isAbl(r) ? ` <span class="tag abl" title="ablation run">ablation</span>` : "") + (r.superseded_by ? ` <span class="tag" title="a better run now carries the paper label">superseded by ${esc(r.superseded_by)}</span>` : "");
+              const r = d._r || {}, pb = (r.paper ? ` <span class="tag paper" title="${esc(r.paper_label || "")}">paper</span>` : "") + (RB.isAbl(r) ? ` <span class="tag abl" title="ablation run">ablation</span>` : "") + (r.superseded_by ? ` <span class="tag" title="superseded by ${esc(r.superseded_by)}: a better run now carries the paper label">superseded</span>` : "") + RB.rowTags(r).map(([t, tip]) => ` <span class="tag" title="${esc(tip)}">${esc(t)}</span>`).join("");
               return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}${pb}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
           col({title: "Model", field: "model", width: 120, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
           col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (miss(c.getValue()) ? `<span class="muted">—</span>` : `<code class="init">${esc(c.getValue())}</code>`)}),
           col({title: "Pretrain Dataset", titleFormatter: two("Pretrain", "Dataset"), field: "pretrain_ds", width: 108, responsive: 7, sorter: ranked("dataset"), ...list("pretrain_ds")}),
           col({title: "SFT Dataset", titleFormatter: two("SFT", "Dataset"), field: "dataset", width: 116, responsive: 6, sorter: ranked("dataset"), ...list("dataset")}),
-          col({title: "Noise", field: "noise", width: 96, responsive: 8, sorter: ranked("noise"), ...list("noise")}),
+          col({title: "Noise", field: "noise", width: 96, responsive: 8, sorter: ranked("noise"), ...list("noise"), formatter: (c) => `<span title="${esc(c.getValue() || "")}">${esc(RB.shortTag(c.getValue()) || "")}</span>`}),
           col({title: "Status", field: "status", width: 148, responsive: 1, ...list("status"), sorter: ranked("status"),
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
           col({title: "RMSE", field: "rmse", width: 114, responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
@@ -649,7 +678,9 @@ document.addEventListener("alpine:init", () => {
             formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "mae", c.getValue());
               return `<span class="num${pc ? " cited" : ""}" title="${esc(pc ? RB.paperTip(pc) : c.getData().msrc + " MAE" + (c.getData().rtip ? " (" + c.getData().rtip + ")" : ""))}">${c.getValue().toFixed(4)}</span>${evalpTag(c.getData()._r)}`; }}),
           col({title: "Steps", field: "steps", width: 100, responsive: 9, sorter: lastMissing, headerSortStartingDir: "desc",
-            formatter: (c) => { const d = c.getData(); if (d._virtual) return ""; if (d.steps == null) return `<span class="muted">—</span>`;
+            formatter: (c) => { const d = c.getData(); if (d._virtual) return "";
+              if (RB.isEval(d._r)) return d._r.status === "running" && d._r.started_at ? `<span class="num" title="evaluation job: no training steps; started ${esc(self.abs(d._r.started_at))}">${RB.dur((Date.now() - new Date(d._r.started_at)) / 1000)}</span>` : `<span class="muted" title="evaluation job: no training steps">—</span>`;
+              if (d.steps == null) return `<span class="muted">—</span>`;
               return `<span class="num" title="${d.steps.toLocaleString("en-US")}${d.cap ? " of " + d.cap.toLocaleString("en-US") : ""} steps">${RB.kfmt(d.steps)}${d.cap ? `<span class="muted"> / ${RB.kfmt(d.cap)}</span>` : ""}</span>${RB.liveBits(d._r)}`; }}),
           col({title: "Samples", field: "samples", width: 100, visible: false, responsive: 10,  /* hidden: samples stay in the expanded details */ sorter: lastMissing, headerSortStartingDir: "desc",
             formatter: (c) => (c.getData()._virtual ? "" : c.getValue() == null ? `<span class="muted">—</span>` : `<span class="num" title="${c.getValue().toLocaleString("en-US")} images">${RB.kfmt(c.getValue())}</span>`)}),
@@ -772,7 +803,7 @@ document.addEventListener("alpine:init", () => {
     chips(model, dataset, noise) {
       const ok = (x) => x && !["none", "-", "\u2014", "all", "n.a."].includes(x);
       const m = ok(model) ? RB.canonModel(model) : "";
-      return [m || "\u2014", ok(dataset) ? dataset : "\u2014", ok(noise) ? noise : "\u2014"];  // unknown = '—' (and a MISSING_META alert)
+      return [m || "\u2014", ok(dataset) ? dataset : "\u2014", ok(noise) ? RB.shortTag(noise) : "\u2014"];  // unknown = '—' (and a MISSING_META alert); long presets shortened (full text: tooltip)
     },
     runAttempt(r) { const a = [...((r && r.attempts) || [])].reverse(); return a.find((x) => x.status === "running" && x.wandb_id) || a.find((x) => x.status === "running") || a[0] || {}; },
     /** One card model for queue jobs, lane plan entries and backlog items. */
@@ -794,6 +825,7 @@ document.addEventListener("alpine:init", () => {
         name, cotenant: !!src.cotenant, live: !!src.live, unmapped: (kind === "running" || kind === "queued") && !r,
         chips: this.chips((r && r.model !== "Other" && r.model) || (kind === "backlog" ? src.model : p && p.model) || fam,
           (kind === "backlog" ? src.dataset : p && p.dataset) || (r && r.dataset), (kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise)),
+        tips: ["", "", ((kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise) || "") + ""],  // full preset text behind the short chip
         waits: kind === "plan" ? src.waits_for || src.unlock_event || "" : kind === "backlog" ? src.waits_for : "",
         step: kind === "paused" ? src.progress_step : m.step, budget: kind === "paused" ? {steps: src.progress_total} : src.budget || {}, started: src.started,
         best: src.best_dev || "", backup: (src.backup || "").replace(/\/+$/, "").split("/").slice(-2).join("/"), backupFull: src.backup || "",
