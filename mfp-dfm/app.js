@@ -313,7 +313,11 @@ RB.registry = {
     for (const h of live.hosts || []) for (const [k, q] of Object.entries(D.queues || {})) if (k === h.host || k.startsWith(h.host + ".gpu")) q.status = h.status;
     // the lanes follow the registry: a static 'running' job whose run the registry has finished, failed or stopped leaves the lane
     const regState = new Map((live.runs || []).map((w) => [w.run_id, w.state]));
+    // The registry is authoritative for plans and queued entries as well.
+    for (const p of D.plan || []) if (regState.has(p.id)) p.run_status = regState.get(p.id);
+    D.backlog = (D.backlog || []).filter((p) => !regState.has(p.id) || ["planned", "queued"].includes(regState.get(p.id)));
     for (const q of Object.values(D.queues || {})) {
+      q.queued = (q.queued || []).filter((j) => !j.run_id || !regState.has(j.run_id) || ["planned", "queued"].includes(regState.get(j.run_id)));
       const gone = (q.running || []).filter((j) => j.run_id && regState.has(j.run_id) && !["running", "stale"].includes(regState.get(j.run_id)));
       if (!gone.length) continue;
       q.running = q.running.filter((j) => !gone.includes(j));
@@ -852,7 +856,7 @@ document.addEventListener("alpine:init", () => {
       const att = this.runAttempt(r), m = att.metrics || {}, fam = r && {PromptDA: "PromptDA", Ours_SV: "SV", Ours_MV: "MV"}[r.tab];
       const stage = kind === "running" || kind === "queued" || kind === "paused" ? kind : (src.stage_effective || src.stage || "planned");
       // lane cards of runs show the run id (W&B display names only for jobs without one)
-      const name = kind === "backlog" ? src.name : id && !/^[A-Z]{2,4}:/.test(id) ? id : (p && p.display_name) || (r && (r.display_name || r.title)) || (src.name || "").replace(/\.job$/, "");
+      const name = kind === "backlog" ? (id || src.name) : id && !/^[A-Z]{2,4}:/.test(id) ? id : (p && p.display_name) || (r && (r.display_name || r.title)) || (src.name || "").replace(/\.job$/, "");
       const si = ["planned", "built", "reviewed", "host-tested", "queued"].indexOf(p ? p.stage_effective : "");
       const det = [["Run id", id || "not mapped to a run"], ["Parent", (p && p.parent) || (r && r.parent_id) || src.parent],
         ["Lineage", r && r.lineage !== "n.a." ? r.lineage : ""], ["Owner", (p && p.owner) || src.owner],
