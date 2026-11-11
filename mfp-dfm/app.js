@@ -288,6 +288,8 @@ RB.registry = {
       }
     }
     // running/stale registry runs go into their host's lane: the static queue snapshot can be old (its monitor is off)
+    const ALIAS = {"IR-Hermes": "local", "IR-Adonis": "iradonis", charisoudisDesktop: "desktop", "IR-Copernicus": "copernicus", "IR-Bebop": "bebop"};  // registry host names of our machines -> lane keys
+    for (const w of live.runs || []) if (ALIAS[w.host]) w.host = ALIAS[w.host];
     for (const w of live.runs || []) {
       if (!["running", "stale"].includes(w.state) || !w.host) continue;
       // 'vast_4x.gpu0-1' = one run on GPUs 0 and 1: its card sits in GPU 0's lane and is drawn across GPU 1's lane (like colspan);
