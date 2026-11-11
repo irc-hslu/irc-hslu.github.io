@@ -161,7 +161,7 @@ RB.shortTag = (s) => { if (!s) return s; const t = String(s).trim();
   const h = t.split(/\s*[(:,]\s*/)[0].trim(); return h.length > 18 ? h.slice(0, 16) + "\u2026" : h; };
 RB.wandbUrl = (id) => `https://wandb.ai/charisoudis/metricsplat/runs/${encodeURIComponent(id)}`;
 /** Evaluation job (no training steps): registry kind 'eval' or an EVAL-/ZS- id. */
-RB.isEval = (r) => !!r && (r.rkind === "eval" || /^(EVAL|ZS)-/.test(r.id || ""));
+RB.isEval = (r) => !!r && (r.rkind === "eval" || r.kind === "eval" || /^(EVAL|ZS)-|(?:^|[-_])eval(?:[-_]|$)/i.test(r.id || ""));
 /** Short row tags besides paper/ablation: baseline, zero-shot, eval, seed. */
 RB.rowTags = (r) => { const id = (r && r.id) || "", t = [];
   if (/^BL-/.test(id)) t.push(["baseline", "external baseline fine-tuned on our data"]);
@@ -169,8 +169,21 @@ RB.rowTags = (r) => { const id = (r && r.id) || "", t = [];
   if (RB.isEval(r)) t.push(["eval", "evaluation job"]);
   const sd = /-S(\d+)$/.exec(id); if (sd) t.push(["seed", `seed-${sd[1]} replicate of ${id.replace(/-S\d+$/, "")}`]);
   return t; };
+RB.runTagsHtml = (r) => (r.paper ? ` <span class="tag paper" title="${RB.esc(r.paper_label || "")}">paper</span>` : "") +
+  (r.supp ? ` <span class="tag paper" title="${RB.esc(r.supp_label || "")}">supp</span>` : "") +
+  (RB.isAbl(r) ? ` <span class="tag abl" title="ablation run">ablation</span>` : "") +
+  (r.superseded_by ? ` <span class="tag" title="superseded by ${RB.esc(r.superseded_by)}: a better run now carries the paper label">superseded</span>` : "") +
+  RB.rowTags(r).map(([t, tip]) => ` <span class="tag${t === "eval" ? " st-eval" : ""}" title="${RB.esc(tip)}">${RB.esc(t)}</span>`).join("");
 /** A recently finished job counts as done when its state says so or it reached its planned steps (rental runs carry no exit code). */
 RB.jobDone = (j) => !!j && (["done", "finished", "succeeded"].includes(j.state) || (j.step && j.budget && j.budget.steps && j.step >= j.budget.steps - 1));
+RB.uniqueRecent = (jobs) => {
+  const seen = new Set();
+  return jobs.slice().sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).filter((j) => {
+    const id = j.run_id || j.name || `${j.state || ""}:${j.finished || ""}`;
+    if (seen.has(id)) return false;
+    seen.add(id); return true;
+  }).slice(0, 6);
+};
 RB.liveLine = (status, gpu) => {
   const m = /^\s*(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec(status || ""); if (!m) return status ? "GPU " + status : "";  // no telemetry: '' (the lane shows the run instead)
   const cap = RB.vramGb(gpu);
@@ -405,9 +418,18 @@ document.addEventListener("toggle", (e) => { if (e.target.matches && e.target.ma
 /** A run on n GPUs: widen its card from its own lane to the right edge of the (n-1)-th next lane; its placeholders get the same height. */
 RB.spanCards = () => {
   RB.spanRecent();
+  // Alpine may reuse a previously spanning card when a run moves to one GPU.
+  // Clear the inline width and placeholder height left by its previous layout.
+  for (const c of document.querySelectorAll('details.qcard:not([data-span])')) c.style.width = '';
+  for (const c of document.querySelectorAll('details.qcard:not(.ghost)')) c.style.height = '';
   for (const c of document.querySelectorAll("details.qcard[data-span]")) {
     let lane = c.closest(".hlane");
-    for (let i = 1; i < +c.dataset.span && lane.nextElementSibling; i++) lane = lane.nextElementSibling;
+    const machine = (lane.dataset.lane || "").replace(/\.gpu\d+$/, "");
+    for (let i = 1; i < +c.dataset.span && lane.nextElementSibling; i++) {
+      const next = lane.nextElementSibling;
+      if ((next.dataset.lane || "").replace(/\.gpu\d+$/, "") !== machine) break;
+      lane = next;
+    }
     const box = lane.querySelector(".hl-cards") || lane, w = box.getBoundingClientRect().right - c.getBoundingClientRect().left;
     if (Math.abs(c.offsetWidth - w) > 1) c.style.width = `${w}px`;
     for (const g of document.querySelectorAll(`details.qcard.ghost[data-rid="${CSS.escape(c.dataset.rid)}"]`)) g.style.height = `${c.offsetHeight}px`;
@@ -677,7 +699,7 @@ document.addEventListener("alpine:init", () => {
               w.append(bt); return w; },
             formatter: (c) => { const d = c.getData(), nm = esc(d.title).replace(/_/g, "_<wbr>"), car = `<span class="car">${self.isOpen(d._r || d) ? "▾" : "▸"}</span>`;
               if (d._virtual) return `<div class="rb-run"><div class="rb-name muted">${car}${nm}</div><div class="rb-id">never ran</div></div>`;
-              const r = d._r || {}, pb = (r.paper ? ` <span class="tag paper" title="${esc(r.paper_label || "")}">paper</span>` : "") + (r.supp ? ` <span class="tag paper" title="${esc(r.supp_label || "")}">supp</span>` : "") + (RB.isAbl(r) ? ` <span class="tag abl" title="ablation run">ablation</span>` : "") + (r.superseded_by ? ` <span class="tag" title="superseded by ${esc(r.superseded_by)}: a better run now carries the paper label">superseded</span>` : "") + RB.rowTags(r).map(([t, tip]) => ` <span class="tag" title="${esc(tip)}">${esc(t)}</span>`).join("");
+              const r = d._r || {}, pb = RB.runTagsHtml(r);
               return `<div class="rb-run"><div class="rb-name" title="${esc(d._r.title)}">${car}${nm}${pb}</div><div class="rb-id" title="${esc(d.id)}">${esc(d.id)}</div></div>`; }}),
           col({title: "Model", field: "model", width: 120, responsive: 2, sorter: ranked("model"), ...list("model", RB.modelHtml), formatter: (c) => RB.modelHtml(c.getValue())}),
           col({title: "Init", field: "init", width: 112, responsive: 5, sorter: ranked("init"), ...list("init"), formatter: (c) => (miss(c.getValue()) ? `<span class="muted">—</span>` : `<code class="init">${esc(c.getValue())}</code>`)}),
@@ -789,7 +811,7 @@ document.addEventListener("alpine:init", () => {
       // an offline lane (stopped/destroyed or unreachable) with nothing to show (no jobs, no finished runs) is hidden
       const empty = (k) => (["stopped", "destroyed"].includes(q[k].status) || !q[k].reachable) && !this.recent(q[k]).length &&
           !["running", "queued", "paused"].some((f) => (q[k][f] || []).length);
-      const shown = Object.keys(q).filter((k) => !q[k].excluded && !q[k].hidden && !empty(k)), mach = (k) => k.replace(/\.gpu\d+(-\d+)?$/, "");
+      const shown = Object.keys(q).filter((k) => q[k].status !== "destroyed" && !q[k].excluded && !q[k].hidden && !empty(k)), mach = (k) => k.replace(/\.gpu\d+(-\d+)?$/, "");
       // machine class: running work, then idle/online, then stopped, then destroyed; never mixed (all GPU lanes of a machine share one class)
       const local = (k) => order.includes(mach(k)) || !/^vast/.test(mach(k));  // our own machines always come first, then active rentals, then stopped/destroyed ones
       const cls = (k) => { if (local(k)) return -1; const ls = shown.filter((x) => mach(x) === mach(k)).map((x) => q[x]);
@@ -800,7 +822,7 @@ document.addEventListener("alpine:init", () => {
       const G = RB.laneGroups(keys);  // lanes of one multi-GPU machine are drawn as a group
       // a multi-GPU machine's finished jobs: one list on its first lane, drawn across all of its GPU lanes (RB.spanRecent)
       const mrec = {}; keys.forEach((k) => { if (G[k]) (mrec[G[k].machine] = mrec[G[k].machine] || []).push(...this.recent(q[k])); });
-      Object.values(mrec).forEach((l) => l.sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).splice(6));
+      Object.keys(mrec).forEach((k) => { mrec[k] = RB.uniqueRecent(mrec[k]); });
       return keys.map((k) => { const g = G[k];
           return {k, ...q[k], rec: g ? (g.pos === "first" ? mrec[g.machine] : []) : this.recent(q[k]), gn: g ? g.n : 1, grec: !!(g && mrec[g.machine].length), name: RB.hostName(k), gpuName: this.gpuOf(k), rented: /^vast/.test(k), multi: !!/\.gpu\d+(-\d+)?$/.exec(k), span: (/\.gpu(\d+)-(\d+)$/.exec(k) || [0, 0, 0]).slice(1).reduce((a, b) => +b - +a + 1), gone: q[k].status === "destroyed",
             grp: g ? g.pos : "", machine: g ? g.machine : ""}; });  // glued block: machine name once, no 'GPU N' label
@@ -840,7 +862,7 @@ document.addEventListener("alpine:init", () => {
         ["Receipts", p ? `review ${si >= 2 ? "yes" : "no"} · preflight ${si >= 3 ? "yes" : "no"}` : ""],
         ["Last update", RB.relTime((p && p.updated) || att.heartbeat_at || (r && r.modified_at) || src.updated, this.now)]].filter(([, v]) => v);
       return {key: kind + ":" + (id || src.name) + ":" + (i || 0), kind, id, stage, label: this.STAGE[stage] || stage, pos: kind === "queued" ? i + 1 : 0,
-        name, cotenant: !!src.cotenant, live: !!src.live, unmapped: (kind === "running" || kind === "queued") && !r,
+      name, isEval: RB.isEval(r || {id: id || src.name, kind: src.kind}) || !!(src.budget && src.budget.eval), cotenant: !!src.cotenant, live: !!src.live, unmapped: (kind === "running" || kind === "queued") && !r,
         chips: this.chips((r && r.model !== "Other" && r.model) || (kind === "backlog" ? src.model : p && p.model) || fam,
           (kind === "backlog" ? src.dataset : p && p.dataset) || (r && r.dataset), (kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise)),
         tips: ["", "", ((kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise) || "") + ""],  // full preset text behind the short chip
@@ -864,7 +886,7 @@ document.addEventListener("alpine:init", () => {
     kfmt: (n) => (n % 1000 ? n.toLocaleString("en-US") : n / 1000 + "K"),
     rel(iso) { return RB.relTime(iso, this.now); },
     abs: (iso) => (iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : ""),
-    recent(h) { return [...(h.failed_recent || []), ...(h.done_recent || [])].sort((a, b) => (b.finished || "").localeCompare(a.finished || "")).slice(0, 6); },
+    recent(h) { return RB.uniqueRecent([...(h.failed_recent || []), ...(h.done_recent || [])]); },
     /** Run of a queue job: its mapped run, else its run-id hint (exact, then the longest run id the hint starts with,
      *  e.g. an eval job 'P2-SVp-SPP-ALL3-test96-…' belongs to P2-SVp-SPP). A mapped W&B-only run may since have been folded into its registry run. */
     jobRun(j) {
