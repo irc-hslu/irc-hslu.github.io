@@ -281,7 +281,7 @@ RB.registry = {
       if (row && (!r.row || r.source === "registry")) r.row = row;
       if (w.eval && !r.test_full) r.test_full = w.eval;
       if (w.eval && w.eval.mae != null && w.eval.rmse != null && /test/i.test(w.eval.cohort || w.eval.protocol || ""))
-        r.row = {mae:w.eval.mae, rmse:w.eval.rmse, src:"eval", tip:`test: ${w.eval.receipt || "registry"}`};
+        r.row = {mae:w.eval.mae, rmse:w.eval.rmse, src:"eval", tip:`test: ${w.eval.cohort || ""}; ${w.eval.receipt || "registry"}`};
     }
     D.registry_events = live.events;
     // every attempt with a W&B id links to its run page (registry rows carry the id only; all runs log to charisoudis/metricsplat)
@@ -754,7 +754,7 @@ document.addEventListener("alpine:init", () => {
             formatter: (c) => `<span class="badge has-i s-${esc(c.getValue()).replace(" ", "-")}">${RB.ic(RB.ICON[c.getValue()] || "")}${esc(c.getValue())}</span>`}),
           col({title: "RMSE", field: "rmse", width: 114, responsive: 3, sorter: lastMissing, headerSortStartingDir: "desc",
             headerTooltip: "RMSE / MAE in metres. Badge: eval = proper evaluation receipt of the finished run (hover: checkpoint, protocol); dev = best W&B validation during training (hover: step)",
-            formatter: (c) => { if (c.getValue() == null) return `<span class="muted">-</span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "rmse", c.getValue());
+            formatter: (c) => { if (c.getValue() == null) return `<span class="muted">— <small>no eval</small></span>`; const pc = c.getData()._r && RB.citedCell(c.getData()._r, "rmse", c.getValue());
               return `<span class="num${pc ? " cited" : ""}"${pc ? ` title="${esc(RB.paperTip(pc))}"` : ""}>${c.getValue().toFixed(4)}</span>${evalpTag(c.getData()._r)}<span class="tag" title="${esc(c.getData().rtip || "")}">${esc(c.getData().rsrc)}</span>`; }}),
           col({title: "MAE", field: "mae", width: 124, responsive: 3, sorter: lastMissing, headerSortStartingDir: "asc",
             // same receipt as RMSE (its DEV/TEST badge applies), so no second badge
