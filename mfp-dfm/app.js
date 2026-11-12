@@ -267,7 +267,7 @@ RB.registry = {
       }
       r.live_state = state; r.steps = {...r.steps, done: w.step ?? (r.steps || {}).done, cap: w.total ?? (r.steps || {}).cap};
       const activity = [...(r.attempts || [])].reverse().find(a => a.ended_at || a.heartbeat_at || a.started_at);
-      r.modified_at = w.heartbeat_at || (activity && (activity.ended_at || activity.heartbeat_at || activity.started_at)) || w.started_at || r.modified_at || null;
+      r.modified_at = (w.state === "running" && !w.heartbeat_at ? new Date().toISOString() : w.heartbeat_at) || (activity && (activity.ended_at || activity.heartbeat_at || activity.started_at)) || w.started_at || r.modified_at || null;
       // a row the static build does not know (runs started on rentals) gets its details from the registry, so its expanded view is complete
       if (r.source === "registry") Object.assign(r, {
         stage: /^ABL-/.test(w.run_id) ? "ablation" : /^P2-|^S2-/.test(w.run_id) ? "fine-tuning" : r.stage || "",
