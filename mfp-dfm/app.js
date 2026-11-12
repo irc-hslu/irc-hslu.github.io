@@ -265,7 +265,9 @@ RB.registry = {
         else (r.attempts = r.attempts || []).push(att);
         r.status = status;
       }
-      r.live_state = state; r.steps = {...r.steps, done: w.step, cap: w.total}; r.modified_at = w.updated_at;
+      r.live_state = state; r.steps = {...r.steps, done: w.step ?? (r.steps || {}).done, cap: w.total ?? (r.steps || {}).cap};
+      const activity = [...(r.attempts || [])].reverse().find(a => a.ended_at || a.heartbeat_at || a.started_at);
+      r.modified_at = w.heartbeat_at || (activity && (activity.ended_at || activity.heartbeat_at || activity.started_at)) || w.started_at || r.modified_at || null;
       // a row the static build does not know (runs started on rentals) gets its details from the registry, so its expanded view is complete
       if (r.source === "registry") Object.assign(r, {
         stage: /^ABL-/.test(w.run_id) ? "ablation" : /^P2-|^S2-/.test(w.run_id) ? "fine-tuning" : r.stage || "",
@@ -374,7 +376,9 @@ RB.registry = {
         if (Date.now() - new Date(w.heartbeat_at) < 30 * 60e3) q.reachable = true;
         q.running = q.running || [];
         // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
-        if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.kind === "eval" || /^(EVAL|ZS)-/.test(w.run_id) ? {eval: true} : w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at, started: w.started_at, span: i ? 0 : keys.length, ghost: i > 0});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
+        const existing = q.running.find(j => j.run_id === w.run_id);
+        if (existing && w.step != null) existing.step = Math.max(existing.step || 0, w.step);
+        if (!existing) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.kind === "eval" || /^(EVAL|ZS)-/.test(w.run_id) ? {eval: true} : w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at, started: w.started_at, span: i ? 0 : keys.length, ghost: i > 0});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
       });
     }
     D.backlog = D.backlog || [];
@@ -550,6 +554,7 @@ const runLabels = (r) => {
   if (/medium/i.test(noiseText)) noise='medium'; else if (/lower/i.test(noiseText)) noise='lower'; else if (/lidar[-_ ]?low[-_ ]?native|lidar_low|\blidar\b/i.test(noiseText)) noise='LiDAR';
   else if (/(?:^|[-_ ])low(?:[-_ ]|$)/i.test(noiseText)) noise='low'; else if (/(?:^|[-_ ])none(?:[-_ ]|$)/i.test(noiseText)) noise='none';
   if (['ARKitScenes','ScanNet++'].includes(dataset) && (noise === 'other' || noise === 'none')) noise='LiDAR';
+  if (RB.isEval(r) && init === 'none') init='—';
   return {model,init,dataset,noise};
 };
 
@@ -701,7 +706,7 @@ document.addEventListener("alpine:init", () => {
     rows(realOnly) {
       const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: runLabels(r).model, init: runLabels(r).init,
         pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: runLabels(r).dataset, noise: runLabels(r).noise, status: /diverg/i.test(r.notes || "") && r.status === "failed" ? "stopped (diverged)" : r.status,
-        rmse: rmse(r)[0], rsrc: rmse(r)[1], rtip: srcTip(r), mae: mae(r)[0], msrc: mae(r)[1], steps: RB.isEval(r) ? null : (r.steps || {}).done ?? null, cap: RB.isEval(r) ? null : (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
+        rmse: rmse(r)[0], rsrc: rmse(r)[1], rtip: srcTip(r), mae: mae(r)[0], msrc: mae(r)[1], steps: RB.isEval(r) ? null : (Object.values(this.D.queues || {}).flatMap(q => q.running || []).find(j => j.run_id === r.id && j.step != null)?.step ?? (r.steps || {}).done ?? null), cap: RB.isEval(r) ? null : (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
         modified_at: r.modified_at || null, _r: r}));
       if (realOnly || !this.all) return real;
       const grid = real.filter((x) => this.inGrid(x));  // toggle on: exactly the paper grid (other real rows hidden)
@@ -902,7 +907,7 @@ document.addEventListener("alpine:init", () => {
         ["Last update", RB.relTime((p && p.updated) || att.heartbeat_at || (r && r.modified_at) || src.updated, this.now)]].filter(([, v]) => v);
       return {key: kind + ":" + (id || src.name) + ":" + (i || 0), kind, id, stage, label: this.STAGE[stage] || stage, pos: kind === "queued" ? i + 1 : 0,
       name, isEval: RB.isEval(r || {id: id || src.name, kind: src.kind}) || !!(src.budget && src.budget.eval), cotenant: !!src.cotenant, live: !!src.live, unmapped: (kind === "running" || kind === "queued") && !r,
-        chips: this.chips((r && r.model !== "Other" && r.model) || (kind === "backlog" ? src.model : p && p.model) || fam,
+        chips: this.chips(runLabels({...(r || {}), id: id || src.name, model: (r && r.model !== "Other" && r.model) || (kind === "backlog" ? src.model : p && p.model) || fam}).model,
           (kind === "backlog" ? src.dataset : p && p.dataset) || (r && r.dataset), (kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise)),
         tips: ["", "", ((kind === "backlog" ? src.noise : p && p.noise) || (r && r.noise) || "") + ""],  // full preset text behind the short chip
         waits: kind === "plan" ? src.waits_for || src.unlock_event || "" : kind === "backlog" ? src.waits_for : "",
