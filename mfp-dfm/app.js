@@ -395,7 +395,7 @@ RB.registry = {
       keys.forEach((key, i) => {
         const q = D.queues[key]; if (!q) return;
         q.queued = q.queued || [];
-        if (!q.queued.some((j) => j.run_id === w.run_id)) q.queued.push({name: w.run_id, run_id: w.run_id, budget: w.total ? {steps: w.total} : {}, span: i ? 0 : keys.length, ghost: i > 0});
+        if (!q.queued.some((j) => j.run_id === w.run_id)) q.queued.push({name: w.run_id, run_id: w.run_id, waits_for: w.notes || "", budget: w.total ? {steps: w.total} : {}, span: i ? 0 : keys.length, ghost: i > 0});
       });
     }
   },
