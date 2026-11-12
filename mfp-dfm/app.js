@@ -98,8 +98,8 @@ const RB = (() => {
     smoke: "flask-conical", stale: "clock", superseded: "archive", reviewed: "check", "host-tested": "flask-conical", built: "package",
     "not planned": ""};
   /** Canonical value order per key (unknown values follow, alphabetically). */
-  const ORDER = {dataset: ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"], noise: ["lidar_low", "lower", "low", "none"],
-    model: ["PromptDA-B", "PromptDA-L", "PromptDA-S", "Ours_SV", "Ours_MV2", "Ours_MV3"],
+  const ORDER = {dataset: ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"], noise: ["none", "LiDAR", "lower", "low", "medium", "other"],
+    model: ["PromptDA-B", "PromptDA-L", "PromptDA-S", "Ours_SF", "Ours_MF", "Ours_SF-L", "Ours_MF-L", "MSPF", "DA-V2", "MapAnything"],
     status: ["running", "paused", "queued", "planned", "failed", "succeeded", "cancelled", "stopped", "stale", "superseded", "not planned"]};
   const initRank = (v) => { if (!v || v === "clean") return "0"; const [f, d, par] = String(v).split("_");
     return `${"psm".indexOf(f[0]) + 1}${["hs", "spp", "as", "th"].indexOf(d) + 1 || 9}${par ? 1 : 0}${v}`; };
@@ -521,6 +521,31 @@ const evalpTag = (r) => (r && r.row && r.row.evalp ? ' <span class="tag" title="
 let RUNS_TABLE = null, RUNS_EL = null;  // the Tabulator instance (kept out of Alpine's reactive state)
 const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => x.host); return a ? a.host : ""; };
 
+// Canonical labels for the runs table; raw provenance remains on the source row.
+const runLabels = (r) => {
+  const id = String(r.id || ''), title = String(r.title || ''), raw = String(r.model || ''), text = `${id} ${title} ${raw}`;
+  let model = raw;
+  if (/SCALE[-_].*SF[-_]L|ours[ _-]sf[-_]l/i.test(text)) model = 'Ours_SF-L';
+  else if (/SCALE[-_].*MF[-_]L|ours[ _-]mf[-_]l/i.test(text)) model = 'Ours_MF-L';
+  else if (/promptda[-_ ]?l\b/i.test(text)) model = 'PromptDA-L';
+  else if (/promptda[-_ ]?b\b|(?:^|[-_:])PDA[-_]?B(?:[-_ :]|$)/i.test(text)) model = 'PromptDA-B';
+  else if (/ours[ _-](?:sv|sf)|mfp[-_](?:sv|sf)|(?:^|[-_:])(?:sv|sf)(?:[-_:]|$)/i.test(text)) model = 'Ours_SF';
+  else if (/ours[ _-](?:mv\d*|mf)|mfp[-_](?:mv|mf)|(?:^|[-_:])(?:mv\d*|mf|abl[-_].*ref)(?:[-_:]|$)/i.test(text)) model = 'Ours_MF';
+  else if (/mapanything/i.test(text)) model = 'MapAnything';
+  else if (/mspf/i.test(text)) model = 'MSPF';
+  else if (/dav2|da[-_ ]?v2|depth anything v2/i.test(text)) model = 'DA-V2';
+  const parents = {clean:'No trained parent',pda_hs:'P1 Hypersim PromptDA-B',sv_hs:'P1 Hypersim SF',mv_hs:'P1 Hypersim MF',sv_hs_par:'P1 Hypersim SF (parallel)',mv_hs_par:'P1 Hypersim MF (parallel)',sv_spp:'Stage-1 ScanNet++ SF',pda_spp:'Stage-1 ScanNet++ PromptDA-B'};
+  const ri=String(r.init || ''); let init=parents[ri] || ri || '—';
+  if (/6854d6e3/i.test(ri)) init='P1 Hypersim SF'; else if (/1d66d691/i.test(ri)) init='P1 Hypersim MF'; else if (/\b[0-9a-f]{8,}\b/i.test(ri)) init='Other pretrained parent';
+  let dataset=String(r.dataset || '—');
+  if (/arkit/i.test(`${dataset} ${id}`)) dataset='ARKitScenes'; else if (/scannet|(?:^|[-_:])spp(?:[-_:]|$)/i.test(`${dataset} ${id}`)) dataset='ScanNet++';
+  else if (/thuman|(?:^|[-_:])th[-_]/i.test(`${dataset} ${id}`)) dataset=/thuman[_-]?512|512x512/i.test(text)?'THuman_512':'THuman';
+  const noiseText=`${r.noise || ''} ${id} ${title}`; let noise='other';
+  if (/medium/i.test(noiseText)) noise='medium'; else if (/lower/i.test(noiseText)) noise='lower'; else if (/lidar[-_ ]?low[-_ ]?native|lidar_low|\blidar\b/i.test(noiseText)) noise='LiDAR';
+  else if (/(?:^|[-_ ])low(?:[-_ ]|$)/i.test(noiseText)) noise='low'; else if (/(?:^|[-_ ])none(?:[-_ ]|$)/i.test(noiseText)) noise='none';
+  return {model,init,dataset,noise};
+};
+
 document.addEventListener("alpine:init", () => {
   /** Root component: data (decrypted once), password gate, header, hash routes #/runs and #/queues, run-names modal. */
   Alpine.data("app", () => {
@@ -667,8 +692,8 @@ document.addEventListener("alpine:init", () => {
       return out;
     },
     rows(realOnly) {
-      const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: this.canon(r), init: r.init || "—",
-        pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: r.dataset, noise: r.noise, status: r.status,
+      const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: runLabels(r).model, init: runLabels(r).init,
+        pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: runLabels(r).dataset, noise: runLabels(r).noise, status: r.status,
         rmse: rmse(r)[0], rsrc: rmse(r)[1], rtip: srcTip(r), mae: mae(r)[0], msrc: mae(r)[1], steps: RB.isEval(r) ? null : (r.steps || {}).done ?? null, cap: RB.isEval(r) ? null : (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
         modified_at: r.modified_at || null, _r: r}));
       if (realOnly || !this.all) return real;
