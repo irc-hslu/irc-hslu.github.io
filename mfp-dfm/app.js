@@ -546,7 +546,7 @@ const runLabels = (r) => {
   else if (/dav2|da[-_ ]?v2|depth anything v2/i.test(text)) model = 'DA-V2';
   const parents = {clean:'none',pda_hs:'P1 Hypersim PromptDA-B',sv_hs:'P1 Hypersim SF',mv_hs:'P1 Hypersim MF',sv_hs_par:'P1 Hypersim SF (parallel)',mv_hs_par:'P1 Hypersim MF (parallel)',sv_spp:'Stage-1 ScanNet++ SF',pda_spp:'Stage-1 ScanNet++ PromptDA-B'};
   const ri=String(r.init || ''); let init=parents[ri] || ri || 'none';
-  if (/6854d6e3/i.test(ri)) init='P1 Hypersim SF'; else if (/1d66d691/i.test(ri)) init='P1 Hypersim MF'; else if (/\b[0-9a-f]{8,}\b/i.test(ri)) init='Other pretrained parent';
+  if (/6854d6e3/i.test(ri)) init='P1 Hypersim SF'; else if (/1d66d691/i.test(ri)) init='P1 Hypersim MF'; else if (/9c874d2a/i.test(ri)) init='Hypersim MF, low'; else if (/c0fc250a/i.test(ri)) init='Hypersim SF, low'; else if (/d62bf46e/i.test(ri)) init='Hypersim PromptDA-B, low'; else if (/\b[0-9a-f]{8,}\b/i.test(ri)) init='Other pretrained parent';
   let dataset=String(r.dataset || '—');
   if (/arkit/i.test(`${dataset} ${id}`)) dataset='ARKitScenes'; else if (/scannet|(?:^|[-_:])spp(?:[-_:]|$)/i.test(`${dataset} ${id}`)) dataset='ScanNet++';
   else if (/thuman|(?:^|[-_:])th[-_]/i.test(`${dataset} ${id}`)) dataset=/thuman[_-]?512|512x512/i.test(text)?'THuman_512':'THuman';
