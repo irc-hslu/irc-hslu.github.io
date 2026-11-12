@@ -99,7 +99,7 @@ const RB = (() => {
     "not planned": ""};
   /** Canonical value order per key (unknown values follow, alphabetically). */
   const ORDER = {dataset: ["Hypersim", "ScanNet++", "ARKitScenes", "THuman"], noise: ["none", "LiDAR", "lower", "low", "medium", "other"],
-    model: ["PromptDA-B", "PromptDA-L", "PromptDA-S", "Ours_SF", "Ours_MF", "Ours_SF-L", "Ours_MF-L", "MSPF", "DA-V2", "MapAnything"],
+    model: ["PromptDA-B", "PromptDA-L", "PromptDA-S", "MFP-DFM-SF", "MFP-DFM-MF", "MFP-DFM-SF-L", "MFP-DFM-MF-L", "MSPF", "DA-V2", "MapAnything"],
     status: ["running", "paused", "queued", "planned", "failed", "succeeded", "cancelled", "stopped", "stale", "superseded", "not planned"]};
   const initRank = (v) => { if (!v || v === "clean") return "0"; const [f, d, par] = String(v).split("_");
     return `${"psm".indexOf(f[0]) + 1}${["hs", "spp", "as", "th"].indexOf(d) + 1 || 9}${par ? 1 : 0}${v}`; };
@@ -259,8 +259,7 @@ RB.registry = {
           dataset: this.DATASET[w.dataset] || w.dataset, sft: this.DATASET[w.dataset] || w.dataset, noise: w.preset || "none", attempts: own ? carried : [...carried, att], status, notes: w.notes, rkind: w.kind, started_at: w.started_at};
         if (carriedRow) r.row = carriedRow;
         D.runs.push(r); byId.set(r.id, r);
-      } else if (!(this.ACTIVE.includes(w.state) || r.status === "running")) continue;
-      else {
+      } else {
         const a = [...(r.attempts || [])].reverse().find((x) => w.wandb_id && x.wandb_id === w.wandb_id) || [...(r.attempts || [])].reverse().find((x) => x.status !== "smoke");
         if (a) { Object.assign(a, {status, heartbeat_at: w.heartbeat_at || a.heartbeat_at, metrics: {...a.metrics, step: w.step ?? (a.metrics || {}).step, max_steps: w.total ?? (a.metrics || {}).max_steps}}); }
         else (r.attempts = r.attempts || []).push(att);
@@ -279,6 +278,8 @@ RB.registry = {
         notes: w.notes || r.notes});
       if (row && (!r.row || r.source === "registry")) r.row = row;
       if (w.eval && !r.test_full) r.test_full = w.eval;
+      if (w.eval && w.eval.mae != null && w.eval.rmse != null && /test/i.test(w.eval.cohort || w.eval.protocol || ""))
+        r.row = {mae:w.eval.mae, rmse:w.eval.rmse, src:"eval", tip:`test: ${w.eval.receipt || "registry"}`};
     }
     D.registry_events = live.events;
     // every attempt with a W&B id links to its run page (registry rows carry the id only; all runs log to charisoudis/metricsplat)
@@ -292,7 +293,7 @@ RB.registry = {
     for (const e of live.evals || []) if (!pick.has(e.run_id)) { const r = byId.get(e.run_id); if (r && !(r.row && r.row.src === "eval")) pick.set(e.run_id, e); }  // newest first
     for (const [id, e] of pick) {
       const r = byId.get(id), m = e.metrics || {};
-      if (!r || m.mae == null || m.rmse == null) continue;
+      if (!r || m.mae == null || m.rmse == null || (r.row && r.row.src === "eval" && (r.row.tip || "").startsWith("test:"))) continue;
       const evalp = e.protocol === "promptda_reimpl_author_mesh";  // PromptDA evaluation protocol (ScanNet++ default): tagged EVALP
       r.row = {rmse: m.rmse, mae: m.mae, src: "eval", evalp, tip: `eval: ${e.cohort} (${e.geometry}${e.frames ? ", " + e.frames + " frames" : ""}), registry${evalp ? "; EVALP = PromptDA evaluation protocol" : ""}`};
     }
@@ -375,6 +376,11 @@ RB.registry = {
         // shortcut: a run that leaves running stays in its lane until the page reloads, the static build replaces it then
         if (!q.running.some((j) => j.run_id === w.run_id)) q.running.push({name: w.run_id, run_id: w.run_id, budget: w.kind === "eval" || /^(EVAL|ZS)-/.test(w.run_id) ? {eval: true} : w.total ? {steps: w.total} : {}, step: w.step, heartbeat_at: w.heartbeat_at, started: w.started_at, span: i ? 0 : keys.length, ghost: i > 0});  // card() reads budget.steps for the bar and total; the lane line reads step, heartbeat_at
       });
+    }
+    D.backlog = D.backlog || [];
+    for (const w of (live.runs || []).filter(x => x.state === "planned" && !x.host)) {
+      if (!D.backlog.some(x => (x.id || x.run_id || x.name) === w.run_id))
+        D.backlog.push({id:w.run_id, run_id:w.run_id, name:w.run_id, title:w.run_id, notes:w.notes || "Waiting for a host", waits_for:w.notes || "Waiting for a host", budget:{eval:w.kind === "eval"}});
     }
     // planned registry runs with a host and queue_pos are the next runs of that GPU (pair), in queue_pos order;
     // a GPU pair ('vast_bg.gpu2-3') spans its columns like a running run; a run already in the static plan is not repeated
@@ -525,17 +531,17 @@ const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => 
 const runLabels = (r) => {
   const id = String(r.id || ''), title = String(r.title || ''), raw = String(r.model || ''), text = `${id} ${title} ${raw}`;
   let model = raw;
-  if (/SCALE[-_].*SF[-_]L|ours[ _-]sf[-_]l/i.test(text)) model = 'Ours_SF-L';
-  else if (/SCALE[-_].*MF[-_]L|ours[ _-]mf[-_]l/i.test(text)) model = 'Ours_MF-L';
+  if (/SCALE[-_].*SF[-_]L|ours[ _-]sf[-_]l/i.test(text)) model = 'MFP-DFM-SF-L';
+  else if (/SCALE[-_].*MF[-_]L|ours[ _-]mf[-_]l/i.test(text)) model = 'MFP-DFM-MF-L';
   else if (/promptda[-_ ]?l\b/i.test(text)) model = 'PromptDA-L';
   else if (/promptda[-_ ]?b\b|(?:^|[-_:])PDA[-_]?B(?:[-_ :]|$)/i.test(text)) model = 'PromptDA-B';
-  else if (/ours[ _-](?:sv|sf)|mfp[-_](?:sv|sf)|(?:^|[-_:])(?:sv|sf)(?:[-_:]|$)/i.test(text)) model = 'Ours_SF';
-  else if (/ours[ _-](?:mv\d*|mf)|mfp[-_](?:mv|mf)|(?:^|[-_:])(?:mv\d*|mf|abl[-_].*ref)(?:[-_:]|$)/i.test(text)) model = 'Ours_MF';
+  else if (/ours[ _-](?:sv|sf)|mfp[-_](?:sv|sf)|(?:^|[-_:])(?:sv|sf)(?:[-_:]|$)/i.test(text)) model = 'MFP-DFM-SF';
+  else if (/ours[ _-](?:mv\d*|mf)|mfp[-_](?:mv|mf)|(?:^|[-_:])(?:mv\d*|mf|abl[-_].*ref)(?:[-_:]|$)/i.test(text)) model = 'MFP-DFM-MF';
   else if (/mapanything/i.test(text)) model = 'MapAnything';
   else if (/mspf/i.test(text)) model = 'MSPF';
   else if (/dav2|da[-_ ]?v2|depth anything v2/i.test(text)) model = 'DA-V2';
-  const parents = {clean:'No trained parent',pda_hs:'P1 Hypersim PromptDA-B',sv_hs:'P1 Hypersim SF',mv_hs:'P1 Hypersim MF',sv_hs_par:'P1 Hypersim SF (parallel)',mv_hs_par:'P1 Hypersim MF (parallel)',sv_spp:'Stage-1 ScanNet++ SF',pda_spp:'Stage-1 ScanNet++ PromptDA-B'};
-  const ri=String(r.init || ''); let init=parents[ri] || ri || '—';
+  const parents = {clean:'none',pda_hs:'P1 Hypersim PromptDA-B',sv_hs:'P1 Hypersim SF',mv_hs:'P1 Hypersim MF',sv_hs_par:'P1 Hypersim SF (parallel)',mv_hs_par:'P1 Hypersim MF (parallel)',sv_spp:'Stage-1 ScanNet++ SF',pda_spp:'Stage-1 ScanNet++ PromptDA-B'};
+  const ri=String(r.init || ''); let init=parents[ri] || ri || 'none';
   if (/6854d6e3/i.test(ri)) init='P1 Hypersim SF'; else if (/1d66d691/i.test(ri)) init='P1 Hypersim MF'; else if (/\b[0-9a-f]{8,}\b/i.test(ri)) init='Other pretrained parent';
   let dataset=String(r.dataset || '—');
   if (/arkit/i.test(`${dataset} ${id}`)) dataset='ARKitScenes'; else if (/scannet|(?:^|[-_:])spp(?:[-_:]|$)/i.test(`${dataset} ${id}`)) dataset='ScanNet++';
@@ -543,6 +549,7 @@ const runLabels = (r) => {
   const noiseText=`${r.noise || ''} ${id} ${title}`; let noise='other';
   if (/medium/i.test(noiseText)) noise='medium'; else if (/lower/i.test(noiseText)) noise='lower'; else if (/lidar[-_ ]?low[-_ ]?native|lidar_low|\blidar\b/i.test(noiseText)) noise='LiDAR';
   else if (/(?:^|[-_ ])low(?:[-_ ]|$)/i.test(noiseText)) noise='low'; else if (/(?:^|[-_ ])none(?:[-_ ]|$)/i.test(noiseText)) noise='none';
+  if (['ARKitScenes','ScanNet++'].includes(dataset) && (noise === 'other' || noise === 'none')) noise='LiDAR';
   return {model,init,dataset,noise};
 };
 
@@ -693,7 +700,7 @@ document.addEventListener("alpine:init", () => {
     },
     rows(realOnly) {
       const real = this.base().map((r) => ({id: r.id, title: r.display_name || r.title, model: runLabels(r).model, init: runLabels(r).init,
-        pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: runLabels(r).dataset, noise: runLabels(r).noise, status: r.status,
+        pretrain_ds: r.pretrain_ds || (r.init && r.init !== "clean" ? "Hypersim" : "—"), dataset: runLabels(r).dataset, noise: runLabels(r).noise, status: /diverg/i.test(r.notes || "") && r.status === "failed" ? "stopped (diverged)" : r.status,
         rmse: rmse(r)[0], rsrc: rmse(r)[1], rtip: srcTip(r), mae: mae(r)[0], msrc: mae(r)[1], steps: RB.isEval(r) ? null : (r.steps || {}).done ?? null, cap: RB.isEval(r) ? null : (r.steps || {}).cap ?? null, samples: (r.steps || {}).samples ?? null,
         modified_at: r.modified_at || null, _r: r}));
       if (realOnly || !this.all) return real;
