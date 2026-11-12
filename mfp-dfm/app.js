@@ -150,7 +150,7 @@ RB.emptyLane = (h) => {
   if (ps.length) return ps.map((x) => `Running: ${x.label}` + (x.start ? ` \u00b7 ${RB.dur(Date.now() / 1000 - x.start)}` : "")).join("; ");
   const m = /(\d+)\s*%\s*,\s*(\d+)\s*MiB/.exec((h && h.gpu_status) || "");
   if (m && (+m[1] >= 10 || +m[2] >= 1024)) return "Busy (job outside the queue)";
-  if (h && h.idle_reason) return "Waiting: " + h.idle_reason;
+  if (h && h.idle_reason) return h.idle_reason.startsWith("excluded:") ? h.idle_reason : "Waiting: " + h.idle_reason;
   return "IDLE";
 };
 RB.isIdleLane = (h) => RB.emptyLane(h) === "IDLE";
@@ -349,6 +349,7 @@ RB.registry = {
       if (h.kind === "local" && h.gpu_status && h.host !== "cotenants") D.queues[h.host] = D.queues[h.host] || {gpu: "", gpu_label: (RB.HOSTS[h.host] || {}).gpu || "", reachable: true, status: "online", running: [], queued: [], paused: [], failed_recent: [], done_recent: []};
       const q = (D.queues || {})[h.host];
       if (h.kind === "local" && q && h.gpu_status && Date.now() - new Date(h.gpu_status_at) < 30 * 60e3) q.gpu_status = h.gpu_status[0];
+      if (q && (h.notes || "").startsWith("excluded:")) q.idle_reason = h.notes;
     }
     for (const w of live.runs || []) {
       const span = /^(.+)\.gpu(\d+)-(\d+)$/.exec(w.host || "");

@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="style.css?v=cf16a4271c">
 <script src="vendor/tabulator-6.6.1.min.js"></script>
 <script src="vendor/lucide-1.59.0-icons.js"></script>
-<script src="app.js?v=cd55dbda69"></script>
+<script src="app.js?v=34705f2bff"></script>
 <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="app" x-cloak>
@@ -22,7 +22,7 @@
 <div class="wrap" x-show="D">
   <header class="top">
     <div class="brand"><a class="logo" href="#/runs">MFP-DFM Runboard</a>
-      <div class="upd-row"><small class="upd-line" :class="stale() && 'stale'" :title="updated()" x-text="'last updated ' + ago()"></small>
+      <div class="upd-row"><small class="upd-line" :class="!live && stale() && 'stale'" :title="updated()" x-text="'snapshot ' + ago()"></small>
         <small class="upd-line live" x-show="live" :title="liveTip()" x-text="live ? '\u00b7 live ' + RB.relTime(new Date(live.at).toISOString(), now) : ''"></small>
         <small class="upd-line" x-show="syncing" role="status">syncing&hellip;</small>
         <button type="button" class="rl-mini" :class="loading && 'busy'" @click="reload()" :disabled="loading" title="Sync live runs from W&B and reload data" :aria-label="syncing ? 'Syncing runs from W&B' : loading ? 'Reloading data' : 'Reload data'"><span class="rl-ic" x-html="ic('refresh-cw')"></span></button></div></div>
