@@ -535,7 +535,8 @@ const hostOf = (r) => { const a = [...(r.attempts || [])].reverse().find((x) => 
 const runLabels = (r) => {
   const id = String(r.id || ''), title = String(r.title || ''), raw = String(r.model || ''), text = `${id} ${title} ${raw}`;
   let model = raw;
-  if (/SCALE[-_].*SF[-_]L|ours[ _-]sf[-_]l/i.test(text)) model = 'MFP-DFM-SF-L';
+  if (/^MapAnything\b/i.test(raw)) model = 'MapAnything';
+  else if (/SCALE[-_].*SF[-_]L|ours[ _-]sf[-_]l/i.test(text)) model = 'MFP-DFM-SF-L';
   else if (/SCALE[-_].*MF[-_]L|ours[ _-]mf[-_]l/i.test(text)) model = 'MFP-DFM-MF-L';
   else if (/promptda[-_ ]?l\b/i.test(text)) model = 'PromptDA-L';
   else if (/promptda[-_ ]?b\b|(?:^|[-_:])PDA[-_]?B(?:[-_ :]|$)/i.test(text)) model = 'PromptDA-B';
